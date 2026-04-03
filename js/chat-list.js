@@ -924,7 +924,7 @@ document.addEventListener('keydown', e => {
   // Не перехватывать если открыт модал, эмодзи-пикер или контекстное меню
   if (document.querySelector('.overlay.on')) return;
   if (document.querySelector('.epicker.on')) return;
-  if (document.querySelector('.ctxmenu')) return;
+  if (document.querySelector('.ctxmenu.on') || document.querySelector('#chat-ctxmenu.on')) return;
 
   // 1. Если редактируем сообщение — отменить
   if (typeof editingMsgId !== 'undefined' && editingMsgId) {

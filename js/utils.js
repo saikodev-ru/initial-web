@@ -226,10 +226,15 @@ function aviHtml(name,url){
 
     // Image is invisible until fully loaded — shimmer is the only visible element.
     // data-url stored for colour cache keying.
-    const img='<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" '
-      +'style="width:100%;height:100%;object-fit:cover;display:block;position:relative;opacity:0" '
-      +'onload="_aviLoaded(this)" onerror="_aviErr(this)">';
-
+    const isGif = /\.gif(?:\?|#|$)/i.test(fullUrl);
+    let img;
+    if (isGif) {
+      img = '<canvas data-gif-url="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" style="width:100%;height:100%;object-fit:cover;display:block;position:relative;border-radius:inherit" onload="this._gifInit||_gifCanvasInit(this)" onerror="_aviErr(this)"></canvas>';
+    } else {
+      img = '<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" '
+        +'style="width:100%;height:100%;object-fit:cover;display:block;position:relative;opacity:0" '
+        +'onload="_aviLoaded(this)" onerror="_aviErr(this)">';
+    }
     return shimmer+img;
   }
   return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:'+fallback+';color:#fff;">'+ini+'</div>';
@@ -254,6 +259,91 @@ function applyBlurredAvatarBg(containerId, name, url) {
   }
   bg.innerHTML = '';
 }
+
+/* ══ GIF AVATAR SYNC ═══════════════════════════════════════════════
+   One hidden <img> per GIF URL + rAF loop paints frames to all
+   visible <canvas> elements — prevents desync between chat list
+   and chat header. ═══════════════════════════════════════════════ */
+const _gifSources = new Map(); // url → { img, canvases: Set<canvas> }
+let _gifRafId = null;
+
+function _gifLoop() {
+  _gifSources.forEach((entry) => {
+    entry.canvases.forEach((cv) => {
+      if (!cv.isConnected) { entry.canvases.delete(cv); return; }
+      try {
+        const ctx = cv.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, cv.width, cv.height);
+          ctx.drawImage(entry.img, 0, 0, cv.width, cv.height);
+        }
+      } catch(e) {}
+    });
+    if (entry.canvases.size === 0) entry.img.remove();
+  });
+  // Clean empty entries
+  for (const [url, entry] of _gifSources) {
+    if (entry.canvases.size === 0) _gifSources.delete(url);
+  }
+  _gifRafId = _gifSources.size > 0 ? requestAnimationFrame(_gifLoop) : null;
+}
+
+function _registerGifCanvas(url, canvas) {
+  if (!_gifSources.has(url)) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'position:absolute;width:0;height:0;pointer-events:none;opacity:0;';
+    document.body.appendChild(img);
+    _gifSources.set(url, { img, canvases: new Set() });
+  }
+  _gifSources.get(url).canvases.add(canvas);
+  if (!_gifRafId) _gifRafId = requestAnimationFrame(_gifLoop);
+}
+
+function _unregisterGifCanvas(url, canvas) {
+  const entry = _gifSources.get(url);
+  if (entry) entry.canvases.delete(canvas);
+}
+
+window._registerGifCanvas = _registerGifCanvas;
+window._unregisterGifCanvas = _unregisterGifCanvas;
+
+function _gifCanvasInit(canvas) {
+  canvas._gifInit = true;
+  const url = canvas.dataset.gifUrl;
+  if (!url) return;
+  const entry = _gifSources.get(url);
+  if (entry && entry.img.naturalWidth) {
+    canvas.width = 88;  // 2x for retina
+    canvas.height = 88;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(entry.img, 0, 0, 88, 88);
+    _registerGifCanvas(url, canvas);
+    canvas.style.opacity = '1';
+    // Remove shimmer
+    const shimmer = canvas.parentElement?.querySelector('.av-load-bg');
+    if (shimmer) shimmer.remove();
+    return;
+  }
+  // Source not loaded yet — load it now
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    if (!canvas.isConnected) return;
+    canvas.width = 88;
+    canvas.height = 88;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 88, 88);
+    _registerGifCanvas(url, canvas);
+    canvas.style.opacity = '1';
+    const shimmer = canvas.parentElement?.querySelector('.av-load-bg');
+    if (shimmer) shimmer.remove();
+  };
+  img.onerror = () => { _aviErr(canvas); };
+  img.src = url;
+}
+window._gifCanvasInit = _gifCanvasInit;
+
 
 function fmtText(raw){
   if(!raw)return'';
