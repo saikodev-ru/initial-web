@@ -279,6 +279,8 @@ function showChatCtx(e, c) {
   if(delBtn) delBtn.style.display = (c.is_protected || c.is_saved_msgs) ? 'none' : '';
   const lbl = $('chat-ctx-pin-label');
   if(lbl) lbl.textContent = c.is_pinned ? 'Открепить' : 'Закрепить';
+  const profBtn = $('chat-ctx-profile');
+  if (profBtn) profBtn.style.display = (c.is_saved_msgs || c.is_protected) ? 'none' : '';
   
   const menu = $('chat-ctxmenu');
   menu.style.transition = 'none';
@@ -387,6 +389,41 @@ $('chat-ctx-pin').onclick = () => {
   if(!ctxChat) return; hideChatCtx();
   const chat = ctxChat; ctxChat = null;
   applyPinToggle(chat);
+};
+
+$('chat-ctx-profile').onclick = () => {
+  if (!ctxChat) return; hideChatCtx();
+  if (isSavedMsgs(ctxChat) || isSystemChat(ctxChat)) return;
+  // If we have chat data with partner info, open the profile modal
+  const chatData = ctxChat;
+  if (chatData.chat_id === S.chatId && S.partner) {
+    openPartnerModal();
+  } else {
+    // Open chat first then show profile
+    openProfileModal(chatData, false);
+  }
+  ctxChat = null;
+};
+
+$('chat-ctx-clear').onclick = () => {
+  if (!ctxChat) return; hideChatCtx();
+  const chatId = ctxChat.chat_id;
+  showConfirm('Очистить историю?', 'Все сообщения будут удалены только у вас.', async () => {
+    const res = await api('clear_chat_history', 'POST', { chat_id: chatId });
+    if (res.ok) {
+      S.msgs[chatId] = [];
+      delete S.lastId[chatId];
+      if (typeof cacheDeleteChat === 'function') cacheDeleteChat(chatId);
+      if (S.chatId === chatId) {
+        renderMsgs(chatId);
+      }
+      toast('История очищена');
+    } else {
+      toast(res.message || 'Ошибка', 'err');
+    }
+    ctxChat = null;
+  });
+  ctxChat = null;
 };
 
 $('chat-ctx-del').onclick = () => {
