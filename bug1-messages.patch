@@ -1,0 +1,9 @@
+--- a/js/messages.js
++++ b/js/messages.js
+@@ -594,6 +594,7 @@ function startEdit(m) {
+ }
+ function cancelEdit() {
++  editingMsgId = null;
+   clearField();
+   hideRbar();
+   S.replyTo = null;
