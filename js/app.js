@@ -1037,6 +1037,7 @@ const _bgImgStatus = $('bg-image-status');
 
 function _applyCustomBg(dataUrl) {
   let el = document.getElementById(BG_IMG_EL_ID);
+  const layout = document.querySelector('.layout');
   if (dataUrl) {
     // Show custom bg, hide pattern
     if (!el) {
@@ -1047,11 +1048,22 @@ function _applyCustomBg(dataUrl) {
       if (chatArea) chatArea.prepend(el);
     }
     el.style.backgroundImage = `url(${dataUrl})`;
+    // Also apply to layout so background is visible behind sidebar
+    if (layout) {
+      layout.style.backgroundImage = `url(${dataUrl})`;
+      layout.style.backgroundSize = 'cover';
+      layout.style.backgroundPosition = 'center';
+    }
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
   } else {
     if (el) el.remove();
+    if (layout) {
+      layout.style.backgroundImage = '';
+      layout.style.backgroundSize = '';
+      layout.style.backgroundPosition = '';
+    }
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
