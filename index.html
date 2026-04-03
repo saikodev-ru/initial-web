@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<script>
+(function(){
+  fetch(location.pathname,{method:'HEAD',cache:'no-store'})
+    .then(function(r){
+      var v=r.headers.get('etag')||r.headers.get('last-modified');
+      if(!v)return;
+      var key='_sv';
+      var prev=localStorage.getItem(key);
+      if(prev&&prev!==v){localStorage.setItem(key,v);location.reload(true);}
+      else if(!prev)localStorage.setItem(key,v);
+    })
+    .catch(function(){});
+})();
+</script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+
+<meta name="theme-color" content="#111111">
+<meta name="mobile-web-app-capable" content="yes">
+
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Сообщения — Initial</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect width='48' height='48' rx='12' fill='%238b5cf6'/><path d='M24 8C15.163 8 8 14.477 8 22.5c0 4.197 1.888 7.997 4.973 10.8-.42 2.466-1.533 4.825-3.06 6.45 2.954-.268 6.423-1.4 8.956-3.317A18.14 18.14 0 0024 37c8.837 0 16-6.477 16-14.5S32.837 8 24 8z' fill='white'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="preload" href="assets/emoji.ttf" as="font" type="font/ttf" crossorigin>
+
+
+<script>
+/* ══ SPLASH ERROR HANDLER ════════════════════════════════════ */
+window._splashError = false;
+
+window.addEventListener('error', function(e) {
+  if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+    window._splashError = true;
+    var src = e.target.src || e.target.href || '';
+    var file = src.split('/').pop() || 'неизвестный файл';
+    showSplashError('Ошибка загрузки ресурсов (' + file + ')');
+  } else if (e.message) {
+    window._splashError = true;
+    showSplashError('Ошибка: ' + e.message);
+  }
+}, true);
+
+window.addEventListener('unhandledrejection', function(e) {
+  window._splashError = true;
+  showSplashError('Ошибка: ' + (e.reason ? (e.reason.message || e.reason) : 'Неизвестная ошибка'));
+});
+
+function showSplashError(msg) {
+  var errEl = document.getElementById('splash-err');
+  var progBg = document.querySelector('.splash-progress-bg');
+  if (errEl) { 
+    errEl.style.display = 'block'; 
+    errEl.textContent = msg; 
+    errEl.setAttribute('data-err', msg); 
+  }
+  if (progBg) { progBg.style.display = 'none'; }
+  var splash = document.getElementById('splash');
+  if (splash) { 
+    splash.classList.remove('hiding', 'gone'); 
+    splash.style.opacity = '1'; 
+    splash.style.pointerEvents = 'all'; 
+  }
+}
+
+function copySplashErr(el) {
+  var text = el.getAttribute('data-err') || el.textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    el.textContent = 'Скопировано в буфер обмена';
+    el.classList.add('copied');
+    setTimeout(function() {
+      el.textContent = text;
+      el.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+window.dev = {
+  simulate: {
+    errorcode: function() {
+      window._splashError = true;
+      showSplashError('Simulated Error 0xDEADBEEF: Failed to fetch critical resources.');
+    }
+  }
+};
+
+/* ══ РЕАЛЬНЫЙ ПРОГРЕСС КЕШИРОВАНИЯ ══════════════════════════
+   Единственный сигнал к запуску — CACHE_PROGRESS с done:true.
+   SW_ACTIVE лишь говорит «я жив» — мы в ответ спрашиваем статус.
+   ════════════════════════════════════════════════════════════ */
+window._swCacheDone  = false;   // SW сообщил: всё закешировано
+window._swSupported  = 'serviceWorker' in navigator;
+
+function _setSplashProgress(pct) {
+  var el = document.getElementById('splash-name-fill');
+  if (!el) return;
+  var cur = parseFloat(el.style.width) || 0;
+  if (pct > cur) {
+    el.style.width = pct + '%';
+  }
+}
+
+if (window._swSupported) {
+  // Слушаем прогресс ДО регистрации SW (сообщение может прийти сразу)
+  navigator.serviceWorker.addEventListener('message', function(e) {
+    if (!e.data) return;
+
+    if (e.data.type === 'CACHE_PROGRESS') {
+      _setSplashProgress(e.data.progress);
+      // Единственное место где разрешаем boot
+      if (e.data.done || e.data.progress >= 100) {
+        window._swCacheDone = true;
+        window.dispatchEvent(new Event('sw-cache-done'));
+      }
+    }
+
+    if (e.data.type === 'SW_ACTIVE') {
+      // SW активен — спрашиваем реальный статус кеша, не доверяем слепо
+      var ctrl = navigator.serviceWorker.controller;
+      if (ctrl) {
+        ctrl.postMessage({ type: 'GET_STATUS' });
+      } else {
+        // Нет контроллера — SW только что взял управление, кеш уже был проверен при install
+        window._swCacheDone = true;
+        _setSplashProgress(100);
+        window.dispatchEvent(new Event('sw-cache-done'));
+      }
+    }
+  });
+
+  // Регистрируем SW сразу — не ждём load
+  navigator.serviceWorker.register('sw.js').then(function(reg) {
+    // SW уже управляет страницей (повторный визит)
+    if (navigator.serviceWorker.controller) {
+      // Спросим реальный статус кеша
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_STATUS' });
+    }
+    // SW только что установлен и начинает кешировать
+    if (reg.installing) {
+      _setSplashProgress(5);
+    }
+    // SW зарегистрирован но ещё не взял управление (waiting)
+    // — прогресс придёт через CACHE_PROGRESS сообщения
+  }).catch(function() {
+    // SW не поддерживается или заблокирован — грузимся без проверки
+    window._swCacheDone = true;
+    window.dispatchEvent(new Event('sw-cache-done'));
+  });
+
+  // Аварийный таймаут: только если SW вообще не ответил ни разу за 4с
+  setTimeout(function() {
+    if (!window._swCacheDone) {
+      console.warn('[splash] SW timeout — forcing boot');
+      window._swCacheDone = true;
+      window.dispatchEvent(new Event('sw-cache-done'));
+    }
+  }, 4000);
+
+} else {
+  // SW не поддерживается — сразу разрешаем boot
+  window._swCacheDone = true;
+}
+
+/* ══ SPLASH GUARD ════════════════════════════════════════════
+   Вешаем класс splash-locked сразу — он блокирует любые
+   попытки скрыть сплеш через CSS !important.
+   Наблюдаем за атрибутами class И style — откатываем оба.
+   Снимаем lock только когда SW подтвердил полный кеш.
+   ════════════════════════════════════════════════════════════ */
+(function() {
+  var splashEl = document.getElementById('splash');
+  if (!splashEl) return;
+
+  // Вешаем lock немедленно — до любого кода app.js
+  splashEl.classList.add('splash-locked');
+
+  function _unlock() {
+    splashEl.classList.remove('splash-locked');
+    observer.disconnect();
+  }
+
+  window.addEventListener('sw-cache-done', _unlock);
+
+  var observer = new MutationObserver(function(mutations) {
+    var needRelock = false;
+    mutations.forEach(function(m) {
+      if (m.attributeName === 'class') {
+        // Allow .hiding class — it means hideSplash was called legitimately
+        if (!splashEl.classList.contains('splash-locked') && !splashEl.classList.contains('hiding')) {
+          needRelock = true;
+        }
+      }
+      if (m.attributeName === 'style') {
+        // app.js попытался скрыть через inline style — revert ONLY if not in hiding state
+        if (!splashEl.classList.contains('hiding')) {
+          var s = splashEl.style;
+          if (s.display === 'none' || s.opacity === '0' ||
+              parseFloat(s.opacity) < 0.5) {
+            s.display = '';
+            s.opacity = '';
+            s.pointerEvents = '';
+            s.transform = '';
+          }
+        }
+      }
+    });
+    if (needRelock) splashEl.classList.add('splash-locked');
+  });
+
+  observer.observe(splashEl, {
+    attributes: true,
+    attributeFilter: ['class', 'style']
+  });
+})();
+</script>
+<script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+<body>
+<div id="splash">
+  <div class="splash-inner" style="gap: 16px;">
+    <div class="splash-name-wrap">
+      <div class="splash-name-base" id="splash-name-base" data-text="Initial">Initial</div>
+      <div class="splash-name-fill" id="splash-name-fill" data-text="Initial">Initial</div>
+    </div>
+    <div id="splash-err" class="splash-err" style="display:none;" onclick="copySplashErr(this)"></div>
+  </div>
+  <div class="splash-footer">
+    <div class="splash-ver" id="splash-ver"></div>
+    <div class="splash-author">saiko.dev laboratories</div>
+  </div>
+</div>
+<div id="scr-auth" class="screen hidden">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-name">Initial.</div>
+    </div>
+
+    <div class="auth-steps-wrap">
+
+      <div class="auth-step" id="st-email">
+        <div class="auth-title">Вход в Initial</div>
+        <div class="auth-sub">Введите email — пришлём одноразовый код</div>
+        <div class="err-box" id="e-email"></div>
+        <div class="field"><input type="email" id="inp-email" placeholder="Ваш email" autocomplete="email"></div>
+        <button class="btn" id="btn-code" style="margin-top:10px">Продолжить</button>
+        <button class="auth-alt-link" style="margin-top:20px" onclick="goStep('qr')">ВОЙТИ ПО QR-КОДУ</button>
+      </div>
+
+      <div class="auth-step on" id="st-qr">
+        <div id="qr-desktop" style="display:none">
+          <div class="auth-title">Войти по QR-коду</div>
+          <div class="auth-sub">Откройте Initial на телефоне и сканируйте код</div>
+          <div class="qr-canvas-wrap" id="qr-canvas-wrap">
+            <svg width="0" height="0" style="position:absolute">
+              <defs>
+                <linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#a78bfa"/>
+                  <stop offset="100%" stop-color="#7c3aed"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="qr-ring-wrap" id="qr-ring-wrap">
+              <div class="qr-frame" id="qr-frame">
+                <div id="qr-canvas"></div>
+                <!-- Skeleton overlay — fades out when real QR is ready -->
+                <div class="qr-skel-overlay" id="qr-skel-overlay">
+                  <div class="qr-skel-canvas" id="qr-skel-canvas"></div>
+                  <div class="qr-skel-shimmer"></div>
+                </div>
+                <div class="qr-state-overlay" id="qr-state-overlay"></div>
+              </div>
+              <svg class="qr-ring-svg" id="qr-ring-svg" viewBox="0 0 296 296" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path class="qr-ring-bg"       d="M148,3 H271 a22,22 0 0 1 22,22 V271 a22,22 0 0 1 -22,22 H25 a22,22 0 0 1 -22,-22 V25 a22,22 0 0 1 22,-22 H148"/>
+                <path class="qr-ring-progress" id="qr-ring-progress" d="M148,3 H271 a22,22 0 0 1 22,22 V271 a22,22 0 0 1 -22,22 H25 a22,22 0 0 1 -22,-22 V25 a22,22 0 0 1 22,-22 H148"/>
+              </svg>
+            </div>
+            <div class="qr-hint" id="qr-hint">Обновляется каждые 3 минуты</div>
+          </div>
+          <div id="qr-err"></div>
+          <button class="auth-alt-link" style="margin-top:20px" onclick="goStep('email')">ВОЙТИ ПО EMAIL</button>
+
+        </div>
+
+        <div id="qr-mobile" style="display:none">
+          <div class="auth-title">Добро пожаловать</div>
+          <div class="auth-sub">Наведите камеру на QR-код с компьютера</div>
+          <div class="qr-scan-viewfinder" id="qr-scan-viewfinder">
+            <video id="qr-video" autoplay playsinline muted></video>
+            <canvas id="qr-scan-canvas"></canvas>
+            <div class="qr-scan-frame"><span></span></div>
+            <div class="qr-scan-line"></div>
+            <div class="qr-scan-overlay" id="qr-scan-overlay"></div>
+            <!-- Camera activation prompt — click to open camera -->
+            <div class="qr-cam-prompt" id="qr-cam-prompt">
+              <div class="qr-cam-icon-wrap">
+                <svg class="qr-cam-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                  <circle cx="12" cy="13" r="4"/>
+                </svg>
+              </div>
+              <div class="qr-cam-label">Нажмите для сканирования</div>
+            </div>
+          </div>
+          <div id="qr-scan-err"></div>
+          <div class="qr-scan-status" id="qr-scan-status" style="display:none">Наведите камеру на QR-код</div>
+          <div class="auth-sub" style="font-size:12px;margin-top:8px;opacity:.6;text-align:center">Где взять QR? Откройте Initial Web на компьютере</div>
+          <button class="auth-alt-link" style="margin-top:12px" onclick="goStep('email')">ВОЙТИ ПО EMAIL</button>
+
+        </div>
+      </div>
+
+      <div class="auth-step" id="st-code">
+        <div class="auth-title" id="code-title">Проверьте почту</div>
+        <div class="auth-sub" id="code-desc">Отправили 5-значный код на <b id="code-to"></b></div>
+        <div class="code-via-signal" id="code-via-signal" style="display:none">
+          <div class="via-signal-icon">💬</div>
+          <div class="via-signal-label">Откройте чат с <b>@initial</b> в мессенджере</div>
+        </div>
+        <div class="err-box" id="e-code"></div>
+        <div class="code-row" id="code-row">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+          <input type="text" maxlength="1" inputmode="numeric">
+        </div>
+        <button class="btn" id="btn-verify">Подтвердить</button>
+        <div class="auth-link">Другой email? <span id="btn-back-email">Изменить</span></div>
+        <div class="resend-row" id="resend-row">
+          <span class="resend-timer" id="resend-timer">Повторная отправка через <b id="resend-countdown">15</b> с</span>
+          <span class="resend-btn" id="btn-resend">Отправить код повторно</span>
+        </div>
+        <div class="auth-link" id="code-email-fallback" style="display:none;margin-top:6px">
+          Нет доступа к Initial? <span id="btn-code-email-fallback">Получить код на email</span>
+        </div>
+      </div>
+
+      <div class="auth-step" id="st-prof">
+        <div class="auth-title">Ваш профиль</div>
+        <div class="auth-sub">Как вас будут видеть другие</div>
+        <div class="err-box" id="e-prof"></div>
+        <div class="field"><label>Имя</label><div class="field-wrap"><input type="text" id="inp-name" placeholder="Иван Иванов" maxlength="64"><button class="field-emo-btn" id="btn-emo-name" type="button" title="Эмодзи"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button></div></div>
+        <div class="field"><label>Signal ID</label><input type="text" id="inp-sid" placeholder="ivan_42" maxlength="50"></div>
+        <button class="btn" id="btn-saveprof">Начать</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="scr-app" class="screen hidden">
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-head" id="sb-head">
+        <!-- ── Expanded header ── -->
+        <div class="sb-expanded-only">
+          <div class="sb-top">
+            <div class="sb-logo"><span class="sb-title" id="sb-title">Сообщения</span></div>
+            <div class="sb-acts">
+              <button class="ico-btn btn-collapse-sb" id="btn-collapse-sb" title="Свернуть"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg></button>
+              <button class="ico-btn btn-sb-close" id="btn-sb-close" title="Закрыть поиск"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+          </div>
+          <div class="sb-search-row" id="sb-search-row">
+            <div class="srch" style="flex:1">
+              <div class="srch-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div>
+              <input type="text" id="sb-q" placeholder="Поиск…" autocomplete="off">
+            </div>
+
+          </div>
+        </div>
+        <!-- ── Collapsed header ── -->
+        <div class="sb-collapsed-only">
+          <button class="ico-btn" id="btn-sb-expand" title="Развернуть"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M6 5l7 7-7 7"/></svg></button>
+          <button class="ico-btn" id="btn-sb-search" title="Поиск"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></button>
+        </div>
+      </div>
+      <div class="sb-list-wrap" id="sb-list-wrap">
+        <!-- existing chats -->
+        <div class="chat-list sb-panel" id="chat-list"></div>
+        <!-- search results (users + chats) -->
+        <div class="sb-search-results sb-panel" id="sb-search-results"></div>
+      </div>
+      <div class="sb-foot"><div class="prof-row" id="prof-row"><div class="av"><div class="av-img" id="foot-av"></div></div><div class="prof-meta"><div class="prof-name" id="foot-name">—</div><div class="prof-id" id="foot-id"></div></div></div></div>
+    </aside>
+
+      <!-- ── Settings panel (Independent) ── -->
+      <div class="sb-profile-panel" id="sb-profile-panel">
+
+        <!-- ══ MAIN SETTINGS VIEW ══ -->
+        <div class="sb-settings-view st-main active" id="st-view-main">
+          <!-- Hero -->
+          <div class="tg-settings-hero" id="tg-settings-hero">
+            <div class="tg-hero-bg" id="tg-hero-bg"></div>
+            <button class="tg-hero-close" id="sb-prof-back">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <label for="avi-in" class="tg-hero-avi-wrap">
+              <div class="avi-upl-img" id="pm-av"></div>
+              <div class="avi-upl-ov"><div class="avi-cam"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div></div>
+              <input type="file" id="avi-in" accept="image/*" style="display:none">
+            </label>
+            <div class="tg-hero-info-wrap" id="tg-hero-info-wrap" title="Открыть профиль">
+              <div class="tg-hero-name" id="pm-display-name">—</div>
+              <div class="tg-hero-id" id="pm-display-sid"></div>
+            </div>
+          </div>
+
+          <!-- Sections -->
+          <div class="tg-settings-body">
+
+            <!-- Account -->
+            <div class="tg-section">
+              <button class="tg-row" data-goto="st-view-prof">
+                <div class="tg-row-ic" style="background:var(--y)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Изменить профиль</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+            </div>
+
+            <!-- General -->
+            <div class="tg-section">
+              <button class="tg-row" data-goto="st-view-notif">
+                <div class="tg-row-ic" style="background:#ff3b30"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Уведомления и звуки</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+              <div class="tg-row-sep"></div>
+              <button class="tg-row" data-goto="st-view-input">
+                <div class="tg-row-ic" style="background:#34c759"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Настройки чатов</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+            </div>
+
+            <!-- Devices + Install -->
+            <div class="tg-section">
+              <button class="tg-row" data-goto="st-view-devices">
+                <div class="tg-row-ic" style="background:#ff9500"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"/><rect x="9" y="9" width="6" height="6"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Устройства</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+              <div class="tg-row-sep" id="install-sep" style="display:none"></div>
+              <button class="tg-row" id="btn-install-pwa" style="display:none">
+                <div class="tg-row-ic" style="background:#32ade6"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Установить приложение</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+            </div>
+
+            <!-- About -->
+            <div class="tg-section">
+              <button class="tg-row" data-goto="st-view-about">
+                <div class="tg-row-ic" style="background:#8e8e93"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">О приложении</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+            </div>
+
+            <!-- Developer -->
+            <div class="tg-section">
+              <button class="tg-row" data-goto="st-view-dev">
+                <div class="tg-row-ic" style="background:#ff6b00"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl">Для разработчиков</span></div>
+                <div class="tg-row-arr">›</div>
+              </button>
+            </div>
+
+            <div class="tg-section">
+              <button class="tg-logout-btn" id="btn-logout">
+                <div class="tg-row-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+                Выйти
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ PROFILE VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-prof">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">Профиль</div>
+            <button class="st-sub-save" id="btn-savepm">Готово</button>
+          </div>
+          <div class="sb-prof-body">
+            <div class="err-box" id="e-pm"></div>
+            <div class="sb-prof-section">
+              <div class="sb-prof-field-row">
+                <label>Имя</label>
+                <div class="pm-field-wrap">
+                  <input type="text" id="pm-name" maxlength="64" placeholder="Иван Иванов">
+                  <button class="pm-emo-btn" id="btn-emo-pm-name" type="button" title="Эмодзи"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
+                </div>
+              </div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-prof-field-row"><label>Signal ID</label><input type="text" id="pm-sid" maxlength="50" placeholder="ivan_42"></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-prof-field-row">
+                <label>О себе</label>
+                <div class="pm-field-wrap">
+                  <div class="mfield" id="pm-bio" contenteditable="true" role="textbox" spellcheck="false" data-placeholder="Расскажите о себе…" style="min-height:52px;max-height:120px;padding:8px 32px 8px 0;border:none;border-radius:0;border-bottom:1px solid transparent;background:transparent"></div>
+                  <button class="pm-emo-btn" id="btn-emo-pm-bio" type="button" title="Эмодзи" style="bottom: 8px;"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="18" height="18"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
+                </div>
+                <div class="pm-char-counter" id="pm-bio-counter">0/150</div>
+              </div>
+            </div>
+            <div class="sb-prof-section">
+              <div class="sb-prof-field-row"><label>Email</label><input type="text" id="pm-email" disabled placeholder="—"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ NOTIFICATIONS VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-notif">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">Уведомления</div>
+          </div>
+          <div class="sb-prof-body">
+            <div class="sb-prof-section">
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Уведомления</div><div class="sb-notif-sub">Push в браузере</div></div><button class="toggle" id="tog-notif"></button></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Звук</div><div class="sb-notif-sub">Звуковой сигнал</div></div><button class="toggle" id="tog-sound"></button></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Анонимно</div><div class="sb-notif-sub">Скрыть имя в уведомлении</div></div><button class="toggle" id="tog-anon"></button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ INPUT VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-input">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">Настройки чатов</div>
+          </div>
+          <div class="sb-prof-body">
+            <div class="sb-prof-section-title" style="padding:0 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Тема оформления</div>
+            <div class="tg-theme-grid" id="tg-theme-grid">
+              <button class="tg-theme-card" data-theme="dark" id="theme-dark">
+                <div class="tg-theme-preview tp-dark"><div class="tp-bubble me"></div><div class="tp-bubble"></div></div>
+                <span>Тёмная</span>
+              </button>
+              <button class="tg-theme-card" data-theme="light" id="theme-light">
+                <div class="tg-theme-preview tp-light"><div class="tp-bubble me"></div><div class="tp-bubble"></div></div>
+                <span>Светлая</span>
+              </button>
+              <button class="tg-theme-card" data-theme="amoled" id="theme-amoled">
+                <div class="tg-theme-preview tp-amoled"><div class="tp-bubble me"></div><div class="tp-bubble"></div></div>
+                <span>AMOLED</span>
+              </button>
+            </div>
+
+            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Ввод</div>
+            <div class="sb-prof-section">
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Enter отправляет</div><div class="sb-notif-sub">Shift+Enter — перенос строки</div></div><button class="toggle" id="tog-enter-send"></button></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Ctrl+Enter отправляет</div><div class="sb-notif-sub">Enter — перенос строки</div></div><button class="toggle" id="tog-ctrl-enter-send"></button></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Быстрые ответы</div><div class="sb-notif-sub">Ответ двойным кликом по сообщению</div></div><button class="toggle" id="tog-quick-reply"></button></div>
+            </div>
+
+            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Внешний вид</div>
+            <div class="sb-prof-section">
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Скрыть узор на фоне</div><div class="sb-notif-sub">Отключить фоновый паттерн чата</div></div><button class="toggle" id="tog-bg-pattern"></button></div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
+            </div>
+
+            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Шапка чата</div>
+            <div class="sb-prof-section">
+              <div class="sb-notif-row">
+                <div>
+                  <div class="sb-notif-label">По центру</div>
+                  <div class="sb-notif-sub">Никнейм и статус по центру</div>
+                </div>
+                <button class="toggle" id="tog-hdr-center"></button>
+              </div>
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row">
+                <div>
+                  <div class="sb-notif-label">Скрыть аватар</div>
+                  <div class="sb-notif-sub">Убрать аватар из шапки чата</div>
+                </div>
+                <button class="toggle" id="tog-hdr-hide-av"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ DEVICES VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-devices">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">Устройства</div>
+          </div>
+          <div class="sb-prof-body">
+            <div class="sb-prof-section" style="padding:0">
+              <button class="tg-row" id="btn-link-device">
+                <div class="tg-row-ic" style="background:#007aff"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16m8-8H4"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl" style="color:#007aff">Авторизовать устройство</span></div>
+              </button>
+              <div class="tg-row-sep"></div>
+              <button class="tg-row danger" id="btn-terminate-others">
+                <div class="tg-row-ic" style="background:var(--red)"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></div>
+                <div class="tg-row-body"><span class="tg-row-lbl" style="color:var(--red)">Завершить остальные сеансы</span></div>
+              </button>
+              <div id="sessions-list"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ ABOUT VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-about">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">О приложении</div>
+          </div>
+          <div class="sb-prof-body">
+            <div class="tg-about-logo">
+              <div class="tg-about-orb">
+                <svg viewBox="0 0 48 48" fill="none" width="64" height="64"><path d="M24 6C14.059 6 6 13.163 6 22c0 4.38 1.97 8.35 5.19 11.27-.44 2.57-1.6 5.03-3.19 6.73 3.08-.28 6.7-1.46 9.34-3.46C19.32 37.5 21.61 38 24 38c9.941 0 18-7.163 18-16S33.941 6 24 6z" fill="rgba(255,255,255,0.92)"/><circle cx="16.5" cy="22" r="2.5" fill="#7b6bbf"/><circle cx="24" cy="22" r="2.5" fill="#7b6bbf"/><circle cx="31.5" cy="22" r="2.5" fill="#7b6bbf"/></svg>
+              </div>
+              <div class="tg-about-app-name">Initial</div>
+              <div class="tg-about-version">Web Edition · 2025</div>
+            </div>
+            <div class="sb-prof-section">
+              <div class="tg-about-row">
+                <div class="tg-about-row-label">Платформа</div>
+                <div class="tg-about-row-val">Progressive Web App</div>
+              </div>
+              <div class="sb-prof-divider"></div>
+              <div class="tg-about-row">
+                <div class="tg-about-row-label">Бэкенд</div>
+                <div class="tg-about-row-val">PHP + MySQL + S3</div>
+              </div>
+              <div class="sb-prof-divider"></div>
+              <div class="tg-about-row">
+                <div class="tg-about-row-label">Доставка сообщений</div>
+                <div class="tg-about-row-val">SSE + Polling</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ DEVELOPER VIEW ══ -->
+        <div class="sb-settings-view st-sub" id="st-view-dev">
+          <div class="st-sub-hdr">
+            <button class="st-sub-back"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20" style="margin-right:2px"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>Назад</button>
+            <div class="st-sub-title">Для разработчиков</div>
+          </div>
+          <div class="sb-prof-body">
+            <div class="sb-prof-section-title" style="padding:8px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Кэш и Service Worker</div>
+            <div class="sb-prof-section" style="padding:0">
+              <button class="tg-row" id="btn-force-reset">
+                <div class="tg-row-ic" style="background:#ff3b30"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg></div>
+                <div class="tg-row-body">
+                  <span class="tg-row-lbl" style="color:#ff3b30">Принудительный сброс</span>
+                  <span class="tg-row-sub" style="font-size:12px;color:var(--t3);margin-top:2px;display:block">Очистит SW-кэш, localStorage и обновит страницу.</span>
+                </div>
+              </button>
+            </div>
+            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Диагностика</div>
+            <div class="sb-prof-section" style="padding:0">
+              <button class="tg-row" id="btn-dev-info">
+                <div class="tg-row-ic" style="background:#5856d6"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
+                <div class="tg-row-body">
+                  <span class="tg-row-lbl">Информация</span>
+                  <span class="tg-row-sub" id="dev-info-text" style="font-size:11px;color:var(--t3);margin-top:2px;display:block;font-family:monospace">—</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    <div class="resize-handle" id="resize-handle"></div>
+
+    <div class="chat-wrap">
+      <main class="chat-area" id="chat-area">
+        <div class="chat-welcome" id="chat-welcome"><div class="welc-orb">✦</div><h2>Выберите диалог</h2><p>Выберите чат или начните новый</p></div>
+        <div id="active-chat" style="display:none;flex-direction:column;height:100%;position:relative">
+          <div class="chat-hdr">
+            <button class="ico-btn back-btn-mb" id="btn-back-mb"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+            <div class="hdr-clickable" id="hdr-clickable">
+                <div class="av"><div class="av-img" id="hdr-av"></div></div>
+              <div class="hdr-info hdr-info-center" id="hdr-info-el"><div class="hdr-name" id="hdr-name">—</div><div class="hdr-st" id="hdr-st"></div></div>
+            </div>
+            <div class="hdr-acts">
+              <button class="ico-btn hdr-call-btn" id="btn-hdr-call" title="Позвонить">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+              </button>
+              <button class="ico-btn hdr-more-btn" id="btn-hdr-more" title="Ещё">
+                <svg fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+              </button>
+              <button class="ico-btn hdr-close-btn" id="btn-hdr-close" title="Закрыть чат">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ═══ CALL MINI-BAR (shown when call active but panel collapsed or on different chat) ═══ -->
+          <div class="call-mini-bar" id="call-mini-bar" style="display:none">
+            <div class="cmb-av" id="cmb-av"></div>
+            <div class="cmb-info">
+              <span class="cmb-name" id="cmb-name">—</span>
+              <span class="cmb-timer" id="cmb-timer">0:00</span>
+            </div>
+            <div class="cmb-acts">
+              <button class="cmb-btn" id="cmb-btn-expand" title="Развернуть звонок">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15l9 6 9-6M3 9l9 6 9-6"/></svg>
+              </button>
+              <button class="cmb-btn cmb-btn-end" id="cmb-btn-end" title="Завершить">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- ═══ DISCORD-STYLE CALL PANEL ═══ -->
+          <div class="call-panel" id="call-panel" style="display:none">
+            <!-- Resize handle -->
+            <div class="cp-resize-handle" id="cp-resize-handle"></div>
+
+            <!-- Top controls bar -->
+            <div class="cp-top-bar">
+              <div class="cp-status-row">
+                <span class="cp-status" id="cp-status">Вызов…</span>
+                <span class="cp-timer" id="cp-timer" style="display:none">0:00</span>
+                <span class="cp-quality" id="cp-quality" style="display:none"></span>
+              </div>
+              <div class="cp-top-acts">
+                <button class="cp-collapse-btn" id="cp-fullscreen-btn" title="Распахнуть">
+                  <svg id="cp-fullscreen-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                </button>
+                <button class="cp-collapse-btn" id="cp-collapse-btn" title="Свернуть">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Main video/avatar area -->
+            <div class="cp-media-area">
+              <!-- Remote participant -->
+              <div class="cp-remote" id="cp-remote" title="Правой кнопкой — настройки звука">
+                <video class="cp-remote-video" id="call-remote-video" autoplay playsinline></video>
+                <div class="cp-remote-av" id="cp-remote-av"></div>
+                <div class="cp-remote-name" id="cp-remote-name">—</div>
+              </div>
+              <!-- Local preview -->
+              <div class="cp-local" id="cp-local">
+                <video class="cp-local-video" id="call-local-video" autoplay playsinline muted style="display:none"></video>
+                <div class="cp-local-av" id="cp-local-av"></div>
+                <div class="cp-local-label">Вы</div>
+                <div class="cp-muted-icon" id="cp-muted-icon" style="display:none">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="12" height="12"><line x1="1" y1="1" x2="23" y2="23" stroke-width="2.5"/><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                </div>
+              </div>
+              <!-- Screen share area (hidden by default) -->
+              <div class="cp-screen" id="cp-screen" style="display:none">
+                <video class="cp-screen-video" id="call-screen-video" autoplay playsinline muted></video>
+                <div class="cp-screen-label">Демонстрация экрана</div>
+              </div>
+            </div>
+
+            <!-- Bottom controls -->
+            <div class="cp-controls">
+              <div class="cp-ctrl-group">
+                <button class="cp-btn" id="cp-btn-mute" title="Микрофон">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  <span>Микрофон</span>
+                </button>
+                <button class="cp-btn" id="cp-btn-video" title="Видео">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                  <span>Видео</span>
+                </button>
+                <button class="cp-btn" id="cp-btn-share" title="Демонстрация экрана">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+                  <span>Экран</span>
+                </button>
+                <button class="cp-btn" id="cp-btn-audio-dev" title="Устройство ввода/вывода">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                  <span>Звук</span>
+                </button>
+              </div>
+              <button class="cp-btn-end" id="cp-btn-end" title="Завершить">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/></svg>
+                <span>Завершить</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remote volume context menu -->
+          <div class="call-vol-ctx" id="call-vol-ctx" style="display:none">
+            <div class="cvc-header">Громкость</div>
+            <div class="cvc-vol-row">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/></svg>
+              <input type="range" class="cvc-slider" id="cvc-slider" min="0" max="200" value="100" step="5">
+              <span class="cvc-val" id="cvc-val">100%</span>
+            </div>
+            <div class="cvc-sep"></div>
+            <button class="cvc-btn" id="cvc-btn-input">Устройство ввода…</button>
+            <button class="cvc-btn" id="cvc-btn-output">Устройство вывода…</button>
+          </div>
+
+          <!-- Audio device picker popup -->
+          <div class="call-dev-picker" id="call-dev-picker" style="display:none">
+            <div class="cdp-section">
+              <div class="cdp-label">Микрофон</div>
+              <select class="cdp-select" id="cdp-input-select"></select>
+            </div>
+            <div class="cdp-sep"></div>
+            <div class="cdp-section">
+              <div class="cdp-label">Динамик</div>
+              <select class="cdp-select" id="cdp-output-select"></select>
+            </div>
+          </div>
+
+          <!-- Hidden PiP video -->
+          <video id="call-pip-video" style="display:none" muted playsinline></video>
+
+          <div class="msgs" id="msgs"></div>
+          <!-- Select toolbar -->
+          <div class="select-bar" id="select-bar">
+            <div class="sel-count" id="sel-count">0 выбрано</div>
+            <div class="sel-acts">
+              <button class="sel-btn" id="sel-copy-btn"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Копировать</button>
+              <button class="sel-btn danger" id="sel-del-btn"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Удалить</button>
+              <button class="sel-btn" id="sel-cancel-btn">Отмена</button>
+            </div>
+          </div>
+          <div class="input-zone" id="input-zone">
+            <div class="rbar" id="rbar"><div class="rbar-info"><div class="rbar-who" id="rbar-who"></div><div class="rbar-txt" id="rbar-txt"></div></div><div class="rbar-x" id="rbar-x"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div></div>
+            <div class="fmt-bar" id="fmt-bar">
+              <button class="fmt-btn" id="fmt-bold" data-cmd="bold"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h8a4 4 0 0 1 0 8H6V4zm0 8h9a4 4 0 0 1 0 8H6v-8z"/></svg><span>Жирный</span></button>
+              <button class="fmt-btn" id="fmt-italic" data-cmd="italic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4v3h2.21l-3.42 10H6v3h8v-3h-2.21l3.42-10H18V4h-8z"/></svg><span>Курсив</span></button>
+              <button class="fmt-btn" id="fmt-under" data-cmd="underline"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-7 0V3H6v8a6 6 0 0 0 6 6zm-7 2v2h14v-2H5z"/></svg><span>Подчёрк.</span></button>
+              <button class="fmt-btn" id="fmt-strike" data-cmd="strikeThrough"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 19h4v-3h-4v3zM5 4v3h6v3h2V7h6V4H5zM3 14h18v-2H3v2z"/></svg><span>Зачёрк.</span></button>
+              <button class="fmt-btn" id="fmt-mono" data-cmd="mono"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span>Моно</span></button>
+              <div class="fmt-sep"></div>
+              <button class="fmt-btn" id="fmt-spoiler" data-cmd="spoiler"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><span>Спойлер</span></button>
+              <div class="fmt-sep"></div>
+              <button class="fmt-btn" id="fmt-clear"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21 18 19.73 3.27 5zM6 5v.18L8.82 8h2.4l-.72 1.68 2.1 2.1L14.21 8H20V5H6z"/></svg><span>Очист.</span></button>
+            </div>
+            <div class="input-row">
+              <button class="attach-btn" id="btn-attach"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg></button>
+              <input type="file" id="file-in" accept="image/*,video/*" multiple>
+              <div class="mfield-wrap">
+                <div class="mfield" id="mfield" contenteditable="true" role="textbox" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-placeholder="Сообщение…"></div>
+                <button class="emo-btn-in" id="btn-emo-in" title="Эмодзи"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="22" height="22"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
+              </div>
+              <button class="send-btn" id="btn-send"><svg viewBox="0 0 24 24" fill="currentColor" width="19" height="19"><path d="M3.478 2.405a.75.75 0 0 0-.926.94l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.405z"/></svg></button>
+            </div>
+          </div>
+          <!-- Scroll-to-bottom FAB -->
+          <button id="scroll-bot-btn" title="Вниз">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 9l-7 7-7-7"/>
+            </svg>
+            <span id="scroll-bot-badge"></span>
+          </button>
+        </div>
+      </main>
+
+    </div>
+  </div>
+</div>
+
+<!-- PARTNER PROFILE MODAL -->
+<div class="overlay" id="modal-partner">
+  <div class="modal modal-partner">
+    <div class="pm-hero-bg" id="pm-hero-bg"></div>
+    <button class="pm-close" data-close="modal-partner">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+
+    <div class="pm-content">
+      <div class="pm-avi-wrap">
+        <div class="pm-hero-avi" id="pm-hero-avi"></div>
+      </div>
+
+      <div class="pm-name-row">
+        <div class="pm-name" id="pm-partner-name">—</div>
+      <svg id="pm-verified-badge" class="verified-badge lg pm-badge" style="display:none;color:var(--y)" viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg" title="Верифицированный аккаунт"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="currentColor"/></svg>
+      <span id="pm-team-badge" class="pm-badge" style="display:none;color:var(--t1)"></span>
+      </div>
+      <div class="pm-status-pill off" id="pm-partner-status">
+        <span class="pm-dot"></span>
+        <span id="pm-partner-status-text">Не в сети</span>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="pm-actions" id="pm-actions-row">
+        <button class="pm-action-btn" id="pm-btn-message" title="Написать">
+          <div class="pm-act-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <span>Чат</span>
+        </button>
+        <button class="pm-action-btn" id="pm-btn-call" title="Позвонить">
+          <div class="pm-act-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+          <span>Звонок</span>
+        </button>
+        <button class="pm-action-btn" id="pm-btn-video" title="Видеозвонок">
+          <div class="pm-act-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+          <span>Видео</span>
+        </button>
+        <button class="pm-action-btn" id="pm-btn-mute" title="Уведомления">
+          <div class="pm-act-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg></div>
+          <span id="pm-mute-txt">Звук</span>
+        </button>
+      </div>
+
+      <!-- Info block (Telegram K style rows) -->
+      <div class="tg-section pm-info-section" id="pm-info-section">
+        <div class="tg-row pm-sid-row" id="pm-row-sid" style="display:none; cursor:pointer; align-items:center;" title="Нажмите чтобы скопировать">
+          <div class="tg-row-ic" style="color:var(--y); background:transparent; margin-right:16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+          </div>
+          <div class="tg-row-body">
+            <span class="tg-row-lbl" id="pm-info-sid-val"></span>
+            <span class="tg-row-sub">Нажмите чтобы скопировать</span>
+          </div>
+          <svg class="tg-row-arr" width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="tg-row-sep" id="pm-info-sep" style="display:none;"></div>
+        <div class="tg-row" id="pm-row-bio" style="display:none; cursor:text; align-items:flex-start;">
+          <div class="tg-row-ic" style="color:var(--y); background:transparent; margin-right:16px; margin-top:10px;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          </div>
+          <div class="tg-row-body" style="padding:10px 0;">
+            <div class="tg-row-lbl pm-bio-html" id="pm-info-bio-val" style="user-select:text; white-space:pre-wrap; font-weight:400; line-height:1.5;"></div>
+            <span class="tg-row-sub">О себе</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Block / Report buttons — only shown for other users -->
+      <div class="pm-danger-actions" id="pm-danger-actions" style="display:none;">
+        <div class="pm-danger-group">
+          <button class="pm-danger-btn" id="pm-btn-block">
+            <div class="pm-danger-ic">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            </div>
+            <span id="pm-block-label">Заблокировать</span>
+          </button>
+          <div class="pm-danger-sep"></div>
+          <button class="pm-danger-btn" id="pm-btn-report">
+            <div class="pm-danger-ic">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <span id="pm-report-label">Пожаловаться</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verified account info modal -->
+<div class="overlay" id="modal-verified">
+  <div class="modal" style="width:320px;text-align:center;padding:32px 28px 28px">
+    <div style="width:56px;height:56px;border-radius:50%;background:var(--ybg);border:1px solid var(--yb);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--y2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+    </div>
+    <div style="font-size:18px;font-weight:900;letter-spacing:-.25px;margin-bottom:8px;color:var(--t1)">Официальный аккаунт</div>
+    <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:24px">
+      Этот аккаунт подтверждён командой <span style="color:var(--y2);font-weight:700">Initial</span> как официальный и принадлежит реальному владельцу личности или бренда.
+    </div>
+    <button class="btn" style="padding:12px" data-close="modal-verified">Понятно</button>
+  </div>
+</div>
+<!-- Team Signal info modal -->
+<div class="overlay" id="modal-team">
+  <div class="modal" style="width:320px;text-align:center;padding:32px 28px 28px">
+    <div style="width:56px;height:56px;border-radius:50%;background:var(--s1);border:1px solid var(--b2);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;color:var(--t1)">
+       <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"><path d="M12 0.5 L22 6.2 L22 17.8 L12 23.5 L2 17.8 L2 6.2 Z M9.8 7.1 L11.5 8.7 L7.1 12 L11.5 15.3 L9.8 16.9 L4.3 12 Z M14.2 7.1 L19.7 12 L14.2 16.9 L12.6 15.3 L17 12 L12.6 8.7 Z"/></svg>
+    </div>
+    <div style="font-size:18px;font-weight:900;letter-spacing:-.25px;margin-bottom:8px;color:var(--t1)">Команда Initial</div>
+    <div style="font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:24px">
+      Этот пользователь является участником команды разработчиков <span style="color:var(--t1);font-weight:700">Initial</span>.
+    </div>
+    <button class="btn" style="padding:12px" data-close="modal-team">Понятно</button>
+  </div>
+</div>
+
+<!-- INCOMING CALL MODAL (modal only for ringing state) -->
+<div class="overlay" id="modal-call">
+  <div class="modal call-modal" id="call-modal-inner">
+    <div class="call-bg" id="call-bg"></div>
+
+    <!-- Avatar + name -->
+    <div class="call-hero">
+      <div class="call-avatar" id="call-avatar">
+        <div class="call-avatar-ring"></div>
+      </div>
+      <div class="call-name" id="call-name">—</div>
+      <div class="call-status" id="call-status">Вызов…</div>
+    </div>
+
+    <!-- Timer (shown when connected) -->
+    <div class="call-timer" id="call-timer" style="display:none">0:00</div>
+    <div class="call-quality" id="call-quality" style="display:none"></div>
+
+    <!-- ═══ Incoming call controls ═══ -->
+    <div class="call-incoming" id="call-incoming" style="display:none">
+
+      <!-- Desktop: two round buttons -->
+      <div class="call-ic-desktop">
+        <div class="call-ic-btn-wrap">
+          <button class="call-ic-btn call-ic-decline" id="call-ic-decline-btn" title="Отклонить">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="30" height="30">
+              <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/>
+            </svg>
+          </button>
+          <span class="call-ic-lbl">Отклонить</span>
+        </div>
+        <div class="call-ic-btn-wrap">
+          <button class="call-ic-btn call-ic-accept" id="call-ic-accept-btn" title="Принять">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="30" height="30">
+              <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+            </svg>
+          </button>
+          <span class="call-ic-lbl">Принять</span>
+        </div>
+      </div>
+
+      <!-- Mobile: swipe-to-answer slider -->
+      <div class="call-swipe-bar" id="call-swipe-bar">
+        <span class="call-swipe-hint call-swipe-hint-decline">← Отклонить</span>
+        <div class="call-swipe-knob" id="call-swipe-knob">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26">
+            <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+          </svg>
+        </div>
+        <span class="call-swipe-hint call-swipe-hint-accept">Принять →</span>
+      </div>
+
+    </div><!-- /.call-incoming -->
+
+    <!-- ═══ Active call action buttons ═══ -->
+    <div class="call-actions" id="call-actions">
+      <!-- Mute -->
+      <div class="call-act-wrap">
+        <button class="call-act-btn" id="call-btn-mute" title="Микрофон">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        </button>
+        <span class="call-act-lbl">Микрофон</span>
+      </div>
+      <!-- Speaker -->
+      <div class="call-act-wrap">
+        <button class="call-act-btn" id="call-btn-speaker" title="Динамик">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </button>
+        <span class="call-act-lbl">Динамик</span>
+      </div>
+      <!-- Video -->
+      <div class="call-act-wrap">
+        <button class="call-act-btn" id="call-btn-video" title="Видео">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        </button>
+        <span class="call-act-lbl">Видео</span>
+      </div>
+      <!-- PiP (desktop only) -->
+      <div class="call-act-wrap call-pip-wrap" id="call-pip-wrap" style="display:none">
+        <button class="call-act-btn" id="call-btn-pip" title="Картинка в картинке">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="11" width="8" height="6" rx="1" fill="currentColor" stroke="none" opacity=".6"/></svg>
+        </button>
+        <span class="call-act-lbl">PiP</span>
+      </div>
+    </div>
+
+    <!-- Video area (Remote/Local) -->
+    <video id="mc-remote-video" class="call-remote-video" autoplay playsinline></video>
+    <video id="mc-local-video" class="call-local-video" autoplay playsinline muted style="display:none"></video>
+
+    <!-- End call button (always visible during a call) -->
+    <button class="call-end-btn" id="call-btn-end" title="Завершить">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z" transform="rotate(135 12 12)"/></svg>
+    </button>
+
+    <!-- Hidden video for PiP -->
+    <video id="call-pip-video" style="display:none" muted playsinline></video>
+  </div>
+</div>
+
+<!-- NEW CHAT -->
+<div class="overlay" id="modal-newchat"><div class="modal"><div class="modal-hdr"><div class="modal-title">Новый чат</div><button class="modal-x" data-close="modal-newchat"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div><div class="srch" style="width:100%"><div class="srch-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div><input type="text" id="user-q" placeholder="Имя или @signal_id…" style="width:100%"></div><div class="user-list" id="user-res"><div class="empty-st" style="padding:28px 0"><div class="e-ico">🔍</div><p>Введите имя или Signal ID</p></div></div></div></div>
+
+<!-- profile editor moved to sidebar panel -->
+
+<!-- CONFIRM -->
+<div class="overlay" id="modal-confirm">
+  <div class="modal"><div class="confirm-title" id="confirm-title"></div><div class="confirm-msg" id="confirm-msg"></div><div class="confirm-btns"><button class="btn btn-ghost" id="confirm-cancel">Отмена</button><button class="btn" id="confirm-ok" style="background:var(--red);box-shadow:0 4px 20px rgba(255,69,58,.35)">Удалить</button></div></div>
+</div>
+
+<!-- QR / Link device modal -->
+<div class="overlay" id="modal-qr">
+  <div class="modal" style="width:340px;text-align:center;padding:24px 24px 20px">
+    <div class="modal-hdr" style="margin-bottom:14px">
+      <div class="modal-title" id="link-modal-title">Связать устройство</div>
+      <button class="modal-x" data-close="modal-qr"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+
+    <!-- ДЕСКТОП: показываем QR для сканирования телефоном -->
+    <div id="link-desktop-view">
+      <div style="font-size:13.5px;color:var(--t2);margin-bottom:16px;line-height:1.55">
+        Откройте <b style="color:var(--t1)">Initial</b> на телефоне и отсканируйте QR-код
+      </div>
+      <div class="link-qr-wrap" style="display:flex;flex-direction:column;align-items:center;gap:10px;width:100%">
+        <div class="qr-loading" id="link-qr-loading"><div class="loader"></div></div>
+        <div id="link-qr-canvas" style="width:240px;height:240px;flex-shrink:0;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 2px 20px rgba(0,0,0,.22);line-height:0;font-size:0"></div>
+        <div class="link-qr-timer" id="link-qr-timer" style="font-size:12px;font-weight:600;color:var(--t3);letter-spacing:.3px;font-variant-numeric:tabular-nums"></div>
+        <div id="link-qr-success" style="display:none;color:#34c759;font-size:14px;font-weight:600">✓ Устройство подключено</div>
+        <div id="link-qr-err" style="display:none;color:var(--red);font-size:13px"></div>
+      </div>
+    </div>
+
+    <!-- МОБИЛЬНЫЙ: сканер для считывания QR с компьютера -->
+    <div id="link-mobile-view" style="display:none">
+      <div style="font-size:13.5px;color:var(--t2);margin-bottom:14px;line-height:1.55">
+        Откройте <b style="color:var(--t1)">Initial</b> на компьютере и отсканируйте QR-код камерой
+      </div>
+      <div class="qr-scan-viewfinder" id="link-scan-viewfinder" style="display:none;margin:0 auto">
+        <video id="link-scan-video" autoplay playsinline muted></video>
+        <canvas id="link-scan-canvas" style="display:none"></canvas>
+        <div class="qr-scan-frame"><span></span></div>
+        <div class="qr-scan-line"></div>
+        <div class="qr-scan-overlay" id="link-scan-overlay"></div>
+      </div>
+      <div id="link-scan-err" style="font-size:13px;color:var(--red);text-align:center;display:none;padding:8px 0;line-height:1.4"></div>
+      <div class="qr-scan-status" id="link-scan-status" style="display:none;margin-top:8px">Наведите камеру на QR-код</div>
+      <button class="btn" id="link-scan-start-btn" style="margin-top:14px;width:100%">Открыть камеру</button>
+    </div>
+
+    <button class="btn btn-ghost" data-close="modal-qr" style="margin-top:20px;width:100%">Закрыть</button>
+  </div>
+</div>
+
+<!-- SEND PREVIEW -->
+<div class="overlay" id="modal-preview"><div class="modal"><div class="prev-header"><div class="prev-title" id="prev-count">Отправить фото</div><div style="display:flex;gap:8px;align-items:center"><label class="prev-add-btn"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Добавить<input type="file" id="prev-add-in" accept="image/*,video/*" multiple style="display:none"></label><button class="prev-opts-btn" id="btn-prev-opts" title="Параметры"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button><button class="modal-x" data-close="modal-preview"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div></div><div class="prev-stage" id="prev-stage"></div><div class="prev-thumbs" id="prev-thumbs"></div><div class="prev-caption"><textarea id="prev-caption" placeholder="Добавить подпись…" rows="1"></textarea></div><div class="upload-bar" id="upload-bar"><div class="upload-bar-fill" id="upload-fill"></div></div><div class="prev-footer"><div class="prev-info" id="prev-info"></div><button class="prev-send" id="btn-prev-send"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Отправить</button></div></div></div>
+
+<!-- CHAT CTX MENU (sidebar) -->
+<div class="ctxmenu" id="chat-ctxmenu">
+  <div class="ctx-its">
+    <div class="ctx-it" id="chat-ctx-pin"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/></svg><span id="chat-ctx-pin-label">Закрепить</span></div>
+    <div class="ctx-hr"></div>
+    <div class="ctx-it danger" id="chat-ctx-del"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Удалить чат</span></div>
+  </div>
+</div>
+
+<!-- CTX MENU -->
+<div class="ctxmenu" id="ctxmenu">
+  <div class="ctx-rxn-wrap">
+    <div class="ctx-rxn-bar" id="ctx-rxn-bar"></div>
+    <button class="ctx-rxn-more" id="ctx-rxn-more" title="Открыть пикер">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    </button>
+  </div>
+  <!-- Inline emoji panel (Telegram-style) -->
+  <div class="ctx-emo-panel" id="ctx-emo-panel">
+    <div class="ctx-emo-hdr">
+      <button class="ctx-emo-back" id="ctx-emo-back">
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="ctx-emo-cats" id="ctx-emo-cats"></div>
+    </div>
+    <div class="ctx-emo-grid" id="ctx-emo-grid"></div>
+  </div>
+  <div class="ctx-its">
+    <div class="ctx-it" id="ctx-reply"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg><span>Ответить</span></div>
+    <div class="ctx-it" id="ctx-sel"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Выбрать</span></div>
+    <div class="ctx-it" id="ctx-copy"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg><span>Копировать</span></div>
+    <div class="ctx-hr"></div>
+    <div class="ctx-it" id="ctx-edit" style="display:none"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg><span>Изменить</span></div>
+    <div class="ctx-it danger" id="ctx-del" style="display:none"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Удалить</span></div>
+    <div class="ctx-it danger" id="ctx-del-partner" style="display:none"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Удалить</span></div>
+  </div>
+</div>
+
+<!-- EMOJI PICKER -->
+<div class="epicker" id="epicker"><div class="emo-tabs" id="emo-tabs"></div><div class="emo-srch"><input type="text" id="emo-q" placeholder="Поиск эмодзи…"></div><div class="emo-grid-wrap" id="emo-grid-wrap"></div></div>
+
+<!-- VIEWER -->
+<div id="viewer">
+  <div class="vwr-hdr"><div class="vwr-info" id="vwr-info"></div><div class="vwr-acts"><button class="vwr-btn" id="vwr-dl"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg></button><button class="vwr-btn" id="vwr-close"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button></div></div>
+  <div class="vwr-stage" id="vwr-stage">
+    <div class="vwr-track" id="vwr-track"></div>
+    <button class="vwr-prev hide" id="vwr-prev"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+    <button class="vwr-next hide" id="vwr-next"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div class="vwr-dots" id="vwr-dots"></div>
+</div>
+
+<!-- CROP MODAL -->
+<div class="overlay" id="modal-crop">
+  <div class="modal" style="width:360px; max-width:95vw; background:#1c1c1d; border-radius:16px; overflow:hidden;">
+    <div style="font-size:16px; font-weight:600; color:var(--t1); text-align:center; padding:16px;">Кадрирование</div>
+    <div style="position:relative; width:100%; aspect-ratio:1; background:#000; overflow:hidden; touch-action:none; cursor:grab;" id="crop-area">
+      <canvas id="crop-canvas" style="position:absolute; inset:0; pointer-events:none;"></canvas>
+      <div class="crop-mask"></div>
+    </div>
+    <div style="padding:16px; display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; gap:12px;">
+        <button class="btn btn-ghost" id="btn-crop-cancel" style="flex:1;">Отмена</button>
+        <button class="btn" id="btn-crop-apply" style="flex:1;">Обрезать</button>
+      </div>
+      <button class="btn btn-ghost" id="btn-crop-skip" style="display:none; width:100%; border:1px dashed rgba(255,255,255,.15);">Оставить оригинал (GIF)</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<!-- Field context menu -->
+<div class="field-ctx" id="field-ctx">
+  <div class="fctx-fmt-row" id="fctx-fmt-row">
+    <button class="fctx-fmt-btn" id="btn-fctx-bold" data-cmd="bold" title="Жирный"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h8a4 4 0 0 1 0 8H6V4zm0 8h9a4 4 0 0 1 0 8H6v-8z"/></svg></button>
+    <button class="fctx-fmt-btn" id="btn-fctx-italic" data-cmd="italic" title="Курсив"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4v3h2.21l-3.42 10H6v3h8v-3h-2.21l3.42-10H18V4h-8z"/></svg></button>
+    <button class="fctx-fmt-btn" id="btn-fctx-under" data-cmd="underline" title="Подчёркнутый"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-7 0V3H6v8a6 6 0 0 0 6 6zm-7 2v2h14v-2H5z"/></svg></button>
+    <button class="fctx-fmt-btn" id="btn-fctx-strike" data-cmd="strikeThrough" title="Зачёркнутый"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 19h4v-3h-4v3zM5 4v3h6v3h2V7h6V4H5zM3 14h18v-2H3v2z"/></svg></button>
+    <button class="fctx-fmt-btn" id="btn-fctx-mono" data-cmd="mono" title="Моноширинный"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+    <button class="fctx-fmt-btn" id="btn-fctx-spoiler" data-cmd="spoiler" title="Спойлер"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
+  </div>
+  <div class="fctx-sep" id="fctx-fmt-sep"></div>
+  <button class="fctx-btn" id="fctx-cut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="20" r="2"/><circle cx="18" cy="20" r="2"/><path d="M8.34 13.66L12 10l5 5M6 4l6 6M18 4L9.34 12.66"/></svg>Вырезать</button>
+  <button class="fctx-btn" id="fctx-copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Копировать</button>
+  <button class="fctx-btn" id="fctx-paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>Вставить</button>
+</div>
+<!-- Preview options context menu -->
+<div class="prev-ctx" id="prev-ctx">
+  <button class="prev-ctx-btn" id="prev-ctx-spoiler">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+    Отправить скрытым
+  </button>
+</div>
+<script src="js/theme.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/chat-list.js"></script>
+<script src="js/messages.js"></script>
+<script src="js/context-menu.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script src="js/call.js"></script>
+<script>
+// QR approval on load (if ?qr= in URL and already logged in)
+document.addEventListener('DOMContentLoaded', () => {
+  // Splash screen letter animation
+  ['splash-name-base', 'splash-name-fill'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        const text = el.dataset.text || 'Initial';
+        el.innerHTML = '';
+        text.split('').forEach((char, i) => {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.style.animationDelay = `${i * 0.06}s`;
+            el.appendChild(span);
+        });
+    }
+  });
+  
+  const verEl = document.getElementById('splash-ver');
+  if (verEl) {
+    let bd = new Date(document.lastModified);
+    if (isNaN(bd.getTime())) bd = new Date();
+    verEl.textContent = `Build ${bd.getFullYear()}.${String(bd.getMonth() + 1).padStart(2, '0')}.${String(bd.getDate()).padStart(2, '0')}-${String(bd.getHours()).padStart(2, '0')}${String(bd.getMinutes()).padStart(2, '0')}`;
+  }
+
+  const qp = new URLSearchParams(location.search).get('qr');
+  if (qp && S.token && S.user) approveQrSession(qp);
+
+  // ── Кнопка закрытия чата (ПК) ──
+  const btnClose = document.getElementById('btn-hdr-close');
+  if (btnClose) {
+    btnClose.onclick = () => {
+      if (typeof goBackToList === 'function') goBackToList();
+    };
+  }
+
+  // ── Настройки шапки чата (из localStorage) ──
+  function applyHdrSettings() {
+    const center = localStorage.getItem('sg_hdr_center') !== 'false';
+    const hideAv = localStorage.getItem('sg_hdr_hide_av') === 'true';
+    const hdrInfo = document.getElementById('hdr-info-el');
+    const hdrAv   = document.querySelector('.chat-hdr .av');
+    if (hdrInfo) hdrInfo.classList.toggle('hdr-info-center', center);
+    if (hdrAv)   hdrAv.style.display = hideAv ? 'none' : '';
+  }
+  applyHdrSettings();
+
+  // Переключатель: положение шапки
+  const togHdrCenter = document.getElementById('tog-hdr-center');
+  if (togHdrCenter) {
+    const saved = localStorage.getItem('sg_hdr_center') !== 'false';
+    if (saved) togHdrCenter.classList.add('on');
+    togHdrCenter.onclick = () => {
+      togHdrCenter.classList.toggle('on');
+      localStorage.setItem('sg_hdr_center', togHdrCenter.classList.contains('on'));
+      applyHdrSettings();
+    };
+  }
+
+  // Переключатель: скрыть аватар в шапке
+  const togHdrHideAv = document.getElementById('tog-hdr-hide-av');
+  if (togHdrHideAv) {
+    if (localStorage.getItem('sg_hdr_hide_av') === 'true') togHdrHideAv.classList.add('on');
+    togHdrHideAv.onclick = () => {
+      togHdrHideAv.classList.toggle('on');
+      localStorage.setItem('sg_hdr_hide_av', togHdrHideAv.classList.contains('on'));
+      applyHdrSettings();
+    };
+  }
+
+  // ── Скрыть узор на фоне ──
+  // tog ON = паттерн скрыт (инвертированная логика)
+  function applyPatternSetting() {
+    const hide = localStorage.getItem('sg_hide_pattern') === 'true';
+    document.body.classList.toggle('no-pattern', hide);
+  }
+  applyPatternSetting();
+
+  const togPattern = document.getElementById('tog-bg-pattern');
+  if (togPattern) {
+    if (localStorage.getItem('sg_hide_pattern') === 'true') togPattern.classList.add('on');
+    togPattern.onclick = () => {
+      togPattern.classList.toggle('on');
+      localStorage.setItem('sg_hide_pattern', togPattern.classList.contains('on'));
+      applyPatternSetting();
+    };
+  }
+
+  // ── Отключить blur-эффекты ──
+  function applyBlurSetting() {
+    const noBlur = localStorage.getItem('sg_no_blur') === 'true';
+    document.body.classList.toggle('no-blur', noBlur);
+  }
+  applyBlurSetting();
+
+  const togNoBlur = document.getElementById('tog-no-blur');
+  if (togNoBlur) {
+    if (localStorage.getItem('sg_no_blur') === 'true') togNoBlur.classList.add('on');
+    togNoBlur.onclick = () => {
+      togNoBlur.classList.toggle('on');
+      localStorage.setItem('sg_no_blur', togNoBlur.classList.contains('on'));
+      applyBlurSetting();
+    };
+  }
+
+  // ── Для разработчиков: Принудительный сброс ──
+  const btnForceReset = document.getElementById('btn-force-reset');
+  if (btnForceReset) {
+    btnForceReset.onclick = async () => {
+      if (!confirm('Сбросить кэш SW и localStorage (кроме аккаунта)?')) return;
+      btnForceReset.disabled = true;
+
+      // 1. Сохраняем сессию
+      const token = localStorage.getItem('sg_token');
+      const user  = localStorage.getItem('sg_user');
+
+      // 2. Очищаем localStorage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // 3. Восстанавливаем сессию
+      if (token) localStorage.setItem('sg_token', token);
+      if (user)  localStorage.setItem('sg_user', user);
+
+      // 4. Убиваем Service Worker и его кэши
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+        const cacheKeys = await caches.keys();
+        await Promise.all(cacheKeys.map(k => caches.delete(k)));
+      }
+
+      // 5. Принудительная перезагрузка без кэша
+      location.reload(true);
+    };
+  }
+
+  // ── Для разработчиков: Информация ──
+  const btnDevInfo = document.getElementById('btn-dev-info');
+  if (btnDevInfo) {
+    btnDevInfo.onclick = async () => {
+      const swActive = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+      const cacheKeys = 'caches' in self ? (await caches.keys()).join(', ') || 'нет' : 'N/A';
+      const lsSize = JSON.stringify(localStorage).length;
+      const swUrl  = navigator.serviceWorker?.controller?.scriptURL?.split('/').pop() || '—';
+      const pollingRunning = typeof _callSigInterval !== 'undefined' && !!_callSigInterval;
+      const infoEl = document.getElementById('dev-info-text');
+      if (infoEl) {
+        infoEl.textContent =
+          `SW: ${swActive ? 'активен ('+swUrl+')' : 'неактивен'} | ` +
+          `Кэши: ${cacheKeys} | ` +
+          `LS: ${(lsSize/1024).toFixed(1)}KB | ` +
+          `Polling: ${pollingRunning ? 'ON' : 'OFF'}`;
+      }
+    };
+    // Автообновление при заходе на страницу разработчика
+    btnDevInfo.click();
+  }
+});
+</script>
+</html>
