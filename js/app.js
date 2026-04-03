@@ -439,6 +439,30 @@ function startPoll() {
   observer.observe(msgsEl, { childList: true, subtree: true });
 })();
 
+/* ══ GRADIENT POSITION FOR OUTGOING MESSAGES ═══════════════════
+   background-attachment:fixed не работает внутри overflow:scroll.
+   Вместо этого JS рассчитывает viewport-позицию каждого исходящего
+   сообщения и устанавливает CSS-переменную --msg-vy.
+   Градиент: 100vh размер, no-repeat — виден только на экране.
+   ═══════════════════════════════════════════════════════════════════ */
+(function initMsgGradient() {
+  const msgsEl = document.getElementById('msgs');
+  if (!msgsEl) return;
+
+  function update() {
+    const bodies = msgsEl.querySelectorAll('.me .mbody');
+    for (let i = 0; i < bodies.length; i++) {
+      const rect = bodies[i].getBoundingClientRect();
+      bodies[i].style.setProperty('--msg-vy', rect.top + 'px');
+    }
+  }
+
+  msgsEl.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  const observer = new MutationObserver(update);
+  observer.observe(msgsEl, { childList: true, subtree: true });
+})();
+
 // Persist/restore auth state across backgrounding on mobile/desktop
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') persistAuthState();
