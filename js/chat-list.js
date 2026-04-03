@@ -918,16 +918,27 @@ $('btn-back-mb').onclick=()=>{
   history.back(); // triggers popstate, which calls goBackToList
 };
 
-// Esc — закрыть текущий чат
+// Esc — сначала отменить редактирование/ответ, потом закрыть чат
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && S.chatId) {
-    // Не закрывать чат если открыт модал, эмодзи-пикер или контекстное меню
-    const activeOverlay = document.querySelector('.overlay.on');
-    const activePicker = document.querySelector('.epicker.on');
-    const activeCtx = document.querySelector('.ctxmenu');
-    if (activeOverlay || activePicker || activeCtx) return;
-    goBackToList();
+  if (e.key !== 'Escape' || !S.chatId) return;
+  // Не перехватывать если открыт модал, эмодзи-пикер или контекстное меню
+  if (document.querySelector('.overlay.on')) return;
+  if (document.querySelector('.epicker.on')) return;
+  if (document.querySelector('.ctxmenu')) return;
+
+  // 1. Если редактируем сообщение — отменить
+  if (typeof editingMsgId !== 'undefined' && editingMsgId) {
+    cancelEdit();
+    return;
   }
+  // 2. Если отвечаем на сообщение — отменить ответ
+  if (S.replyTo) {
+    S.replyTo = null;
+    hideRbar();
+    return;
+  }
+  // 3. Иначе — закрыть чат
+  goBackToList();
 });
 
 // System back (Android hardware button, browser back gesture)
