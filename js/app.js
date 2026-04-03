@@ -1027,6 +1027,80 @@ if (_bgPatEl) _bgPatEl.onclick = () => {
   try { localStorage.setItem(BG_PAT_KEY, on ? '1' : '0'); } catch { }
 };
 
+/* ── CUSTOM CHAT BACKGROUND IMAGE ───────────────────────── */
+const BG_IMG_KEY = 'sg_chat_bg_image';
+const BG_IMG_EL_ID = 'chat-bg-custom';
+const _bgImgInput = $('bg-image-input');
+const _bgImgUpload = $('btn-bg-upload');
+const _bgImgRemove = $('btn-bg-remove');
+const _bgImgStatus = $('bg-image-status');
+
+function _applyCustomBg(dataUrl) {
+  let el = document.getElementById(BG_IMG_EL_ID);
+  if (dataUrl) {
+    // Show custom bg, hide pattern
+    if (!el) {
+      el = document.createElement('div');
+      el.id = BG_IMG_EL_ID;
+      el.className = 'chat-bg-custom';
+      const chatArea = document.querySelector('.chat-area') || document.getElementById('active-chat');
+      if (chatArea) chatArea.prepend(el);
+    }
+    el.style.backgroundImage = `url(${dataUrl})`;
+    document.body.classList.add('no-pattern');
+    if (_bgImgRemove) _bgImgRemove.style.display = '';
+    if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
+  } else {
+    if (el) el.remove();
+    document.body.classList.remove('no-pattern');
+    if (_bgImgRemove) _bgImgRemove.style.display = 'none';
+    if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
+  }
+}
+
+// Restore cached background on load
+try {
+  const cached = localStorage.getItem(BG_IMG_KEY);
+  if (cached) _applyCustomBg(cached);
+} catch {}
+
+if (_bgImgUpload && _bgImgInput) {
+  _bgImgUpload.onclick = () => _bgImgInput.click();
+  _bgImgInput.onchange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { /* 5MB limit — warn user */ return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      // Resize to max 1920px to save localStorage space
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX = 1920;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        try { localStorage.setItem(BG_IMG_KEY, dataUrl); } catch { /* storage full */ }
+        _applyCustomBg(dataUrl);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    _bgImgInput.value = '';
+  };
+}
+if (_bgImgRemove) {
+  _bgImgRemove.onclick = () => {
+    try { localStorage.removeItem(BG_IMG_KEY); } catch {}
+    _applyCustomBg(null);
+  };
+}
+
 /* ── Show install separator when install button is visible ─ */
 const _installObserver = new MutationObserver(() => {
   const pwa = $('btn-install-pwa');

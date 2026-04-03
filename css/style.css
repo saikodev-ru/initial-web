@@ -291,7 +291,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .layout::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:0;background-color:var(--pattern-color, rgba(255,255,255,0.05));-webkit-mask-image:url('../assets/background-pattern.svg');mask-image:url('../assets/background-pattern.svg');-webkit-mask-size:400px auto;mask-size:400px auto;-webkit-mask-position:center;mask-position:center;opacity:1}.no-pattern .layout::before{content:none;display:none}.layout>*{position:relative;z-index:1}
 
 /* SIDEBAR */
-.sidebar{width:var(--sb-w);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;background:rgba(26,26,28,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--b);transition:width .32s var(--ease),min-width .32s var(--ease);min-width:200px;max-width:500px;position:relative}
+.sidebar{width:var(--sb-w);flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;background:rgba(22,22,24,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-right:1px solid var(--b);transition:width .32s var(--ease),min-width .32s var(--ease);min-width:200px;max-width:500px;position:relative}
 
 /* ── Collapsed ── */
 .sidebar.collapsed{width:64px!important;min-width:64px!important}
@@ -515,25 +515,20 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   min-width:0;
   overflow:hidden;
   position:relative;
-  background-color:var(--chat-bg);
+  background-color:transparent;
   isolation:isolate;
 }
-/* Tiled chat background (all viewports) */
-.chat-area::before{
-  content:'';
-  position:absolute;inset:0;
-  pointer-events:none;z-index:-1;
-  background-color:var(--pattern-color, rgba(255,255,255,0.05));
-  -webkit-mask-image:url('../assets/background-pattern.svg');
-  mask-image:url('../assets/background-pattern.svg');
-  -webkit-mask-size:400px auto;
-  mask-size:400px auto;
-  -webkit-mask-position:center;
-  mask-position:center;
-  opacity:1;
+/* Custom chat background image */
+.chat-bg-custom{
+  position:absolute;inset:0;z-index:-2;pointer-events:none;
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+}
+.chat-bg-custom::after{
+  content:'';position:absolute;inset:0;
+  background:rgba(0,0,0,.25);pointer-events:none;
 }
 /* Полное отключение паттерна — убираем псевдоэлемент и GPU-слой */
-.no-pattern .chat-area::before,
+.no-pattern .layout::before,
 .no-pattern #active-chat::before{
   content:none;
   display:none;
@@ -2060,24 +2055,11 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
     transition:transform .3s cubic-bezier(.4,0,.2,1);
     display:flex!important;
     flex-direction:column;
-    background:var(--chat-bg);
+    background:transparent;
     /* Fill dynamic viewport so browser bar collapse doesn't leave gap */
     height:100dvh;
     min-height:100dvh;
     isolation:isolate;
-  }
-  #active-chat::before{
-    content:'';
-    position:absolute;inset:0;
-    pointer-events:none;z-index:-1;
-    background-color:var(--t1);
-    -webkit-mask-image:url('../assets/background-pattern.svg');
-    mask-image:url('../assets/background-pattern.svg');
-    -webkit-mask-size:400px auto;
-    mask-size:400px auto;
-    -webkit-mask-position:center;
-    mask-position:center;
-    opacity:.05;
   }
   #active-chat.mb-visible{transform:none}
   /* Epicker on mobile: never exceed 55% of viewport height */
@@ -2440,7 +2422,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 /* Мобайл: быстрее анимация пузырей */
 @media(max-width:680px){
   .mrow{animation-duration:.12s!important;}
-  .chat-area::before,#active-chat::before{
+  .layout::before{
     -webkit-mask-size:200px auto!important;mask-size:200px auto!important;
   }
 }
@@ -2498,7 +2480,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 /* Mobile: faster message animations */
 @media (max-width: 680px) {
   .mrow { animation-duration: 0.12s !important; }
-  .chat-area::before,#active-chat::before {
+  .layout::before {
     -webkit-mask-size: 200px auto !important;
     mask-size: 200px auto !important;
     opacity: 0.03 !important;
@@ -2542,7 +2524,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 }
 .no-blur .sidebar{
   backdrop-filter:none;-webkit-backdrop-filter:none;
-  background:var(--bg2);
+  background:#161618;
 }
 .no-blur .layout::before{
   content:none;display:none;
