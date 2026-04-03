@@ -918,6 +918,18 @@ $('btn-back-mb').onclick=()=>{
   history.back(); // triggers popstate, which calls goBackToList
 };
 
+// Esc — закрыть текущий чат
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && S.chatId) {
+    // Не закрывать чат если открыт модал, эмодзи-пикер или контекстное меню
+    const activeOverlay = document.querySelector('.overlay.on');
+    const activePicker = document.querySelector('.epicker.on');
+    const activeCtx = document.querySelector('.ctxmenu');
+    if (activeOverlay || activePicker || activeCtx) return;
+    goBackToList();
+  }
+});
+
 // System back (Android hardware button, browser back gesture)
 window.addEventListener('popstate',e=>{
   if(window.innerWidth<=680&&$('active-chat').classList.contains('mb-visible')){
