@@ -75,7 +75,7 @@ function isVerified(c) {
   // If it's a full user object vs a chat object
   const sid = (c.partner_signal_id || c.signal_id || '').toLowerCase();
   const verified = !!(c.partner_is_verified || c.is_verified);
-  const VERIFIED_IDS = ['initial', 'sayxnara'];
+  const VERIFIED_IDS = ['initial'];
   return verified || VERIFIED_IDS.includes(sid);
 }
 
