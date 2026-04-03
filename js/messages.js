@@ -1702,6 +1702,7 @@ function startEdit(m) {
   if (el) { el.classList.add('msg-flash'); setTimeout(() => el.classList.remove('msg-flash'), 1000); }
 }
 function cancelEdit() {
+  editingMsgId = null;
   clearField();
   hideRbar();
   S.replyTo = null;
@@ -2130,6 +2131,20 @@ document.addEventListener('keydown',function(e){
   if(e.target.closest&&(e.target.closest('.overlay.on')||e.target.closest('.epicker')||e.target.closest('.ctxmenu')))return;
   var tag=e.target.tagName;
   if(tag==='INPUT'||tag==='TEXTAREA'||e.target.isContentEditable)return;
+  // Arrow Up — жёсткий захват вне input zone для быстрого редактирования
+  if(e.key==='ArrowUp' && !editingMsgId && !getFieldText()){
+    e.preventDefault();
+    mfield.focus();
+    const msgs = S.msgs[S.chatId] || [];
+    for(let i = msgs.length - 1; i >= 0; i--){
+      const m = msgs[i];
+      if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted){
+        startEdit(m);
+        break;
+      }
+    }
+    return;
+  }
   if((e.ctrlKey||e.metaKey)&&e.key==='v'){mfield.focus();return;}
   if(e.key.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
     mfield.focus();

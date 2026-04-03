@@ -416,7 +416,28 @@ function startPoll() {
   window._onApiOk = () => { if (S._connecting && navigator.onLine) setConnecting(false); };
 })();
 
+/* ══ GRADIENT POSITION FOR OUTGOING MESSAGES ═══════════════════
+   background-attachment:fixed не работает внутри overflow:scroll контейнера.
+   Вместо этого используем JS для расчёта viewport-позиции каждого
+   исходящего сообщения и установки CSS-переменной --msg-vy.
+   ═══════════════════════════════════════════════════════════════════ */
+(function initMsgGradient() {
+  const msgsEl = document.getElementById('msgs');
+  if (!msgsEl) return;
 
+  function update() {
+    const bodies = msgsEl.querySelectorAll('.me .mbody');
+    for (let i = 0; i < bodies.length; i++) {
+      const rect = bodies[i].getBoundingClientRect();
+      bodies[i].style.setProperty('--msg-vy', rect.top + 'px');
+    }
+  }
+
+  msgsEl.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update, { passive: true });
+  const observer = new MutationObserver(update);
+  observer.observe(msgsEl, { childList: true, subtree: true });
+})();
 
 // Persist/restore auth state across backgrounding on mobile/desktop
 document.addEventListener('visibilitychange', () => {
