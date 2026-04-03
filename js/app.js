@@ -847,16 +847,75 @@ async function loadSessions() {
   const res = await api('sessions');
   if (!res.ok) { list.innerHTML = '<div style="color:var(--red);font-size:13px;padding:12px">Ошибка загрузки сессий</div>'; return; }
   list.innerHTML = '';
+
+  // Device type detection
+  function deviceType(device) {
+    const d = (device || '').toLowerCase();
+    if (/iphone|android|mobile|ipad|tablet/.test(d)) return 'phone';
+    if (/browser|chrome|firefox|safari|edge|web|opera/.test(d)) return 'web';
+    return 'desktop';
+  }
+
+  // SVG icons per device type
+  const icons = {
+    desktop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+    web: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+  };
+
   res.sessions.forEach(s => {
-    const el = document.createElement('div'); el.className = 'sess-item';
-    el.innerHTML = `<div class="sess-info"><div class="sess-name">${esc(s.device)}</div><div class="sess-ip"><span class="sess-ip-spoiler" style="cursor:pointer; opacity:0.6;" data-ip="${esc(s.ip)}" onclick="if(this.textContent==='Скрытый'){this.textContent=this.dataset.ip;this.style.cursor='default';this.style.opacity='1';this.style.textDecoration='none'}else{this.textContent='Скрытый';this.style.cursor='pointer';this.style.opacity='0.6';this.style.textDecoration='underline'}">Скрытый</span> • ${s.is_current ? 'Текущая' : fmtDate(s.last_active)}</div>${s.is_current ? '<div class="sess-active">Активна сейчас</div>' : ''}</div>` + (!s.is_current ? `<button class="sess-del" title="Завершить сеанс"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>` : '');
+    const type = deviceType(s.device);
+    const el = document.createElement('div');
+    el.className = 'tg-session-item';
+    el.style.transition = 'opacity .2s';
+
+    const metaText = s.is_current
+      ? '<span class="tg-session-active-text">Активна сейчас</span>'
+      : esc(fmtDate(s.last_active));
+
+    el.innerHTML =
+      `<div class="tg-session-icon tg-session-icon-${type}">${icons[type]}</div>` +
+      `<div class="tg-session-info">` +
+        `<div class="tg-session-name">${esc(s.device)}</div>` +
+        `<div class="tg-session-meta">` +
+          `<span class="sess-ip-spoiler" data-ip="${esc(s.ip)}">Скрытый</span>` +
+          ` • ${metaText}` +
+        `</div>` +
+      `</div>` +
+      `<div class="tg-session-actions">` +
+        (s.is_current
+          ? '<div class="tg-session-active-dot" title="Активна"></div>'
+          : '<button class="tg-session-term" title="Завершить сеанс"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>'
+        ) +
+      `</div>`;
+
+    // IP spoiler toggle
+    const spoiler = el.querySelector('.sess-ip-spoiler');
+    spoiler.addEventListener('click', function() {
+      if (this.textContent === 'Скрытый') {
+        this.textContent = this.dataset.ip;
+        this.style.opacity = '1';
+        this.style.textDecoration = 'none';
+      } else {
+        this.textContent = 'Скрытый';
+        this.style.opacity = '';
+        this.style.textDecoration = '';
+      }
+    });
+
+    // Terminate button handler
     if (!s.is_current) {
-      el.querySelector('.sess-del').onclick = async () => {
-        if (!confirm('Завершить этот сеанс?')) return;
-        const dr = await api('sessions', 'DELETE', { session_id: s.id });
-        if (dr.ok) { el.style.opacity = '0'; setTimeout(() => el.remove(), 200); } else toast('Ошибка', 'err');
-      };
+      const termBtn = el.querySelector('.tg-session-term');
+      if (termBtn) {
+        termBtn.onclick = async (e) => {
+          e.stopPropagation();
+          if (!confirm('Завершить этот сеанс?')) return;
+          const dr = await api('sessions', 'DELETE', { session_id: s.id });
+          if (dr.ok) { el.style.opacity = '0'; setTimeout(() => el.remove(), 200); } else toast('Ошибка', 'err');
+        };
+      }
     }
+
     list.appendChild(el);
   });
 }
