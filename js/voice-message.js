@@ -274,25 +274,33 @@ window.VoiceMsg = (function () {
     }
   }
 
-  /* ── Lock mode (swipe up) ─────────────────────────────────── */
+  /* ── Lock mode (swipe up) — Telegram Desktop style ───────── */
 
   function _transitionToLocked() {
     if (_isLocked || !_recOverlay) return;
     _isLocked = true;
+    _swipeLockActive = false;
+    _swipeCancelActive = false;
+
+    // Stop current visualization — will restart on new overlay
     _stopRecVisualization();
 
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    // Remove recording overlay
-    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
-
-    // Hide hints on mic button
+    // Hide directional hints on mic button
     const sendBtn = document.getElementById('btn-send');
     if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
 
-    // Create locked overlay
-    const overlay = document.createElement('div');
+    // Reset wrap transforms (in case user was mid-swipe)
+    wrap.style.transform = '';
+    wrap.style.opacity = '';
+
+    // ── Morph recording overlay → locked overlay IN-PLACE ──
+    // Avoids remove/append timing issues — just change class + innerHTML
+    const overlay = _recOverlay;
+    _recOverlay = null; // clear ref immediately so _startRecVisualization picks up _lockedOverlay
+
     overlay.className = 'voice-locked';
     overlay.id = 'voice-locked-overlay';
     overlay.innerHTML = `
@@ -308,10 +316,9 @@ window.VoiceMsg = (function () {
       </button>
     `;
 
-    wrap.appendChild(overlay);
     _lockedOverlay = overlay;
 
-    // Build waveform bars
+    // Build waveform bars in the locked container
     const wfWrap = overlay.querySelector('#voice-locked-wave-container');
     if (wfWrap) {
       for (let i = 0; i < REC_BAR_COUNT; i++) {
@@ -322,28 +329,34 @@ window.VoiceMsg = (function () {
       }
     }
 
-    // Restart visualization for new bars
+    // Restart visualization — _startRecVisualization reads _recOverlay || _lockedOverlay
     _startRecVisualization();
 
-    // Locked timer
+    // Locked timer (independent from _recTimer)
     _lockedTimer = setInterval(() => {
       const timerEl = document.getElementById('voice-locked-timer');
       if (timerEl) timerEl.textContent = _formatElapsed();
     }, 200);
 
-    // Stop button: stop recording, go to preview
-    document.getElementById('voice-locked-stop').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      _onLockedStop();
-    });
+    // Stop button: stop recording → go to preview
+    const stopBtn = document.getElementById('voice-locked-stop');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _onLockedStop();
+      });
+    }
 
     // Delete button: cancel recording
-    document.getElementById('voice-locked-delete').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      cancelRecording();
-    });
+    const delBtn = document.getElementById('voice-locked-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelRecording();
+      });
+    }
   }
 
   async function _onLockedStop() {
@@ -1256,6 +1269,9 @@ window.VoiceMsg = (function () {
     S._pendingTids.set(tid, '[voice]');
     appendMsg(S.chatId, tmp);
     scrollBot();
+
+    // Show sending status immediately — compression + upload happens on server in one step
+    toast('Отправка голосового...', 'info');
 
     var fd = new FormData();
     fd.append('voice', blob, 'voice.webm');

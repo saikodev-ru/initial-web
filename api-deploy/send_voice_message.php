@@ -24,6 +24,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'То�
 $me   = auth_user();
 $myId = (int) $me['id'];
 
+/* ── Debug log setup ─────────────────────────────────────────── */
+$vLog = __DIR__ . '/voice_upload.log';
+$vTs  = '[' . date('Y-m-d H:i:s') . '] ';
+
 /* ── Validate required fields ────────────────────────────────── */
 $toSignalId = trim($_POST['to_signal_id'] ?? '');
 if (empty($toSignalId)) {
