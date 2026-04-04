@@ -327,6 +327,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 #btn-sb-close{display:none}
 .sidebar.searching #btn-collapse-sb{display:none!important}
 .sidebar.searching #btn-sb-close{display:flex!important}
+.sidebar.searching #btn-create-chat{display:none!important}
 
 /* ── List wrap ── */
 .sb-list-wrap{flex:1;position:relative;overflow:hidden;min-height:0}
@@ -2059,18 +2060,20 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
 .emo-btn-in:hover{background:rgba(255,255,255,.14);color:#fff;transform:scale(1.08)}.emo-btn-in:active{transform:scale(.88)}.emo-btn-in.active{color:var(--y);background:var(--ybg)}
 .attach-btn-in{position:absolute;left:9px;bottom:9px;width:26px;height:26px;z-index:2}
-.send-btn{width:44px;height:44px;flex-shrink:0;background:linear-gradient(135deg,var(--y),var(--y3));border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .14s var(--sp),box-shadow .15s,background .15s,opacity .15s;box-shadow:0 2px 10px rgba(139,92,246,.35)}
-.send-btn:hover{transform:scale(1.08);box-shadow:0 4px 16px rgba(139,92,246,.5)}.send-btn:active{transform:scale(.92);box-shadow:0 1px 4px rgba(139,92,246,.3)}.send-btn svg{width:18px;height:18px;color:#fff}.send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none}
+.send-btn{width:44px;height:44px;flex-shrink:0;background:var(--y);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .14s var(--sp),opacity .15s;box-shadow:none}
+.send-btn:hover{transform:scale(1.08)}.send-btn:active{transform:scale(.92)}.send-btn .ico-send{width:18px;height:18px;color:#fff;display:block}.send-btn .ico-mic{width:18px;height:18px;color:#fff;display:block}.send-btn.has-text .ico-send{display:block}.send-btn.has-text .ico-mic{display:none!important}.send-btn:not(.has-text) .ico-send{display:none!important}.send-btn:not(.has-text) .ico-mic{display:block!important}
+body[data-theme="light"] .send-btn .ico-send{color:#fff}
+body[data-theme="amoled"] .send-btn .ico-send{color:#fff}
 /* field-wrap for auth emoji inside input */
 .field-wrap{position:relative;display:flex;align-items:center}
 .field-wrap input{width:100%;padding-right:38px}
 .field-emo-btn{position:absolute;right:9px;background:transparent;border:none;cursor:pointer;color:var(--t3);display:flex;align-items:center;justify-content:center;padding:3px;border-radius:7px;transition:color .15s,background .15s}
 .field-emo-btn:hover{color:var(--t2);background:rgba(255,255,255,.06)}
 
-/* MODALS */
-.overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+/* MODALS — common style */
+.overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .overlay.on{opacity:1;pointer-events:all}
-.modal{background:var(--solid1);border:1px solid var(--b2);border-radius:28px;padding:30px;width:420px;max-width:calc(100vw - 32px);max-height:88vh;overflow-y:auto;box-shadow:var(--shl);transform:scale(.92) translateY(18px);transition:transform .3s var(--ease)}
+.modal{background:rgba(var(--bg-rgb),.92);backdrop-filter:blur(40px);-webkit-backdrop-filter:blur(40px);border:1px solid var(--b2);border-radius:28px;padding:30px;width:420px;max-width:calc(100vw - 32px);max-height:88vh;overflow-y:auto;box-shadow:var(--shl);transform:scale(.92) translateY(18px);transition:transform .3s var(--ease)}
 .overlay.on .modal{transform:none}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.modal-title{font-size:18px;font-weight:900;letter-spacing:-.3px}
 .modal-x{width:28px;height:28px;background:rgba(255,255,255,.07);border:none;border-radius:8px;cursor:pointer;color:var(--t2);display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
@@ -2499,36 +2502,8 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
   display:none;
 }
 #scroll-bot-badge:not(:empty){display:block}
-#scroll-bot-badge:not(:empty){display:block}
 
 /* ── Avatar Crop Modal ── */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s var(--ease);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.overlay.on {
-  opacity: 1;
-  pointer-events: auto;
-}
-.overlay .modal {
-  transform: scale(0.9) translateY(20px);
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 24px 64px rgba(0,0,0,0.8);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.overlay.on .modal {
-  transform: none;
-}
 #crop-area {
   user-select: none;
   -webkit-user-select: none;
@@ -2681,6 +2656,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:var(--solid1);
 }
+.no-blur .overlay{backdrop-filter:none;-webkit-backdrop-filter:none}
 .no-blur .overlay .modal{
   backdrop-filter:none;-webkit-backdrop-filter:none;
 }
@@ -2710,6 +2686,11 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 body[data-theme="light"] {
   --chat-bg: #f0f2f5;
   --pattern-color: rgba(0, 0, 0, 0.12);
+}
+
+/* Nav-rail — lighter in light theme */
+body[data-theme="light"] .nav-rail {
+  background: rgba(var(--bg-rgb),.96);
 }
 
 /* Sidebar — slight transparency in light theme */
@@ -3658,7 +3639,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
-  background: rgba(var(--bg-rgb),.82);
+  background: rgba(var(--bg-rgb),.95);
   backdrop-filter: blur(20px);-webkit-backdrop-filter:blur(20px);
   border-right: 1px solid var(--b);
   z-index: 2;

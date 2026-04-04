@@ -739,6 +739,8 @@ function exitSearch(){
   const cleanup=()=>panels.forEach(p=>{ p.style.willChange=''; p.removeEventListener('transitionend',cleanup); });
   panels.forEach(p=>p.addEventListener('transitionend',cleanup,{once:true}));
   setTimeout(()=>panels.forEach(p=>p.style.willChange=''),350); // fallback
+  // Return focus to search input
+  setTimeout(()=>$('sb-q')?.blur(),50);
 }
 
 function renderSearchIdle(){
@@ -920,7 +922,10 @@ $('btn-back-mb').onclick=()=>{
 
 // Esc — сначала отменить редактирование/ответ, потом закрыть чат
 document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape' || !S.chatId) return;
+  if (e.key !== 'Escape') return;
+  // 0. Esc prioritizes canceling search
+  if (sbSearchActive) { exitSearch(); return; }
+  if (!S.chatId) return;
   // Не перехватывать если открыт модал, эмодзи-пикер или контекстное меню
   if (document.querySelector('.overlay.on')) return;
   if (document.querySelector('.epicker.on')) return;

@@ -1703,7 +1703,7 @@ function startEdit(m) {
 }
 function cancelEdit() {
   editingMsgId = null;
-  clearField();
+  clearField(); updateSendBtn();
   hideRbar();
   S.replyTo = null;
 }
@@ -2098,7 +2098,7 @@ document.addEventListener('selectionchange', () => {
   }, 50);
 });
 
-mfield.addEventListener('input',()=>{handleTyping();});
+mfield.addEventListener('input',()=>{handleTyping();updateSendBtn();});
 mfield.onkeydown=e=>{
   if(e.key==='Enter'){
     if(S.enterSend){
@@ -2122,6 +2122,14 @@ mfield.onkeydown=e=>{
     }
 };
 $('btn-send').onclick=sendText;
+
+// ── Send/Voice button toggle ──
+function updateSendBtn(){
+  const btn=$('btn-send');
+  if(!btn)return;
+  const text=getFieldText().trim();
+  btn.classList.toggle('has-text',!!text);
+}
 
 // ── Автофокус: любой печатный символ или Ctrl+V из любого места → mfield ──
 document.addEventListener('keydown',function(e){
@@ -2185,7 +2193,7 @@ async function sendText(){
   }
 
   // ── Normal send ────────────────────────────────────────────
-  clearField();if(window.innerWidth<=680){mfield.focus();}const replyId=S.replyTo?.id||null;if(S.replyTo){S.replyTo=null;hideRbar();}stopTyping();
+  clearField();updateSendBtn();if(window.innerWidth<=680){mfield.focus();}const replyId=S.replyTo?.id||null;if(S.replyTo){S.replyTo=null;hideRbar();}stopTyping();
   const toSid=S.partner.partner_signal_id;
   if(!S.chatId){const res=await api('send_message','POST',{to_signal_id:toSid,body,reply_to:replyId||undefined});if(!res.ok){toast('Ошибка: '+res.message,'err');return;}S.chatId=res.chat_id;S.lastId[res.chat_id]=res.message_id;S.msgs[res.chat_id]=[];await loadChats();const nc=S.chats.find(c=>c.chat_id===res.chat_id);if(nc){S.partner=nc;$$('.ci').forEach(e=>e.classList.remove('active'));document.querySelector(`.ci[data-chat-id="${res.chat_id}"]`)?.classList.add('active');}$('msgs').innerHTML='';await fetchMsgs(res.chat_id,true);return;}
   const tid='t'+Date.now();

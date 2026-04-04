@@ -251,7 +251,7 @@ function applyBlurredAvatarBg(containerId, name, url) {
 
     const imgDiv = document.createElement('div');
     imgDiv.className = 'blur-bg-img';
-    imgDiv.style.backgroundImage = `url("${esc(fullUrl)}")`;
+    imgDiv.style.backgroundImage = `url("${fullUrl}")`;
     const ov = document.createElement('div');
     ov.className = 'blur-bg-ov';
     bg.innerHTML = ''; bg.appendChild(imgDiv); bg.appendChild(ov);
