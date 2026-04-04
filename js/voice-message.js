@@ -880,11 +880,26 @@ window.VoiceMsg = (function () {
   function _startRecVisualization() {
     if (!_analyser) return;
     const bufLen = _analyser.frequencyBinCount;
-    const data = new Uint8Array(bufLen);
+    const freqData = new Uint8Array(bufLen);
+    const timeData = new Uint8Array(bufLen);
 
     function draw() {
       _recAnimFrame = requestAnimationFrame(draw);
-      _analyser.getByteFrequencyData(data);
+      _analyser.getByteFrequencyData(freqData);
+      _analyser.getByteTimeDomainData(timeData);
+
+      // ── Mic button volume-reactive scale ──
+      let rms = 0;
+      for (let i = 0; i < timeData.length; i++) {
+        const s = (timeData[i] - 128) / 128;
+        rms += s * s;
+      }
+      rms = Math.sqrt(rms / timeData.length);
+      const scale = 1 + Math.min(rms * 3, 0.25);
+      const micBtn = document.getElementById('btn-send');
+      if (micBtn && (micBtn.classList.contains('recording') || _isLocked)) {
+        micBtn.style.transform = 'scale(' + scale.toFixed(3) + ')';
+      }
 
       const container = _recOverlay || _lockedOverlay;
       if (!container) return;
@@ -893,27 +908,15 @@ window.VoiceMsg = (function () {
       if (!bars || !bars.length) return;
 
       const totalBars = bars.length;
-      const elapsed = (Date.now() - _recStart) / 1000;
 
-      // In hold mode, fill bars much faster (within 2 seconds they should fill most of the space)
-      // In locked mode, fill gradually over MAX_DURATION
-      const isHoldMode = !!_recOverlay;
-      const fillTime = isHoldMode ? 2 : MAX_DURATION;
-      const progress = Math.min(1, elapsed / fillTime);
-      const visibleBars = Math.max(3, Math.min(totalBars, Math.ceil(progress * totalBars)));
-
-      const step = Math.max(1, Math.floor(bufLen / visibleBars));
+      // All bars visible — react to audio in real-time (Telegram style)
+      const step = Math.max(1, Math.floor(bufLen / totalBars));
       for (let i = 0; i < totalBars; i++) {
-        if (i >= visibleBars) {
-          bars[i].style.opacity = '0';
-          bars[i].style.height = '3px';
-        } else {
-          bars[i].style.opacity = '1';
-          const freqIdx = Math.min((visibleBars - 1 - i) * step, bufLen - 1);
-          const val = data[freqIdx] / 255;
-          const h = Math.max(3, val * 28);
-          bars[i].style.height = h + 'px';
-        }
+        const freqIdx = Math.min((totalBars - 1 - i) * step, bufLen - 1);
+        const val = freqData[freqIdx] / 255;
+        const h = Math.max(3, val * 28);
+        bars[i].style.height = h + 'px';
+        bars[i].style.opacity = String(0.3 + val * 0.7);
       }
     }
     draw();
@@ -924,6 +927,9 @@ window.VoiceMsg = (function () {
       cancelAnimationFrame(_recAnimFrame);
       _recAnimFrame = null;
     }
+    // Reset mic button scale
+    const micBtn = document.getElementById('btn-send');
+    if (micBtn) micBtn.style.transform = '';
   }
 
   /* ── Pointer (mouse + touch) gesture handling ─────────────── */
@@ -1668,6 +1674,7 @@ window.VoiceMsg = (function () {
     const toSid = toSignalId || S.partner.partner_signal_id;
     if (!toSid) return;
 
+    // Show optimistic message in chat FIRST (no labels, no toasts)
     const tid = 't' + Date.now();
     const tmp = {
       id: tid, sender_id: S.user.id, body: String(duration),
