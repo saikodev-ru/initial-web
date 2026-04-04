@@ -4563,3 +4563,147 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 .voice-mini-player .vmp-close:hover { color: var(--t1); background: var(--s1); }
 .voice-mini-player .vmp-close svg { width: 14px; height: 14px; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   VOICE RECORDING ENHANCEMENTS — Telegram-inspired transitions
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Recording panel morph animation (slide-up + fade + scale) ── */
+.voice-recording {
+  animation: voiceRecSlideIn .32s var(--ease) both;
+}
+@keyframes voiceRecSlideIn {
+  0%   { opacity: 0; transform: translateY(10px) scale(.96); filter: blur(4px); }
+  60%  { filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+/* ── 2. Locked panel entry animation (crossfade from recording) ── */
+.voice-locked {
+  animation: voiceLockedSlideIn .28s var(--ease) both;
+}
+@keyframes voiceLockedSlideIn {
+  0%   { opacity: 0; transform: translateX(6px) scale(.98); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ── 3. Preview panel entry animation (expand from center) ── */
+.voice-preview {
+  animation: voicePreviewPopIn .3s var(--sp) both;
+}
+@keyframes voicePreviewPopIn {
+  0%   { opacity: 0; transform: scale(.92) translateY(4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── 4. Recording glow effect — subtle red glow around input wrap ── */
+.mfield-wrap.voice-rec-active {
+  box-shadow: 0 0 0 1px rgba(255,69,58,.15),
+              0 0 20px rgba(255,69,58,.08),
+              0 0 40px rgba(255,69,58,.04);
+  transition: box-shadow .35s var(--ease),
+              backdrop-filter .2s,
+              background .2s,
+              border-color .2s,
+              height .2s var(--ease),
+              min-height .2s var(--ease),
+              max-height .2s var(--ease);
+}
+
+/* ── 5. Lock arrow bounce animation when shown ── */
+.voice-lock-arrow.show {
+  opacity: 1;
+  animation: lockArrowBounce .5s var(--sp) both;
+  transition: none; /* override base transition during animation */
+}
+@keyframes lockArrowBounce {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(4px) scale(.85); }
+  60%  { opacity: 1; transform: translateX(-50%) translateY(-2px) scale(1.04); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ── 6. Cancel arrow slide-in animation ── */
+.voice-cancel-arrow.show {
+  opacity: 1;
+  animation: cancelArrowSlideIn .4s var(--ease) both;
+  transition: none;
+}
+@keyframes cancelArrowSlideIn {
+  0%   { opacity: 0; transform: translateY(-50%) translateX(calc(100% + 16px)); }
+  100% { opacity: 1; transform: translateY(-50%) translateX(calc(100% + 6px)); }
+}
+
+/* ── 7. Recording bar gradient (lavender → teal) ── */
+.voice-rec-bar {
+  background: linear-gradient(180deg, var(--y) 0%, var(--y3) 100%);
+}
+
+/* ── 8. Preview waveform played state — accent color with glow ── */
+.voice-wf-bar.played {
+  background: var(--y) !important;
+  opacity: 1 !important;
+  box-shadow: 0 0 4px rgba(139,92,246,.3);
+}
+
+/* ── 9. Locked stop button pulse while recording ── */
+.voice-locked-stop {
+  animation: stopBtnPulse 2s ease-in-out infinite;
+}
+@keyframes stopBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,69,58,0); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,69,58,.18), 0 0 16px rgba(255,69,58,.12); }
+}
+
+/* ── 10. Send button recording state — red ring/glow effect ── */
+.btn-voice-rec.recording {
+  box-shadow: 0 0 0 3px rgba(255,69,58,.2),
+              0 0 16px rgba(255,69,58,.15);
+  animation: recBtnRing 1.6s ease-in-out infinite;
+}
+@keyframes recBtnRing {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255,69,58,.2), 0 0 16px rgba(255,69,58,.15); }
+  50%      { box-shadow: 0 0 0 5px rgba(255,69,58,.08), 0 0 24px rgba(255,69,58,.2); }
+}
+
+/* ── 11. Preview play button active glow (when audio is playing) ── */
+.voice-preview.playing .voice-preview-play {
+  box-shadow: 0 0 0 3px rgba(139,92,246,.2),
+              0 0 16px rgba(139,92,246,.25);
+  animation: playBtnGlow 2s ease-in-out infinite;
+}
+@keyframes playBtnGlow {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(139,92,246,.2), 0 0 16px rgba(139,92,246,.25); }
+  50%      { box-shadow: 0 0 0 5px rgba(139,92,246,.1), 0 0 24px rgba(139,92,246,.35); }
+}
+
+/* ── 12. Smooth transition for all voice overlays ── */
+.voice-recording,
+.voice-locked,
+.voice-preview {
+  transition: opacity .25s var(--ease),
+              transform .25s var(--ease);
+}
+
+/* ── 13. Recording duration near-limit warning (< 30s remaining) ── */
+.voice-rec-timer.near-limit,
+.voice-locked-timer.near-limit {
+  color: var(--red);
+  animation: timerWarnPulse 1s ease-in-out infinite;
+}
+@keyframes timerWarnPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .65; }
+}
+/* Urgent warning (< 10s remaining) — stronger effect */
+.voice-rec-timer.urgent-limit,
+.voice-locked-timer.urgent-limit {
+  color: var(--red);
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255,69,58,.4);
+  animation: timerUrgentPulse .6s ease-in-out infinite;
+}
+@keyframes timerUrgentPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .7; transform: scale(1.04); }
+}

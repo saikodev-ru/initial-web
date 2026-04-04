@@ -1032,6 +1032,162 @@ window.VoiceMsg = (function () {
     }
   }
 
+  /**
+   * Client-side audio compression + noise reduction
+   * - Decodes audio buffer
+   * - Applies highpass filter (removes DC offset & rumble below 120Hz)
+   * - Normalizes peak amplitude to -3dB
+   * - Re-encodes via MediaRecorder at low bitrate (opus)
+   * 
+   * @param {Blob} blob - raw recorded audio
+   * @returns {Promise<Blob>} compressed blob
+   */
+  async function compressAudio(blob) {
+    // Quick check for reasonable size — skip compression if already tiny
+    if (blob.size < 8000) return blob;
+
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuf = await blob.arrayBuffer();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+
+      // Resample to 16kHz mono for speech (dramatically reduces processing)
+      const sampleRate = 16000;
+      const numSamples = Math.floor(audioBuffer.duration * sampleRate);
+      const offCtx = new OfflineAudioContext(1, numSamples, sampleRate);
+
+      // Source
+      const source = offCtx.createBufferSource();
+      source.buffer = audioBuffer;
+
+      // Highpass filter — removes DC offset and low-frequency rumble
+      const highpass = offCtx.createBiquadFilter();
+      highpass.type = 'highpass';
+      highpass.frequency.value = 120;
+      highpass.Q.value = 0.7;
+
+      // Lowpass filter — removes high-frequency hiss above 8kHz
+      const lowpass = offCtx.createBiquadFilter();
+      lowpass.type = 'lowpass';
+      lowpass.frequency.value = 8000;
+      lowpass.Q.value = 0.7;
+
+      // Compressor — evens out loud/soft parts (speech-friendly)
+      const compressor = offCtx.createDynamicsCompressor();
+      compressor.threshold.value = -24;
+      compressor.knee.value = 30;
+      compressor.ratio.value = 12;
+      compressor.attack.value = 0.003;
+      compressor.release.value = 0.25;
+
+      // Gain normalization will be applied after offline render
+
+      source.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(compressor);
+      compressor.connect(offCtx.destination);
+      source.start();
+
+      const renderedBuf = await offCtx.startRendering();
+
+      // Peak normalization to -3dB
+      const channelData = renderedBuf.getChannelData(0);
+      let peak = 0;
+      for (let i = 0; i < channelData.length; i++) {
+        const abs = Math.abs(channelData[i]);
+        if (abs > peak) peak = abs;
+      }
+      const targetPeak = Math.pow(10, -3 / 20); // -3dB
+      const gain = peak > 0 ? Math.min(targetPeak / peak, 2.0) : 1.0;
+
+      // Apply gain
+      const normalizedBuf = audioCtx.createBuffer(1, channelData.length, sampleRate);
+      const outData = normalizedBuf.getChannelData(0);
+      for (let i = 0; i < channelData.length; i++) {
+        outData[i] = channelData[i] * gain;
+      }
+
+      // Re-encode via MediaRecorder (opus codec preferred)
+      const dest = audioCtx.createMediaStreamDestination();
+      const reSource = audioCtx.createBufferSource();
+      reSource.buffer = normalizedBuf;
+      reSource.connect(dest);
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : '';
+
+      const recorder = new MediaRecorder(dest.stream, mimeType ? { mimeType, audioBitsPerSecond: 24000 } : {});
+      const chunks = [];
+
+      const done = new Promise((resolve) => {
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = () => {
+          const compressed = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+          audioCtx.close();
+          resolve(compressed);
+        };
+      });
+
+      recorder.start(100);
+      reSource.start();
+      
+      // Wait until playback finishes
+      await new Promise((resolve) => {
+        reSource.onended = () => {
+          setTimeout(() => {
+            recorder.stop();
+            resolve();
+          }, 150);
+        };
+      });
+
+      const compressed = await done;
+      
+      // Only return compressed if it's actually smaller
+      return compressed.size < blob.size * 0.9 ? compressed : blob;
+    } catch (e) {
+      // If compression fails for any reason, return original
+      console.warn('[VoiceMsg] Audio compression failed:', e);
+      return blob;
+    }
+  }
+
+  /**
+   * Generate waveform from an AudioBuffer (reusable for compressed audio)
+   * @param {AudioBuffer} audioBuffer
+   * @returns {number[]} normalized 0-1 array
+   */
+  function generateWaveformFromBuffer(audioBuffer) {
+    const raw = audioBuffer.getChannelData(0);
+    const samples = BAR_COUNT * 8;
+    const blockSize = Math.floor(raw.length / samples);
+    const peaks = [];
+    for (let i = 0; i < samples; i++) {
+      const start = i * blockSize;
+      let max = 0;
+      for (let j = start; j < start + blockSize && j < raw.length; j++) {
+        const abs = Math.abs(raw[j]);
+        if (abs > max) max = abs;
+      }
+      peaks.push(max);
+    }
+    const bars = [];
+    const perBar = Math.floor(samples / BAR_COUNT);
+    for (let i = 0; i < BAR_COUNT; i++) {
+      let max = 0;
+      for (let j = 0; j < perBar; j++) {
+        const idx = i * perBar + j;
+        if (idx < peaks.length && peaks[idx] > max) max = peaks[idx];
+      }
+      bars.push(max);
+    }
+    const maxVal = Math.max(...bars, 0.01);
+    return bars.map(v => v / maxVal);
+  }
+
   /* ══════════════════════════════════════════════════════════════
      PLAYBACK (in chat messages)
      ══════════════════════════════════════════════════════════════ */
@@ -1413,6 +1569,25 @@ window.VoiceMsg = (function () {
   /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
+    // Client-side compression
+    try {
+      toast('Сжатие...', 'info');
+      const compressedBlob = await compressAudio(blob);
+      if (compressedBlob !== blob) {
+        // Re-generate waveform from compressed audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+          const buf = await compressedBlob.arrayBuffer();
+          const audio = await audioCtx.decodeAudioData(buf);
+          waveform = generateWaveformFromBuffer(audio);
+          audioCtx.close();
+        } catch(e) { audioCtx.close(); }
+        blob = compressedBlob;
+      }
+    } catch (e) {
+      console.warn('[VoiceMsg] Compression skipped:', e);
+    }
+
     if (!S.partner) return;
     const replyId = replyTo || S.replyTo?.id || null;
     const toSid = toSignalId || S.partner.partner_signal_id;
@@ -1584,6 +1759,7 @@ window.VoiceMsg = (function () {
     stopRecording,
     cancelRecording,
     generateWaveform,
+    compressAudio,
     createPlayer,
     sendVoice,
     init,
