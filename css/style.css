@@ -4143,7 +4143,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   background: var(--y); color: #fff;
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
+  flex-shrink: 0; position: relative;
   transition: transform .12s var(--sp), box-shadow .12s;
 }
 .voice-play-btn:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
@@ -4274,37 +4274,33 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
 
-/* ── Directional hints (Telegram-style arrows) ── */
+/* ── Directional hints (icon-only, no text) ── */
 .voice-lock-arrow {
   position: absolute; left: 50%; bottom: calc(100% + 6px);
   transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 1px;
-  color: var(--t2); font-size: 10px; font-weight: 500;
+  display: flex; flex-direction: column; align-items: center;
+  color: var(--t2);
   opacity: 0; transition: opacity .15s; pointer-events: none;
   background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  padding: 4px 10px; border-radius: 8px;
-  white-space: nowrap;
+  padding: 5px; border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 .voice-lock-arrow.show { opacity: 1; }
-.voice-lock-arrow svg { margin-bottom: -1px; }
 .voice-cancel-arrow {
   position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(calc(100% + 6px));
-  display: flex; flex-direction: row; align-items: center; gap: 3px;
-  color: var(--red); font-size: 10px; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--red);
   opacity: 0; transition: opacity .15s; pointer-events: none;
   background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  padding: 4px 10px; border-radius: 8px;
-  white-space: nowrap;
+  padding: 5px; border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 .voice-cancel-arrow.show { opacity: 1; }
-.voice-cancel-arrow svg { margin-left: 2px; }
 
 /* ── Locked recording mode ── */
-/* Layout: [🗑 DELETE] [timer] [waveform fills space] [■ STOP] */
+/* Layout: [🗑 DELETE] [timer] [waveform fills space] [⏸ PAUSE] */
 .voice-locked {
   position: absolute;
   inset: 0;
@@ -4343,10 +4339,17 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
 /* Waveform — fills remaining space, bars grow right to left */
 .voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
-/* Stop button — right side */
-.voice-locked-stop { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
-.voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
-.voice-locked-stop:active { transform: scale(0.95); }
+/* Pause button — right side of locked panel */
+.voice-locked-pause {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--y); color: #fff;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: transform .12s var(--sp), box-shadow .12s, background .12s;
+}
+.voice-locked-pause:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
+.voice-locked-pause:active { transform: scale(0.95); }
 /* Swipe-to-delete active state */
 .voice-locked.swipe-delete .voice-locked-delete {
   color: var(--red);
@@ -4413,59 +4416,57 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .btn-voice-rec svg { width: 20px; height: 20px; transition: transform .15s var(--sp); }
 .btn-voice-rec.recording svg { color: var(--red); }
 
-/* Visual hint arrows — shown on long press start */
+/* Visual hint arrows — shown on long press start (icon-only) */
 .btn-voice-rec .rec-hint-lock {
   position: absolute;
-  top: -28px;
+  top: -32px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity .2s;
-  white-space: nowrap;
+  width: 28px;
+  height: 28px;
+  background: rgba(var(--bg-rgb),.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 .btn-voice-rec .rec-hint-lock svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   color: var(--t3);
   animation: hintBounceUp .8s ease infinite;
 }
-.btn-voice-rec .rec-hint-lock span {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--t3);
-  letter-spacing: .3px;
-}
 .btn-voice-rec .rec-hint-cancel {
   position: absolute;
-  left: -32px;
+  left: -36px;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity .2s;
-  white-space: nowrap;
+  width: 28px;
+  height: 28px;
+  background: rgba(var(--bg-rgb),.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
 }
 .btn-voice-rec .rec-hint-cancel svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   color: var(--red);
-  opacity: .6;
+  opacity: .8;
   animation: hintBounceLeft .8s ease infinite;
-}
-.btn-voice-rec .rec-hint-cancel span {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--red);
-  opacity: .6;
-  letter-spacing: .3px;
 }
 .btn-voice-rec.hints-visible .rec-hint-lock,
 .btn-voice-rec.hints-visible .rec-hint-cancel {
@@ -4646,14 +4647,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   box-shadow: 0 0 4px rgba(139,92,246,.3);
 }
 
-/* ── 9. Locked stop button pulse while recording ── */
-.voice-locked-stop {
-  animation: stopBtnPulse 2s ease-in-out infinite;
-}
-@keyframes stopBtnPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,69,58,0); }
-  50%      { box-shadow: 0 0 0 6px rgba(255,69,58,.18), 0 0 16px rgba(255,69,58,.12); }
-}
+/* ── 9. No pulse on pause button (replaced old stop pulse) ── */
 
 /* ── 10. Send button recording state — red ring/glow effect ── */
 .btn-voice-rec.recording {
@@ -4706,4 +4700,52 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 @keyframes timerUrgentPulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: .7; transform: scale(1.04); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOCKED MODE — Mic button becomes STOP button
+   ═══════════════════════════════════════════════════════════════ */
+.btn-voice-rec.locked-stop-mode {
+  background: var(--red) !important;
+  box-shadow: 0 0 0 3px rgba(255,69,58,.2),
+              0 0 16px rgba(255,69,58,.15);
+}
+.btn-voice-rec.locked-stop-mode .ico-mic { opacity: 0 !important; transform: scale(0); }
+.btn-voice-rec.locked-stop-mode .ico-stop { display: block !important; opacity: 1 !important; }
+.btn-voice-rec.locked-stop-mode .ico-send { opacity: 0 !important; }
+.btn-voice-rec.locked-stop-mode:hover {
+  background: #e04040 !important;
+  transform: scale(1.08);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UPLOAD PROGRESS RING — Circular progress on voice play button
+   ═══════════════════════════════════════════════════════════════ */
+.voice-upload-ring {
+  position: absolute;
+  inset: -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.voice-upload-ring .progress-ring-svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.voice-upload-ring .progress-ring-fg {
+  transition: stroke-dashoffset .15s ease;
+}
+.voice-upload-ring .upload-ring-pct {
+  font-size: 7px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+  position: relative;
+  z-index: 1;
+  line-height: 1;
 }

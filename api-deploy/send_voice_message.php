@@ -72,17 +72,16 @@ if ($voiceDuration <= 0) {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SERVER-SIDE AUDIO COMPRESSION + NOISE REDUCTION (FFmpeg)
+   SERVER-SIDE AUDIO COMPRESSION (FFmpeg)
    
    Pipeline:
    1. Convert to opus/ogg at 24kbps (speech-optimized)
    2. Highpass 200Hz — removes rumble, HVAC, wind noise
    3. Lowpass 3400Hz — removes hiss, focuses on speech band
-   4. Noise reduction (afftdn) — removes steady background noise
-   5. Loudness normalize -20 LUFS — consistent volume
-   6. Mono 16kHz — optimal for voice messages
+   4. Loudness normalize -20 LUFS — consistent volume
+   5. Mono 16kHz — optimal for voice messages
    
-   Result: ~5-10x smaller files, clean speech, cache-friendly
+   Note: afftdn noise reduction removed — it degrades voice quality
    ══════════════════════════════════════════════════════════════ */
 $originalSize = $size;
 $compressed = false;
@@ -105,26 +104,10 @@ if (function_exists('exec')) {
             $origDur = (float) $probeJson['format']['duration'];
         }
 
-        // Detect if afftdn filter is available (FFmpeg 4.4+)
-        $hasAfftdn = false;
-        $filterCheck = @shell_exec(
-            escapeshellcmd($ffmpeg) . ' -filters 2>/dev/null | grep afftdn'
-        );
-        if (!empty($filterCheck)) {
-            $hasAfftdn = true;
-        }
-
-        // Build filter chain
+        // Build filter chain — NO afftdn (degrades voice quality)
         $filters = [];
         $filters[] = 'highpass=f=200';           // Remove low-frequency rumble
         $filters[] = 'lowpass=f=3400';            // Remove high-frequency hiss
-
-        if ($hasAfftdn) {
-            // FFT denoiser — removes steady-state noise (AC, fan, etc.)
-            // nr=12: noise reduction strength (higher = more aggressive)
-            // nf=-25: noise floor in dB
-            $filters[] = 'afftdn=nf=-25:tn=1';
-        }
 
         $filterChain = implode(',', $filters);
 
@@ -190,7 +173,6 @@ if (function_exists('exec')) {
             . " | orig={$originalSize}B"
             . ($compressed ? " comp={$outSize}B saved={$ratio}%" : "")
             . " | dur={$origDur}s"
-            . ($hasAfftdn ? " afftdn=YES" : " afftdn=NO")
             . "\n",
             FILE_APPEND
         );
