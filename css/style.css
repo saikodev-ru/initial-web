@@ -2179,7 +2179,7 @@ body[data-theme="light"] .input-zone::before {
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
 .emo-btn-in:hover{background:rgba(255,255,255,.14);color:#fff;transform:scale(1.08)}.emo-btn-in:active{transform:scale(.88)}.emo-btn-in.active{color:var(--y);background:var(--ybg)}
 .attach-btn-in{position:absolute;left:9px;bottom:9px;width:26px;height:26px;z-index:2}
-.send-btn{width:44px;height:44px;flex-shrink:0;background:var(--y);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .14s var(--sp),opacity .15s;box-shadow:none;overflow:hidden;position:relative}
+.send-btn{width:44px;height:44px;flex-shrink:0;background:var(--y);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .14s var(--sp),opacity .15s;box-shadow:none;overflow:visible;position:relative}
 .send-btn:hover{transform:scale(1.08)}.send-btn:active{transform:scale(.92)}.send-btn svg{position:absolute;width:18px;height:18px;color:#fff;transition:opacity .2s ease,transform .25s ease}.send-btn .ico-send{opacity:0;transform:translateY(6px) rotate(-30deg)}.send-btn .ico-mic{opacity:1;transform:translateY(0) rotate(0deg)}.send-btn.has-text .ico-send{opacity:1;transform:translateY(0) rotate(0deg)}.send-btn.has-text .ico-mic{opacity:0;transform:translateY(-6px) rotate(30deg)}
 body[data-theme="light"] .send-btn svg{color:#fff}
 body[data-theme="amoled"] .send-btn svg{color:#fff}
@@ -4411,7 +4411,6 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .btn-voice-rec:hover { background: var(--y2); transform: scale(1.08); }
 .btn-voice-rec:active { transform: scale(0.9); }
 .btn-voice-rec svg { width: 20px; height: 20px; transition: transform .15s var(--sp); }
-.btn-voice-rec.recording svg { color: var(--red); }
 
 /* Visual hint arrows — shown on long press start */
 .btn-voice-rec .rec-hint-lock {
@@ -4599,9 +4598,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 4. Recording glow effect — subtle red glow around input wrap ── */
 .mfield-wrap.voice-rec-active {
-  box-shadow: 0 0 0 1px rgba(255,69,58,.15),
-              0 0 20px rgba(255,69,58,.08),
-              0 0 40px rgba(255,69,58,.04);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04),
+              0 0 12px rgba(139,92,246,.06);
   transition: box-shadow .35s var(--ease),
               backdrop-filter .2s,
               background .2s,
@@ -4655,15 +4653,15 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   50%      { box-shadow: 0 0 0 6px rgba(255,69,58,.18), 0 0 16px rgba(255,69,58,.12); }
 }
 
-/* ── 10. Send button recording state — red ring/glow effect ── */
+/* ── 10. Send button recording state — accent ring effect ── */
 .btn-voice-rec.recording {
-  box-shadow: 0 0 0 3px rgba(255,69,58,.2),
-              0 0 16px rgba(255,69,58,.15);
+  box-shadow: 0 0 0 3px rgba(139,92,246,.15),
+              0 0 16px rgba(139,92,246,.1);
   animation: recBtnRing 1.6s ease-in-out infinite;
 }
 @keyframes recBtnRing {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(255,69,58,.2), 0 0 16px rgba(255,69,58,.15); }
-  50%      { box-shadow: 0 0 0 5px rgba(255,69,58,.08), 0 0 24px rgba(255,69,58,.2); }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(139,92,246,.15), 0 0 16px rgba(139,92,246,.1); }
+  50%      { box-shadow: 0 0 0 5px rgba(139,92,246,.06), 0 0 24px rgba(139,92,246,.15); }
 }
 
 /* ── 11. Preview play button active glow (when audio is playing) ── */
