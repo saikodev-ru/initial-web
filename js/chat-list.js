@@ -87,7 +87,12 @@ function _renderChatItemContent(el,c){
   // Точка онлайн — не показывать для спецчатов
   const showOnlineDot=!isSavedMsgs(c)&&!isSystemChat(c)&&isOnline(c.partner_last_seen);
 
-  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
+  // ── Read checkmarks for outgoing messages in chat list ──
+  const isOutgoing = c.last_sender_id == S.user?.id && !isTyping;
+  const isRead = isOutgoing && c.is_read == 1;
+  const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="10" height="7" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
+
+  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div>${ciTickHtml}</div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
   // Restore saved animating icon
   if(iconAnimating&&existingIcon){const ts=el.querySelector('.ci-ts');const wrap=ts?.parentElement;if(wrap)wrap.insertBefore(existingIcon,ts);}
@@ -820,11 +825,16 @@ function makeSbItem(u,isRecent=false){
 $('sb-q').onfocus=()=>{if(!sbSearchActive)enterSearch();};
 // Cancel search via X button
 $('btn-sb-close').onclick = () => { if(sbSearchActive) exitSearch(); };
-// Cancel search when clicking outside sidebar
+// Cancel search when clicking outside sidebar — but allow clicks inside search results panel
 document.addEventListener('mousedown', e => {
   if (!sbSearchActive) return;
   const sb = $('sidebar');
-  if (sb && !sb.contains(e.target)) exitSearch();
+  if (sb && sb.contains(e.target)) return; // ignore clicks inside sidebar (search results are inside)
+  // Cancel search if clicking nav-rail, chat area, profile footer, or prof-id
+  const navRail = e.target.closest('.nav-rail');
+  const chatArea = e.target.closest('#active-chat');
+  const profId = e.target.closest('.prof-row');
+  if (navRail || chatArea || profId) exitSearch();
 });
 $('btn-sb-search').onclick=()=>{if(sbCollapsed)toggleSidebar(false);setTimeout(()=>{$('sb-q').focus();},320);};
 
@@ -893,7 +903,16 @@ $('sb-q').oninput=()=>{
     // Фильтруем системных пользователей и себя из результатов поиска
     const filtered=res.users.filter(u=>u.signal_id!=='signal'&&u.id!==S.user?.id);
     if(!filtered.length){const lbl=$('lbl-users');if(lbl)lbl.remove();return;}
-    filtered.forEach(u=>c.appendChild(makeSbItem(u,false)));
+    filtered.forEach(u=>{
+      const el=makeSbItem(u,false);
+      // Open profile modal on click instead of just exiting search
+      el.onclick=()=>{
+        saveRecentUser(u);
+        if(sbSearchActive) sbSearchActive=false, $('sidebar').classList.remove('searching');
+        openProfileModal({...u,chat_id:u.chat_id||0,partner_id:u.id,partner_name:u.nickname,partner_signal_id:u.signal_id,partner_avatar:u.avatar_url,partner_bio:u.bio,is_verified:u.is_verified,is_team_signal:u.is_team_signal},false);
+      };
+      c.appendChild(el);
+    });
   },400);
 };
 let sqT;

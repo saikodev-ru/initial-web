@@ -413,8 +413,10 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .ci:hover{background:var(--s0)}.ci.active{background:var(--ybg)}
 
 /* ── Chat list dividers ── */
-body.chat-dividers .ci:not(.pinned) + .ci:not(.pinned){border-top:1px solid var(--b);padding-top:9px}
+body.chat-dividers .ci:not(.pinned) + .ci:not(.pinned){border-top:1px solid var(--b);border-left:none;border-right:none;border-image:linear-gradient(90deg,transparent,var(--b) 16px,var(--b) calc(100% - 16px),transparent) 1;padding-top:9px;margin:0}
+body.chat-dividers .ci.pinned + .ci.pinned{border-top:1px solid var(--b);border-left:none;border-right:none;border-image:linear-gradient(90deg,transparent,var(--b) 16px,var(--b) calc(100% - 16px),transparent) 1;padding-top:9px;margin:0}
 body.chat-dividers .sb-section-pin + .ci:not(.pinned){border-top:none;padding-top:10px}
+body.chat-dividers .sb-pin-divider + .ci.pinned{border-top:none;padding-top:9px}
 .ci.active::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:56%;background:var(--y);border-radius:0 4px 4px 0}
 .av{position:relative;flex-shrink:0}.av-img{width:44px;height:44px;border-radius:50%;background:var(--solid1);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:var(--t2);position:relative;flex-shrink:0}
 .av-img[data-initials]:not(:has(img[style*="block"]))::after,.av-img:not(:has(img)){content:attr(data-initials)}
@@ -426,6 +428,10 @@ body.chat-dividers .sb-section-pin + .ci:not(.pinned){border-top:none;padding-to
 /* Отключаем кликабельность ссылок и тегов в превью списка чатов */
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
 .ci-prev.typ{color:var(--y);font-style:italic}
+/* Chat list read tick marks */
+.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.5}
+.ci-tick-r{opacity:1}
+.ci-tick svg{display:block}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
 .prof-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:14px;padding:8px;margin:-8px;transition:background .15s}
@@ -1730,6 +1736,8 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .doc-card-icon-txt,.doc-card-icon-md,.doc-card-icon-log,.doc-card-icon-rtf{background:#8e8e93}
 .doc-card-icon-html,.doc-card-icon-css,.doc-card-icon-xml{background:#ff9500}
 .doc-card-icon-doc,.doc-card-icon-docx{background:#007aff}
+.doc-card-icon-ppt,.doc-card-icon-pptx{background:#ff6b00}
+.doc-card-icon-zip,.doc-card-icon-rar,.doc-card-icon-7z{background:#5856d6}
 .doc-card-icon svg{width:22px;height:22px}
 .doc-card-icon-rtf{background:#007aff}
 .doc-card-info{flex:1;min-width:0}
@@ -3611,6 +3619,243 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 .cdp-select:focus { border-color: var(--yb); }
 .cdp-sep { height: 1px; background: var(--b2); margin: 10px 0; }
 
+/* ═══════════════════════════════════════════════════════════════
+   CALL PANEL — Discord-inspired enhancements
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Panel: darker immersive background ── */
+.call-panel {
+  background: rgba(0,0,0,.92) !important;
+  backdrop-filter: blur(28px) saturate(1.2);
+  -webkit-backdrop-filter: blur(28px) saturate(1.2);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.call-panel.cp-fullscreen {
+  background: rgba(0,0,0,.96) !important;
+  border-radius: 0;
+}
+
+/* ── 2. Remote participant: full-bleed with glow ring on connect ── */
+.cp-remote {
+  background: linear-gradient(135deg, rgba(255,255,255,.02), rgba(255,255,255,.06));
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.04);
+  transition: border-color .6s ease;
+}
+.cp-remote.connected-tile {
+  border-color: rgba(139,92,246,.2);
+  box-shadow: inset 0 0 40px rgba(139,92,246,.06);
+}
+.cp-remote-av {
+  box-shadow: 0 0 0 3px rgba(0,0,0,.4);
+  transition: transform .4s cubic-bezier(.34,1.56,.64,1), box-shadow .5s ease;
+}
+/* Glow ring animation when connected */
+@keyframes cpGlowRing {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(139,92,246,.25), 0 0 18px rgba(139,92,246,.15); }
+  50%      { box-shadow: 0 0 0 5px rgba(139,92,246,.15), 0 0 28px rgba(139,92,246,.25); }
+}
+.cp-remote.connected-tile .cp-remote-av {
+  animation: cpGlowRing 2.5s ease-in-out infinite;
+}
+.cp-remote-video {
+  border-radius: 16px;
+}
+
+/* ── 3. Local preview: smaller, bottom-right with subtle border ── */
+.cp-local {
+  border-radius: 12px;
+  background: rgba(0,0,0,.5);
+  border: 1px solid rgba(255,255,255,.08);
+  max-width: 160px;
+  min-width: 80px;
+  flex: none;
+}
+.cp-local-video {
+  border-radius: 12px;
+}
+.cp-local-av {
+  width: 48px; height: 48px;
+  font-size: 18px;
+}
+
+/* ── 4. Controls bar: glass-morphism ── */
+.cp-controls {
+  padding: 8px 20px 14px;
+  background: rgba(255,255,255,.03);
+  border-top: 1px solid rgba(255,255,255,.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── 5. Mini bar: compact pill with smooth expand ── */
+.call-mini-bar {
+  background: rgba(0,0,0,.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 0;
+  border-left: 3px solid var(--y);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  padding: 7px 16px;
+  transition: background .2s, transform .25s cubic-bezier(.34,1.56,.64,1), opacity .2s;
+}
+.call-mini-bar:hover {
+  background: rgba(139,92,246,.12);
+  transform: translateY(-1px);
+}
+@keyframes cpMiniSlideIn {
+  from { opacity: 0; transform: translateY(-8px) scaleY(.85); }
+  to   { opacity: 1; transform: none; }
+}
+.call-mini-bar { animation: cpMiniSlideIn .28s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* ── 6. Status text: animated gradient when connecting ── */
+@keyframes cpStatusGradient {
+  0%   { color: rgba(139,92,246,.7); }
+  50%  { color: rgba(14,165,233,.8); }
+  100% { color: rgba(139,92,246,.7); }
+}
+.cp-status.connecting-status {
+  animation: cpStatusGradient 1.8s ease-in-out infinite;
+  font-weight: 700;
+}
+
+/* ── 7. Timer: monospace with subtle pulse ── */
+.cp-timer {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .5px;
+}
+@keyframes cpTimerPulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .65; }
+}
+.cp-timer.timer-active {
+  animation: cpTimerPulse 3s ease-in-out infinite;
+}
+
+/* ── 8. Buttons: larger touch targets, hover glow, rounded square ── */
+.cp-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  transition: background .14s, color .14s, transform .1s var(--sp), box-shadow .2s;
+}
+.cp-btn:hover {
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(139,92,246,.15);
+}
+.cp-btn:active { transform: scale(.93); }
+.cp-btn svg { transition: filter .2s; }
+.cp-btn:hover svg { filter: drop-shadow(0 0 4px rgba(255,255,255,.2)); }
+
+/* ── 9. End call button: red with glow ── */
+.cp-btn-end {
+  min-height: 44px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: rgba(255,59,48,.2);
+  border: 1px solid rgba(255,59,48,.35);
+  color: #ff5c55;
+  box-shadow: 0 0 8px rgba(255,59,48,.08);
+  transition: background .14s, color .14s, transform .1s var(--sp), border-color .14s, box-shadow .2s;
+}
+.cp-btn-end:hover {
+  background: rgba(255,59,48,.35);
+  color: #ff3b30;
+  border-color: rgba(255,59,48,.55);
+  box-shadow: 0 0 20px rgba(255,59,48,.25), 0 0 6px rgba(255,59,48,.4);
+}
+.cp-btn-end:active { transform: scale(.93); }
+.cp-btn-end svg { transition: filter .2s; }
+.cp-btn-end:hover svg { filter: drop-shadow(0 0 6px rgba(255,59,48,.5)); }
+
+/* ── 10. Connection quality: animated dot with smooth transitions ── */
+.cp-quality-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  transition: background .5s ease, box-shadow .5s ease;
+  animation: cpQualityPulse 2s ease-in-out infinite;
+}
+@keyframes cpQualityPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.3); opacity: .7; }
+}
+
+/* ── 11. Collapse/expand: smoother with scale animation ── */
+@keyframes cpExpandIn {
+  from { opacity: 0; transform: scaleY(.7) translateY(-10px); }
+  to   { opacity: 1; transform: none; }
+}
+.call-panel.expanding {
+  animation: cpExpandIn .3s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+/* ── Screen share enhancements ── */
+.cp-screen {
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.04);
+}
+
+/* ── Top status bar enhancements ── */
+.cp-top-bar {
+  background: rgba(255,255,255,.02);
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.cp-collapse-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  transition: background .15s, color .15s, transform .15s var(--sp);
+}
+.cp-collapse-btn:hover {
+  background: var(--s2);
+  color: var(--t1);
+  transform: scale(1.08);
+}
+
+/* ── Mini bar buttons ── */
+.cmb-btn {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  transition: background .14s, color .14s, transform .12s var(--sp);
+}
+.cmb-btn:hover { transform: scale(1.08); }
+.cmb-btn-end {
+  transition: background .14s, color .14s, transform .12s var(--sp), box-shadow .2s;
+}
+.cmb-btn-end:hover {
+  box-shadow: 0 0 12px rgba(255,59,48,.25);
+  transform: scale(1.08);
+}
+
+/* ── Media area: position local as overlay bottom-right ── */
+.cp-media-area {
+  gap: 0;
+  padding: 8px 14px;
+  position: relative;
+}
+.cp-local {
+  position: absolute;
+  bottom: 12px;
+  right: 20px;
+  z-index: 5;
+  box-shadow: 0 4px 16px rgba(0,0,0,.4);
+}
+
+/* ── Muted icon enhancement ── */
+.cp-muted-icon {
+  width: 22px; height: 22px;
+  box-shadow: 0 2px 8px rgba(255,59,48,.4);
+}
+
+/* ── Resize handle glow ── */
+.cp-resize-handle:hover, .cp-resize-handle.dragging {
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,.5), transparent);
+  box-shadow: 0 0 8px rgba(139,92,246,.2);
+}
+
 /* On mobile: hide call panel, keep modal fullscreen for all states */
 @media (max-width: 680px) {
   .call-panel { display: none !important; }
@@ -3800,4 +4045,33 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   height: 20px;
   background: var(--y);
   border-radius: 0 3px 3px 0;
+}
+
+/* ── TDesktop theme preview ── */
+.tdtheme-grid {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;
+}
+.tdtheme-card {
+  width: 48px; height: 48px; border-radius: 10px; overflow: hidden;
+  border: 2px solid var(--b2); cursor: pointer;
+  position: relative; transition: border-color .15s, transform .12s var(--sp);
+}
+.tdtheme-card:hover { border-color: var(--yb); transform: scale(1.08); }
+.tdtheme-card.active { border-color: var(--y); }
+.tdtheme-card img { width: 100%; height: 100%; object-fit: cover; }
+.tdtheme-card .tdtheme-del {
+  position: absolute; top: -6px; right: -6px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--red); color: #fff; border: none;
+  display: none; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 11px; font-weight: 900; line-height: 1;
+  z-index: 2;
+}
+.tdtheme-card:hover .tdtheme-del { display: flex; }
+.tdtheme-no-img {
+  display: flex; align-items: flex-end; justify-content: flex-start;
+  width: 100%; height: 100%; padding: 3px;
+}
+.tdtheme-swatch {
+  flex: 1; border-radius: 3px 3px 0 0;
 }

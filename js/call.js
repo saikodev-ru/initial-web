@@ -46,7 +46,7 @@ window.CallUI = (() => {
       let pc, done = false;
       const finish = (ok) => { if (done) return; done = true; if (pc) pc.close(); resolve(ok ? url : null); };
       try { pc = new RTCPeerConnection({ iceServers: [{ urls: url }] }); } catch(e) { return finish(false); }
-      setTimeout(() => finish(false), 1200);
+      setTimeout(() => finish(false), 800);
       pc.onicecandidate = (e) => { if (e.candidate && e.candidate.type === 'srflx') finish(true); };
       pc.createDataChannel('test');
       pc.createOffer().then(o => pc.setLocalDescription(o)).catch(() => finish(false));
@@ -244,6 +244,8 @@ window.CallUI = (() => {
 
   function _startTimer() {
     _seconds = 0;
+    // Add CSS class for timer pulse animation
+    el.cpTimer()?.classList.add('timer-active');
     _timer = setInterval(() => {
       _seconds++;
       const fmt = _fmt(_seconds);
@@ -263,6 +265,11 @@ window.CallUI = (() => {
     _timer = null; _statsInterval = null; _seconds = 0;
     if (el.cpQuality()) el.cpQuality().style.display = 'none';
     if (el.quality()) el.quality().style.display = 'none';
+    // Clean up CSS animation classes
+    el.cpTimer()?.classList.remove('timer-active');
+    el.cpStatus()?.classList.remove('connecting-status');
+    const remoteTile = $('cp-remote');
+    if (remoteTile) remoteTile.classList.remove('connected-tile');
   }
 
   /* ── Signaling ── */
@@ -345,6 +352,8 @@ window.CallUI = (() => {
     if (_panelCallerChatId && S.chatId !== _panelCallerChatId) {
       if (window.openChat) { const c = (S.chats||[]).find(x => x.chat_id === _panelCallerChatId); if (c) window.openChat(c); }
     }
+    const panel = el.panel();
+    if (panel) { panel.classList.add('expanding'); setTimeout(() => panel.classList.remove('expanding'), 350); }
     _showPanel();
   }
 
@@ -417,7 +426,7 @@ window.CallUI = (() => {
     } else {
       // Desktop: show inline panel
       _syncPanelAv(); _syncMiniAv();
-      if (el.cpStatus()) { el.cpStatus().textContent = 'Вызов…'; el.cpStatus().style.display = 'inline'; }
+      if (el.cpStatus()) { el.cpStatus().textContent = 'Вызов…'; el.cpStatus().style.display = 'inline'; el.cpStatus().classList.add('connecting-status'); }
       if (el.cpTimer()) el.cpTimer().style.display = 'none';
       _showPanel();
     }
@@ -511,13 +520,24 @@ window.CallUI = (() => {
 
   async function _createPeerConnection() {
     const stunServers = await getWorkingStunServers(2);
-    _pc = new RTCPeerConnection({
+    const rtcConfig = {
       iceServers: [
         ...stunServers,
         { urls: 'turns:relay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
         { urls: 'turn:relay.metered.ca:80?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
-    });
+    };
+    // Speed up ICE gathering by pre-allocating candidate pool (if supported)
+    if (RTCPeerConnection.prototype.hasOwnProperty('iceCandidatePoolSize') ||
+        'iceCandidatePoolSize' in RTCPeerConnection.prototype) {
+      rtcConfig.iceCandidatePoolSize = 10;
+    }
+    // Bundle all media on a single transport for faster connection (if supported)
+    if (RTCPeerConnection.prototype.hasOwnProperty('bundlePolicy') ||
+        'bundlePolicy' in RTCPeerConnection.prototype) {
+      rtcConfig.bundlePolicy = 'max-bundle';
+    }
+    _pc = new RTCPeerConnection(rtcConfig);
 
     _pc.onnegotiationneeded = async () => {
       if (_callState !== 'connected') return;
@@ -553,8 +573,11 @@ window.CallUI = (() => {
       if (_pc.connectionState === 'connected' || _pc.iceConnectionState === 'connected' || _pc.iceConnectionState === 'completed') {
         clearTimeout(_iceDisconnectTimeout); _endReason = 'ended'; _iceDisconnectTimeout = null;
         _setCallState('connected');
-        if (el.cpStatus()) { el.cpStatus().textContent = 'Соединено'; }
+        if (el.cpStatus()) { el.cpStatus().textContent = 'Соединено'; el.cpStatus().classList.remove('connecting-status'); }
         if (el.status()) { el.status().textContent = 'Соединено'; el.status().style.display = 'none'; }
+        // Add glow ring class to remote tile
+        const remoteTile = $('cp-remote');
+        if (remoteTile) remoteTile.classList.add('connected-tile');
         stopRing(); _startTimer();
       }
     };
@@ -571,7 +594,7 @@ window.CallUI = (() => {
       if (_pc.iceConnectionState === 'failed') {
         close(false, false);
       } else if (_pc.iceConnectionState === 'disconnected') {
-        if (el.cpStatus()) { el.cpStatus().textContent = 'Переподключение…'; el.cpStatus().style.display = 'inline'; }
+        if (el.cpStatus()) { el.cpStatus().textContent = 'Переподключение…'; el.cpStatus().style.display = 'inline'; el.cpStatus().classList.add('connecting-status'); }
         if (el.cpTimer()) el.cpTimer().style.display = 'none';
         if (el.status()) { el.status().textContent = 'Переподключение…'; el.status().style.display = ''; }
         if (el.timer()) el.timer().style.display = 'none';
@@ -582,7 +605,7 @@ window.CallUI = (() => {
       } else if (_pc.iceConnectionState === 'connected' || _pc.iceConnectionState === 'completed') {
         clearTimeout(_iceDisconnectTimeout); _iceDisconnectTimeout = null;
         if (el.cpTimer()) el.cpTimer().style.display = 'inline';
-        if (el.cpStatus()) el.cpStatus().style.display = 'none';
+        if (el.cpStatus()) { el.cpStatus().style.display = 'none'; el.cpStatus().classList.remove('connecting-status'); }
         if (el.timer()) el.timer().style.display = '';
         if (el.status()) el.status().style.display = 'none';
       }
@@ -681,7 +704,7 @@ window.CallUI = (() => {
     else if (data.type === 'answer' && _pc && (_callState === 'calling' || _callState === 'answering' || _callState === 'connected')) {
       stopOutgoingRing();
       if (_callState !== 'connected') {
-        if (el.cpStatus()) { el.cpStatus().textContent = 'Подключение…'; el.cpStatus().style.display = 'inline'; }
+        if (el.cpStatus()) { el.cpStatus().textContent = 'Подключение…'; el.cpStatus().style.display = 'inline'; el.cpStatus().classList.add('connecting-status'); }
         if (el.status()) { el.status().style.display = ''; el.status().textContent = 'Подключение…'; }
       }
       const sdpObj = p.sdp || p;
@@ -720,7 +743,7 @@ window.CallUI = (() => {
     if (!_isMobile()) {
       if (ov) ov.classList.remove('on');
       _syncPanelAv(); _syncMiniAv();
-      if (el.cpStatus()) { el.cpStatus().textContent = 'Подключение…'; el.cpStatus().style.display = 'inline'; }
+      if (el.cpStatus()) { el.cpStatus().textContent = 'Подключение…'; el.cpStatus().style.display = 'inline'; el.cpStatus().classList.add('connecting-status'); }
       if (el.cpTimer()) el.cpTimer().style.display = 'none';
       _showPanel();
       // Navigate to caller's chat if possible
@@ -736,7 +759,9 @@ window.CallUI = (() => {
       if (el.status()) { el.status().style.display = ''; el.status().textContent = 'Подключение…'; }
     }
 
-    if (!await _initMedia(_video)) { close(); return; }
+    // Start media init immediately (don't wait for UI to finish)
+    const mediaReady = await _initMedia(_video);
+    if (!mediaReady) { close(); return; }
     if (_callState !== 'answering') { _cleanupRTC(); return; }
     await _createPeerConnection();
     if (_callState !== 'answering') { _cleanupRTC(); return; }
