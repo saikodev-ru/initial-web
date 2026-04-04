@@ -21,6 +21,9 @@ window.VoiceMsg = (function () {
   let _pointerStartY = 0;
   let _swipeCancelActive = false;
   let _swipeLockActive = false;
+  let _lockedCleanup = null;
+  let _lockedSwipeStartX = 0;
+  let _lockedSwiping = false;
   let _currentAudio = null;
   let _currentBtn = null;
   let _currentContainer = null;
@@ -178,8 +181,21 @@ window.VoiceMsg = (function () {
   }
 
   function _removeVoiceOverlays() {
-    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
-    if (_lockedOverlay) { _lockedOverlay.remove(); _lockedOverlay = null; }
+    if (_recOverlay) {
+      _recOverlay.style.background = '';
+      _recOverlay.classList.remove('swipe-cancel');
+      _recOverlay.remove();
+      _recOverlay = null;
+    }
+    if (_lockedOverlay) {
+      _lockedOverlay.style.transform = '';
+      _lockedOverlay.style.background = '';
+      _lockedOverlay.classList.remove('swipe-delete');
+      _lockedOverlay.remove();
+      _lockedOverlay = null;
+    }
+    // Clean up locked gesture listeners
+    if (_lockedCleanup) { _lockedCleanup(); _lockedCleanup = null; }
     if (_previewOverlay) {
       if (_previewAudio) {
         _previewAudio.pause();
@@ -274,44 +290,58 @@ window.VoiceMsg = (function () {
     }
   }
 
-  /* ── Lock mode (swipe up) ─────────────────────────────────── */
+  /* ── Lock mode (swipe up) — Telegram Desktop style ───────── */
 
   function _transitionToLocked() {
     if (_isLocked || !_recOverlay) return;
     _isLocked = true;
+    _swipeLockActive = false;
+    _swipeCancelActive = false;
+    _lockedSwiping = false;
+
+    // Stop current visualization — will restart on new overlay
     _stopRecVisualization();
 
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    // Remove recording overlay
-    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
-
-    // Hide hints on mic button
+    // Hide directional hints on mic button
     const sendBtn = document.getElementById('btn-send');
     if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
 
-    // Create locked overlay
-    const overlay = document.createElement('div');
+    // Reset wrap transforms (in case user was mid-swipe)
+    wrap.style.transform = '';
+    wrap.style.opacity = '';
+
+    // Clean up previous locked gesture listeners
+    if (_lockedCleanup) { _lockedCleanup(); _lockedCleanup = null; }
+
+    // ── Morph recording overlay → locked overlay IN-PLACE ──
+    // Layout: [🗑 DELETE] [timer] [waveform fills remaining space] [■ STOP]
+    const overlay = _recOverlay;
+    _recOverlay = null;
+
     overlay.className = 'voice-locked';
     overlay.id = 'voice-locked-overlay';
+    overlay.style.transform = '';
+    overlay.style.background = '';
     overlay.innerHTML = `
-      <button class="voice-locked-stop" id="voice-locked-stop" title="Остановить">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+      <button class="voice-locked-delete" id="voice-locked-delete" title="Удалить">
+        <svg class="trash-lid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 6 3 6 21 6"/>
+          <path class="trash-body" d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
       </button>
       <span class="voice-locked-timer" id="voice-locked-timer">${_formatElapsed()}</span>
       <div class="voice-locked-wave" id="voice-locked-wave-container"></div>
-      <button class="voice-locked-delete" id="voice-locked-delete" title="Удалить">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-        </svg>
+      <button class="voice-locked-stop" id="voice-locked-stop" title="Остановить">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
       </button>
     `;
 
-    wrap.appendChild(overlay);
     _lockedOverlay = overlay;
 
-    // Build waveform bars
+    // Build waveform bars in the locked container
     const wfWrap = overlay.querySelector('#voice-locked-wave-container');
     if (wfWrap) {
       for (let i = 0; i < REC_BAR_COUNT; i++) {
@@ -322,28 +352,155 @@ window.VoiceMsg = (function () {
       }
     }
 
-    // Restart visualization for new bars
+    // Restart visualization
     _startRecVisualization();
 
-    // Locked timer
+    // Locked timer (independent from _recTimer)
     _lockedTimer = setInterval(() => {
       const timerEl = document.getElementById('voice-locked-timer');
       if (timerEl) timerEl.textContent = _formatElapsed();
     }, 200);
 
-    // Stop button: stop recording, go to preview
-    document.getElementById('voice-locked-stop').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      _onLockedStop();
-    });
+    // Stop button: stop recording → go to preview
+    const stopBtn = document.getElementById('voice-locked-stop');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _onLockedStop();
+      });
+    }
 
     // Delete button: cancel recording
-    document.getElementById('voice-locked-delete').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      cancelRecording();
-    });
+    const delBtn = document.getElementById('voice-locked-delete');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelRecording();
+      });
+    }
+
+    // ── Swipe-to-delete gesture on locked overlay ──
+    const ac = new AbortController();
+    _lockedCleanup = () => { ac.abort(); _lockedCleanup = null; };
+    const LOCKED_CANCEL_THRESHOLD = 30;
+    const LOCKED_CANCEL_COMPLETE = 120;
+
+    // Mouse
+    overlay.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      _lockedSwipeStartX = e.clientX;
+      _lockedSwiping = false;
+    }, { signal: ac.signal });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!_isLocked || !_lockedOverlay) return;
+      const dx = _lockedSwipeStartX - e.clientX;
+      if (dx <= 0) {
+        // Swipe back — reset
+        if (_lockedSwiping) {
+          _lockedSwiping = false;
+          _lockedOverlay.style.transform = '';
+          _lockedOverlay.style.background = '';
+          _lockedOverlay.classList.remove('swipe-delete');
+          const db = document.getElementById('voice-locked-delete');
+          if (db) db.classList.remove('trash-open');
+        }
+        return;
+      }
+      if (dx > LOCKED_CANCEL_THRESHOLD && !_lockedSwiping) {
+        _lockedSwiping = true;
+      }
+      if (!_lockedSwiping) return;
+
+      const progress = Math.min(1, (dx - LOCKED_CANCEL_THRESHOLD) / (LOCKED_CANCEL_COMPLETE - LOCKED_CANCEL_THRESHOLD));
+      _lockedOverlay.style.transform = 'translateX(' + (-progress * 70) + 'px)';
+      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.18) + ')';
+
+      if (progress > 0.1) _lockedOverlay.classList.add('swipe-delete');
+      else _lockedOverlay.classList.remove('swipe-delete');
+
+      const db = document.getElementById('voice-locked-delete');
+      if (db) {
+        db.style.transform = 'scale(' + (1 + progress * 0.25) + ')';
+        db.style.color = 'rgba(255,59,58,' + (0.5 + progress * 0.5) + ')';
+        if (progress > 0.3) db.classList.add('trash-open');
+        else db.classList.remove('trash-open');
+      }
+
+      if (progress >= 1) {
+        cancelRecording();
+      }
+    }, { signal: ac.signal });
+
+    document.addEventListener('mouseup', () => {
+      if (!_lockedSwiping || !_lockedOverlay) return;
+      _lockedOverlay.style.transform = '';
+      _lockedOverlay.style.background = '';
+      _lockedOverlay.classList.remove('swipe-delete');
+      const db = document.getElementById('voice-locked-delete');
+      if (db) {
+        db.style.transform = '';
+        db.style.color = '';
+        db.classList.remove('trash-open');
+      }
+      _lockedSwiping = false;
+    }, { signal: ac.signal });
+
+    // Touch
+    overlay.addEventListener('touchstart', (e) => {
+      if (e.target.closest('button')) return;
+      _lockedSwipeStartX = e.touches[0].clientX;
+      _lockedSwiping = false;
+    }, { passive: true, signal: ac.signal });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!_isLocked || !_lockedOverlay) return;
+      const dx = _lockedSwipeStartX - e.touches[0].clientX;
+      if (dx <= 0) {
+        if (_lockedSwiping) {
+          _lockedSwiping = false;
+          _lockedOverlay.style.transform = '';
+          _lockedOverlay.style.background = '';
+          _lockedOverlay.classList.remove('swipe-delete');
+          const db = document.getElementById('voice-locked-delete');
+          if (db) db.classList.remove('trash-open');
+        }
+        return;
+      }
+      if (dx > LOCKED_CANCEL_THRESHOLD && !_lockedSwiping) _lockedSwiping = true;
+      if (!_lockedSwiping) return;
+
+      const progress = Math.min(1, (dx - LOCKED_CANCEL_THRESHOLD) / (LOCKED_CANCEL_COMPLETE - LOCKED_CANCEL_THRESHOLD));
+      _lockedOverlay.style.transform = 'translateX(' + (-progress * 70) + 'px)';
+      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.18) + ')';
+      if (progress > 0.1) _lockedOverlay.classList.add('swipe-delete');
+      else _lockedOverlay.classList.remove('swipe-delete');
+
+      const db = document.getElementById('voice-locked-delete');
+      if (db) {
+        db.style.transform = 'scale(' + (1 + progress * 0.25) + ')';
+        db.style.color = 'rgba(255,59,58,' + (0.5 + progress * 0.5) + ')';
+        if (progress > 0.3) db.classList.add('trash-open');
+        else db.classList.remove('trash-open');
+      }
+      if (progress >= 1) cancelRecording();
+    }, { passive: true, signal: ac.signal });
+
+    document.addEventListener('touchend', () => {
+      if (!_lockedSwiping || !_lockedOverlay) return;
+      _lockedOverlay.style.transform = '';
+      _lockedOverlay.style.background = '';
+      _lockedOverlay.classList.remove('swipe-delete');
+      const db = document.getElementById('voice-locked-delete');
+      if (db) {
+        db.style.transform = '';
+        db.style.color = '';
+        db.classList.remove('trash-open');
+      }
+      _lockedSwiping = false;
+    }, { signal: ac.signal });
   }
 
   async function _onLockedStop() {
@@ -726,21 +883,30 @@ window.VoiceMsg = (function () {
       }
     }
 
-    // Swipe LEFT → cancel
+    // Swipe LEFT → cancel (with red panel + trash animation)
     if (dx > 0) {
       const cancelProgress = Math.min(1, (dx - CANCEL_THRESHOLD) / (CANCEL_COMPLETE - CANCEL_THRESHOLD));
       if (dx > CANCEL_THRESHOLD && !_swipeCancelActive) {
         _swipeCancelActive = true;
         if (cancelHint) cancelHint.classList.add('show');
+        if (_recOverlay) _recOverlay.classList.add('swipe-cancel');
       }
       if (_swipeCancelActive) {
         const p = Math.max(0, cancelProgress);
         const wrap = document.querySelector('.mfield-wrap');
         if (wrap) {
           wrap.style.transform = 'translateX(' + (-p * 80) + 'px)';
-          wrap.style.opacity = String(1 - p * 0.5);
+          wrap.style.opacity = String(1 - p * 0.4);
         }
-        if (cancelHint) cancelHint.style.opacity = String(p);
+        // Red tint on recording overlay
+        if (_recOverlay) {
+          _recOverlay.style.background = 'rgba(255,59,48,' + (p * 0.2) + ')';
+        }
+        if (cancelHint) {
+          cancelHint.style.opacity = String(Math.max(0.5, p));
+          // Scale the cancel hint with progress
+          cancelHint.style.transform = 'translateY(-50%) translateX(calc(100% + 6px)) scale(' + (1 + p * 0.15) + ')';
+        }
 
         if (p >= 1) {
           cancelRecording();
@@ -754,7 +920,15 @@ window.VoiceMsg = (function () {
           wrap.style.transform = '';
           wrap.style.opacity = '';
         }
-        if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; }
+        if (_recOverlay) {
+          _recOverlay.style.background = '';
+          _recOverlay.classList.remove('swipe-cancel');
+        }
+        if (cancelHint) {
+          cancelHint.classList.remove('show');
+          cancelHint.style.opacity = '';
+          cancelHint.style.transform = '';
+        }
       }
     }
   }
@@ -770,9 +944,15 @@ window.VoiceMsg = (function () {
       }
 
       const cancelHint = _recOverlay?.querySelector('#voice-cancel-arrow');
-      if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; }
+      if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; cancelHint.style.transform = ''; }
       const lockHint = _recOverlay?.querySelector('#voice-lock-arrow');
       if (lockHint) { lockHint.classList.remove('show'); lockHint.style.opacity = ''; }
+
+      // Reset any swipe-cancel styling
+      if (_recOverlay) {
+        _recOverlay.style.background = '';
+        _recOverlay.classList.remove('swipe-cancel');
+      }
 
       // Hide hints
       const sendBtn = document.getElementById('btn-send');
@@ -1431,6 +1611,9 @@ window.VoiceMsg = (function () {
     S._pendingTids.set(tid, '[voice]');
     appendMsg(S.chatId, tmp);
     scrollBot();
+
+    // Sending happens in background (compression on server if ffmpeg available)
+    // No label shown — optimistic UI message is already visible in chat
 
     var fd = new FormData();
     fd.append('voice', blob, 'voice.webm');

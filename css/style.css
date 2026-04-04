@@ -4304,25 +4304,58 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-cancel-arrow svg { margin-left: 2px; }
 
 /* ── Locked recording mode ── */
+/* Layout: [🗑 DELETE] [timer] [waveform fills space] [■ STOP] */
 .voice-locked {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 52px 0 10px;
+  gap: 6px;
+  padding: 0 54px 0 8px;
   z-index: 2; border-radius: 22px;
   animation: voiceOverlayIn .18s var(--ease) both;
   overflow: hidden;
+  transition: background .12s ease, transform .12s ease;
 }
+/* Delete button — left side */
+.voice-locked-delete {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--t3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .15s, color .15s, transform .15s var(--sp);
+}
+.voice-locked-delete:hover { background: rgba(255,69,58,.08); color: var(--red); }
+.voice-locked-delete:active { transform: scale(0.92); }
+.voice-locked-delete svg { width: 18px; height: 18px; transition: transform .2s ease; }
+/* Trash lid opening animation */
+.voice-locked-delete.trash-open .trash-lid {
+  animation: trashLidOpen .3s ease forwards;
+}
+@keyframes trashLidOpen {
+  0% { transform: rotate(0deg) translateY(0); }
+  40% { transform: rotate(-25deg) translateY(-2px); }
+  70% { transform: rotate(-18deg) translateY(-1px); }
+  100% { transform: rotate(-20deg) translateY(-1px); }
+}
+/* Timer */
+.voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
+/* Waveform — fills remaining space, bars grow right to left */
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
+/* Stop button — right side */
 .voice-locked-stop { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
 .voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
 .voice-locked-stop:active { transform: scale(0.95); }
-.voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
-.voice-locked-delete { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
-.voice-locked-delete:hover { background: rgba(255,69,58,.1); }
-.voice-locked-delete svg { width: 18px; height: 18px; }
+/* Swipe-to-delete active state */
+.voice-locked.swipe-delete .voice-locked-delete {
+  color: var(--red);
+}
+
+/* ── Recording overlay swipe-cancel tint ── */
+.voice-recording.swipe-cancel {
+  transition: background .1s ease;
+}
 
 /* ── Preview mode (after recording) — Telegram-style send panel ── */
 .voice-preview {
