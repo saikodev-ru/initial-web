@@ -790,7 +790,9 @@ window.VoiceMsg = (function () {
         _currentBtn = null;
         _currentContainer = null;
       } else {
-        audio.play().catch(() => {});
+        audio.play().catch((err) => {
+          console.error('[VoicePlayer] play() failed:', err.name, err.message, 'readyState=', audio.readyState, 'error=', audio.error?.code, audio.error?.message);
+        });
         isPlaying = true;
         playBtn.innerHTML = PAUSE_SVG;
         playBtn.classList.add('playing');
