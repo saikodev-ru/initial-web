@@ -57,7 +57,7 @@ function _renderChatItemContent(el,c){
        prev=(c.last_sender_id==S.user?.id?'Вы: ':'')+fmtPreview(msg.length>80?msg.slice(0,80)+'…':msg);
     }
   }
-  else if(c.last_media_type)prev=c.last_media_type==='video'?'🎥 Видео':'🖼 Фото';
+  else if(c.last_media_type)prev=c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое':'🖼 Фото';
 
   // Preserve animating pin icon — don't overwrite it mid-animation
   const existingIcon=el.querySelector('.ci-pin-icon');
@@ -611,7 +611,7 @@ function syncChats(rawChats){
        else if (cm[1] === 'missed') bodyText = (c.last_sender_id == S.user?.id ? 'Отменённый звонок' : 'Пропущенный звонок');
        else bodyText = 'Отклонённый звонок';
     } else if (!bodyText) {
-       bodyText = (c.last_media_type==='video'?'🎥 Видео':'🖼 Фото')||'Новое сообщение';
+       bodyText = (c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое':'🖼 Фото')||'Новое сообщение';
     }
     showNotif(name,bodyText);
     // Rich notification with avatar

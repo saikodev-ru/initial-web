@@ -1030,14 +1030,14 @@ function makeMsgEl(m,newSender=true){
         <div class="voice-waveform">
           <div class="voice-wf-bars"></div>
         </div>
-        <span class="voice-dur">${durStr}</span>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
 
-      // Time + ticks below waveform (Telegram-style)
+      // Time + duration below waveform (Telegram-style)
       const voiceMeta=document.createElement('div');
       voiceMeta.className='voice-meta';
+      voiceMeta.innerHTML=`<span class="voice-dur">${durStr}</span>`;
       voiceMeta.appendChild(makeMeta(m,isMe,sending));
       body.appendChild(voiceMeta);
 
@@ -1264,7 +1264,7 @@ function makeMsgEl(m,newSender=true){
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
         // If touching media, don't interfere
-        if(e.target.closest('.mmedia,.mmedia-video')){_blocked=true;return;}
+        if(e.target.closest('.mmedia,.mmedia-video,.voice-msg')){_blocked=true;return;}
         _blocked=false;
         _moved=false;
         _startX=e.touches[0].clientX;
@@ -1326,7 +1326,7 @@ function makeMsgEl(m,newSender=true){
   row.addEventListener('dblclick', e => {
     if(S.selectMode || !S.quickReply) return;
     // Игнорируем двойной клик по интерактивным элементам внутри пузыря
-    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply')) return;
+    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply') || e.target.closest('.voice-msg')) return;
     
     e.preventDefault();
     row.classList.add('quick-reply-anim');
@@ -1432,7 +1432,7 @@ function makeGridEl(msgs,newSender=true){
   // Quick reply for grids
   row.addEventListener('dblclick', e => {
     if(S.selectMode || !S.quickReply) return;
-    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply')) return;
+    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply') || e.target.closest('.voice-msg')) return;
     
     e.preventDefault();
     row.classList.add('quick-reply-anim');

@@ -145,10 +145,14 @@ window.VoiceMsg = (function () {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
+    wrap.classList.add('voice-rec-active');
     _hideInputChildren(wrap);
+    // Hide send button during recording (mic icon goes behind)
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.style.visibility = 'hidden';
 
     // Remove any existing overlays
-    _removeAllOverlays();
+    _removeAllOverlays(true); // silent remove, don't show input children yet
 
     const overlay = document.createElement('div');
     overlay.className = 'voice-recording';
@@ -157,21 +161,17 @@ window.VoiceMsg = (function () {
       <div class="voice-rec-dot"></div>
       <span class="voice-rec-timer">0:00</span>
       <div class="voice-rec-wave"></div>
-      <div class="voice-rec-cancel" id="voice-rec-cancel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      <div class="voice-lock-arrow" id="voice-lock-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+          <polyline points="18 15 12 9 6 15"/>
+        </svg>
+        <span>Заблокировать</span>
+      </div>
+      <div class="voice-cancel-arrow" id="voice-cancel-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+          <polyline points="15 18 9 12 15 6"/>
         </svg>
         <span>Отменить</span>
-      </div>
-      <div class="voice-swipe-hint" id="voice-swipe-cancel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-        </svg>
-      </div>
-      <div class="voice-lock-hint" id="voice-lock-hint">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
       </div>
     `;
 
@@ -203,6 +203,8 @@ window.VoiceMsg = (function () {
   function _showLockedOverlay() {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
+
+    wrap.classList.add('voice-rec-active');
 
     const overlay = document.createElement('div');
     overlay.className = 'voice-locked';
@@ -481,7 +483,7 @@ window.VoiceMsg = (function () {
     if (emo) emo.classList.remove('voice-hidden');
   }
 
-  function _removeAllOverlays() {
+  function _removeAllOverlays(silent) {
     if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
     if (_lockedOverlay) { _lockedOverlay.remove(); _lockedOverlay = null; }
     if (_previewOverlay) {
@@ -497,7 +499,13 @@ window.VoiceMsg = (function () {
       _previewOverlay = null;
     }
 
-    _showInputChildren(document.querySelector('.mfield-wrap'));
+    // Clean up mfield-wrap state
+    const wrap = document.querySelector('.mfield-wrap');
+    if (wrap) wrap.classList.remove('voice-rec-active');
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.style.visibility = '';
+
+    if (!silent) _showInputChildren(wrap);
   }
 
   function _updateRecTimer() {
@@ -561,15 +569,18 @@ window.VoiceMsg = (function () {
     const dx = _pointerStartX - clientX;   // positive = swiped left
     const dy = _pointerStartY - clientY;   // positive = swiped up
 
-    const cancelHint = _recOverlay.querySelector('#voice-swipe-cancel');
-    const lockHint = _recOverlay.querySelector('#voice-lock-hint');
+    const cancelHint = _recOverlay.querySelector('#voice-cancel-arrow');
+    const lockHint = _recOverlay.querySelector('#voice-lock-arrow');
 
     // Swipe UP → lock
     if (dy > 0) {
       const lockProgress = Math.min(1, dy / LOCK_THRESHOLD);
-      if (lockProgress > 0.3 && !_swipeLockActive) {
+      if (lockProgress > 0.2 && !_swipeLockActive) {
         _swipeLockActive = true;
         if (lockHint) lockHint.classList.add('show');
+      }
+      if (lockHint) {
+        lockHint.style.opacity = String(Math.min(1, lockProgress * 1.5));
       }
       if (dy >= LOCK_THRESHOLD && !_isLocked) {
         _transitionToLocked();
@@ -578,7 +589,7 @@ window.VoiceMsg = (function () {
     } else {
       if (_swipeLockActive) {
         _swipeLockActive = false;
-        if (lockHint) lockHint.classList.remove('show');
+        if (lockHint) { lockHint.classList.remove('show'); lockHint.style.opacity = ''; }
       }
     }
 
@@ -620,10 +631,10 @@ window.VoiceMsg = (function () {
         _recOverlay.style.transform = '';
         _recOverlay.style.opacity = '';
       }
-      const cancelHint = _recOverlay?.querySelector('#voice-swipe-cancel');
+      const cancelHint = _recOverlay?.querySelector('#voice-cancel-arrow');
       if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; }
-      const lockHint = _recOverlay?.querySelector('#voice-lock-hint');
-      if (lockHint) lockHint.classList.remove('show');
+      const lockHint = _recOverlay?.querySelector('#voice-lock-arrow');
+      if (lockHint) { lockHint.classList.remove('show'); lockHint.style.opacity = ''; }
 
       _swipeCancelActive = false;
       _swipeLockActive = false;
@@ -686,7 +697,9 @@ window.VoiceMsg = (function () {
 
     const playBtn = container.querySelector('.voice-play-btn');
     const wfWrap = container.querySelector('.voice-wf-bars');
-    const durEl = container.querySelector('.voice-dur');
+    // dur is inside .voice-meta (sibling of .voice-msg)
+    const metaEl = container.closest('.mbody')?.querySelector('.voice-meta') || container.parentElement?.querySelector('.voice-meta');
+    const durEl = metaEl ? metaEl.querySelector('.voice-dur') : null;
     if (!playBtn || !wfWrap) return;
 
     if (!waveform || waveform.length === 0) {
@@ -882,32 +895,75 @@ window.VoiceMsg = (function () {
     }
 
     if (nextVoice) {
-      // Find the parent row to get message data
-      const nextRow = nextVoice.closest('.mrow');
-      if (!nextRow) return;
-
-      const dataId = nextRow.dataset.id;
-      if (!dataId) return;
-
-      // Look up the message data from S.msgs
-      const chatMsgs = (S.chatId && S.msgs) ? S.msgs[S.chatId] : null;
-      if (!chatMsgs) return;
-
-      const msgData = chatMsgs.find(m => String(m.id) === dataId);
-      if (!msgData || msgData.media_type !== 'voice') return;
-
-      const audioUrl = msgData.media_url;
-      const dur = msgData.voice_duration || parseInt(msgData.body || '0', 10) || 0;
-      let wfData = [];
-      try { if (msgData.voice_waveform) wfData = JSON.parse(msgData.voice_waveform); } catch(e) {}
-
-      // Small delay before auto-playing next
-      setTimeout(() => {
-        if (window.VoiceMsg) {
-          window.VoiceMsg.createPlayer(nextVoice, audioUrl, dur, wfData);
-        }
-      }, 400);
+      _playVoiceByElement(nextVoice);
     }
+  }
+
+  function _playPrevVoice(currentContainer) {
+    const msgs = document.getElementById('msgs');
+    if (!msgs) return;
+
+    const allVoiceMsgs = msgs.querySelectorAll('.voice-msg');
+    let prevVoice = null;
+
+    for (let i = 0; i < allVoiceMsgs.length; i++) {
+      const voiceEl = allVoiceMsgs[i];
+      if (voiceEl === currentContainer || voiceEl.contains(currentContainer)) {
+        break;
+      }
+      const rect = voiceEl.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        prevVoice = voiceEl;
+      }
+    }
+
+    if (prevVoice) {
+      _playVoiceByElement(prevVoice);
+    }
+  }
+
+  function _playVoiceByElement(voiceEl) {
+    const nextRow = voiceEl.closest('.mrow');
+    if (!nextRow) return;
+
+    const dataId = nextRow.dataset.id;
+    if (!dataId) return;
+
+    const chatMsgs = (S.chatId && S.msgs) ? S.msgs[S.chatId] : null;
+    if (!chatMsgs) return;
+
+    const msgData = chatMsgs.find(m => String(m.id) === dataId);
+    if (!msgData || msgData.media_type !== 'voice') return;
+
+    const audioUrl = msgData.media_url;
+    const dur = msgData.voice_duration || parseInt(msgData.body || '0', 10) || 0;
+    let wfData = [];
+    try { if (msgData.voice_waveform) wfData = JSON.parse(msgData.voice_waveform); } catch(e) {}
+
+    // Scroll into view
+    voiceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    voiceEl.classList.add('msg-flash');
+    setTimeout(() => voiceEl.classList.remove('msg-flash'), 1000);
+
+    // Small delay then play
+    setTimeout(() => {
+      // Stop current if playing
+      if (_currentAudio && !_currentAudio.paused) {
+        _currentAudio.pause();
+        _currentAudio.currentTime = 0;
+        if (_currentBtn) {
+          _currentBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+          _currentBtn.classList.remove('playing');
+        }
+      }
+
+      if (window.VoiceMsg) {
+        window.VoiceMsg.createPlayer(voiceEl, audioUrl, dur, wfData);
+        // Auto-trigger play
+        const playBtn = voiceEl.querySelector('.voice-play-btn');
+        if (playBtn) playBtn.click();
+      }
+    }, 400);
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -925,12 +981,21 @@ window.VoiceMsg = (function () {
     el.className = 'voice-mini-player';
     el.id = 'voice-mini-player';
     el.innerHTML = `
+      <button class="vmp-btn vmp-prev" id="vmp-prev" title="Предыдущее">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
       <div class="vmp-avatar" id="vmp-avatar"></div>
       <div class="vmp-info">
         <div class="vmp-name" id="vmp-name"></div>
       </div>
       <div class="vmp-wave" id="vmp-wave"></div>
       <span class="vmp-time" id="vmp-time">0:00</span>
+      <button class="vmp-btn vmp-play" id="vmp-play" title="Воспроизвести">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="vmp-btn vmp-next" id="vmp-next" title="Следующее">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
       <button class="vmp-close" id="vmp-close" title="Закрыть">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -940,14 +1005,52 @@ window.VoiceMsg = (function () {
     chatHdr.insertAdjacentElement('afterend', el);
     _miniPlayer = el;
 
+    const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+
+    // Play/pause button
+    document.getElementById('vmp-play').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (_currentAudio) {
+        if (_currentAudio.paused) {
+          _currentAudio.play().catch(() => {});
+          if (_currentBtn) { _currentBtn.innerHTML = PAUSE_SVG; _currentBtn.classList.add('playing'); }
+          document.getElementById('vmp-play').innerHTML = PAUSE_SVG;
+        } else {
+          _currentAudio.pause();
+          if (_currentBtn) { _currentBtn.innerHTML = PLAY_SVG; _currentBtn.classList.remove('playing'); }
+          document.getElementById('vmp-play').innerHTML = PLAY_SVG;
+        }
+      }
+    });
+
+    // Previous
+    document.getElementById('vmp-prev').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (_currentAudio && _currentContainer) {
+        _playPrevVoice(_currentContainer);
+      }
+    });
+
+    // Next
+    document.getElementById('vmp-next').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (_currentAudio && _currentContainer) {
+        _autoPlayNext(_currentContainer);
+      }
+    });
+
     // Close button
     document.getElementById('vmp-close').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      // Pause current audio
       if (_currentAudio && !_currentAudio.paused) {
         _currentAudio.pause();
       }
+      if (_currentBtn) { _currentBtn.innerHTML = PLAY_SVG; _currentBtn.classList.remove('playing'); }
       _hideMiniPlayer();
     });
   }
@@ -985,6 +1088,14 @@ window.VoiceMsg = (function () {
         bar.dataset.idx = String(i);
         waveEl.appendChild(bar);
       }
+    }
+
+    // Set play icon to pause if playing
+    const playBtn = document.getElementById('vmp-play');
+    if (playBtn && audio && !audio.paused) {
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
+    } else if (playBtn) {
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     }
 
     _miniPlayer.classList.add('visible');

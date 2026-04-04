@@ -587,11 +587,25 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
   transition:background .3s var(--ease);
 }
 .chat-bg-custom.blurred {
-  filter: blur(8px) brightness(0.8);
-  transform: scale(1.05); /* prevent blur edges */
+  filter: blur(8px) brightness(0.75) saturate(1.2);
+  transform: scale(1.06);
 }
 .chat-bg-custom.blurred::after {
-  background: rgba(0,0,0,.2);
+  background: rgba(0,0,0,.22);
+}
+.chat-bg-custom.blurred-med {
+  filter: blur(16px) brightness(0.55) saturate(1.3);
+  transform: scale(1.1);
+}
+.chat-bg-custom.blurred-med::after {
+  background: rgba(0,0,0,.32);
+}
+.chat-bg-custom.blurred-strong {
+  filter: blur(28px) brightness(0.35) saturate(1.4);
+  transform: scale(1.15);
+}
+.chat-bg-custom.blurred-strong::after {
+  background: rgba(0,0,0,.45);
 }
 /* Полное отключение паттерна — убираем псевдоэлемент и GPU-слой */
 .no-pattern .layout::before,
@@ -2002,7 +2016,7 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   background:
     linear-gradient(
       to top,
-      rgba(var(--chat-bg-rgb), 1) 0%,
+      var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
       rgba(var(--chat-bg-rgb), .98) 20%,
       rgba(var(--chat-bg-rgb), .85) 45%,
       rgba(var(--chat-bg-rgb), .4) 70%,
@@ -4139,15 +4153,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 /* ── Duration text — right of waveform ── */
 .voice-dur {
   font-size: 11px; color: var(--t3); white-space: nowrap;
-  font-variant-numeric: tabular-nums; min-width: 28px; text-align: right;
-  line-height: 1;
+  font-variant-numeric: tabular-nums; line-height: 1;
 }
 .mrow.me .voice-dur { color: rgba(255,255,255,.7); }
 
 /* ── Voice bubble body ── */
 .voice-body { padding: 4px 2px 2px; }
 
-/* ── Meta (time + ticks) below voice, right-aligned ── */
+/* ── Meta (duration + time + ticks) below waveform, right-aligned ── */
 .voice-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 4px; margin-top: 1px;
@@ -4185,12 +4198,19 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-recording {
   position: absolute; inset: 0;
   display: flex; align-items: center; gap: 12px; padding: 0 16px;
-  background: rgba(var(--bg-rgb),.92);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   z-index: 20; border-radius: 22px;
   border: 1px solid rgba(255,255,255,.06);
   animation: voiceOverlayIn .22s var(--ease) both;
   transition: transform .15s ease, opacity .15s ease;
+}
+/* When mfield-wrap is in recording mode, keep its backdrop-filter but change appearance */
+.mfield-wrap.voice-rec-active {
+  background: rgba(var(--bg-rgb),.88);
+}
+.mfield-wrap.voice-rec-active .voice-recording {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 @keyframes voiceOverlayIn {
   from { opacity: 0; transform: scale(.96) translateY(6px); }
@@ -4205,13 +4225,34 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
 
-/* ── Swipe indicators ── */
-.voice-swipe-hint { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .15s; pointer-events: none; }
-.voice-swipe-hint.show { opacity: 1; }
-.voice-swipe-hint svg { width: 18px; height: 18px; }
-.voice-lock-hint { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--t3); font-size: 10px; opacity: 0; transition: opacity .15s; pointer-events: none; background: rgba(var(--bg-rgb),.85); padding: 3px 8px; border-radius: 6px; }
-.voice-lock-hint.show { opacity: 1; }
-.voice-lock-hint svg { width: 16px; height: 16px; }
+/* ── Directional hints (Telegram-style arrows) ── */
+.voice-lock-arrow {
+  position: absolute; left: 50%; bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  color: var(--t2); font-size: 10px; font-weight: 500;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.voice-lock-arrow.show { opacity: 1; }
+.voice-lock-arrow svg { margin-bottom: -1px; }
+.voice-cancel-arrow {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(calc(100% + 6px));
+  display: flex; flex-direction: row; align-items: center; gap: 3px;
+  color: var(--red); font-size: 10px; font-weight: 500;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.voice-cancel-arrow.show { opacity: 1; }
+.voice-cancel-arrow svg { margin-left: 2px; }
 
 /* ── Locked recording mode ── */
 .voice-locked {
@@ -4261,8 +4302,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-mini-player {
   position: relative;
   z-index: 14;
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 14px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
   background: rgba(var(--bg-rgb),.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--b);
@@ -4273,7 +4314,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 .voice-mini-player.visible {
   max-height: 48px; opacity: 1;
-  padding: 7px 14px;
+  padding: 6px 12px;
   pointer-events: auto;
 }
 .voice-mini-player .vmp-avatar {
@@ -4283,9 +4324,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   font-size: 11px; font-weight: 900; color: var(--t2);
 }
 .voice-mini-player .vmp-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.voice-mini-player .vmp-info { flex: 1; min-width: 0; }
+.voice-mini-player .vmp-info { flex: 0 0 auto; min-width: 0; max-width: 120px; }
 .voice-mini-player .vmp-name {
-  font-size: 12.5px; font-weight: 700; color: var(--t1);
+  font-size: 12px; font-weight: 600; color: var(--t1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .voice-mini-player .vmp-wave {
@@ -4302,8 +4343,17 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-mini-player .vmp-wf-bar.active { background: var(--y); opacity: .75; }
 .voice-mini-player .vmp-time {
   font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
-  white-space: nowrap; min-width: 38px; text-align: right; flex-shrink: 0;
+  white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
 }
+.voice-mini-player .vmp-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--t2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: color .12s, background .12s;
+}
+.voice-mini-player .vmp-btn:hover { color: var(--y); background: var(--s1); }
+.voice-mini-player .vmp-btn svg { width: 16px; height: 16px; }
 .voice-mini-player .vmp-close {
   width: 24px; height: 24px; border-radius: 50%;
   background: transparent; border: none;
