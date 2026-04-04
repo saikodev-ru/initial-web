@@ -428,11 +428,11 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
 .ci-prev.typ{color:var(--y);font-style:italic}
 /* Chat list read tick marks */
-.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.5;margin-right:2px}
+.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.6;margin-right:2px}
 .ci-tick-r{opacity:1}
 .ci-tick svg path:first-child { stroke-opacity: 0.4; }
 .ci-tick-r svg path:first-child { stroke-opacity: 1; }
-.ci-tick svg{display:block}
+.ci-tick svg{display:block;width:18px;height:11px}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
 .prof-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:14px;padding:8px;margin:-8px;transition:background .15s}
@@ -1525,7 +1525,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 }
 
 /* Text */
-.mtxt{font-size:14.5px;font-weight:400;line-height:1.55;white-space:pre-wrap;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
+.mtxt{font-size:var(--chat-font-size, 14.5px);font-weight:400;line-height:1.55;white-space:pre-wrap;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
 .mtxt strong{font-weight:800}.mtxt em{font-style:italic}.mtxt del{opacity:.6}.mtxt u{text-decoration:underline;text-underline-offset:2px}
 .mtxt code{background:rgba(255,255,255,.15);border-radius:5px;padding:1px 5px;font-family:ui-monospace,'SF Mono','Menlo',monospace;font-size:12.5px}
 .me .mtxt code{background:rgba(255,255,255,.15)}
@@ -4097,13 +4097,13 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 
 .voice-msg {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 0; min-width: 220px;
+  padding: 8px 4px 6px 8px; min-width: 220px;
   cursor: default; user-select: none;
 }
 
 /* ── Play button — incoming: accent ── */
 .voice-play-btn {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 50%;
   background: var(--y); color: #fff;
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -4199,12 +4199,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px;
+  padding: 0 52px 0 8px;
   z-index: 2;
   border-radius: 22px;
   border: 1px solid rgba(255,255,255,.06);
   animation: voiceOverlayIn .22s var(--ease) both;
   transition: transform .15s ease, opacity .15s ease;
+  max-height: 44px;
+  overflow: hidden;
 }
 /* When mfield-wrap is in recording mode, keep its backdrop-filter but change appearance */
 .mfield-wrap.voice-rec-active {
@@ -4225,8 +4227,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
 .voice-rec-timer { font-size: 15px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 42px; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
-.voice-rec-bar { width: 3px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .08s; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-end; }
+.voice-rec-bar { width: 3px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .08s; flex: 1; max-width: 4px; min-height: 3px; }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
@@ -4267,18 +4269,20 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px;
+  padding: 0 52px 0 8px;
   background: rgba(var(--bg-rgb),.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   z-index: 20; border-radius: 22px;
   border: 1px solid rgba(255,255,255,.06);
   animation: voiceOverlayIn .22s var(--ease) both;
+  max-height: 44px;
+  overflow: hidden;
 }
 .voice-locked-stop { width: 36px; height: 36px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
 .voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
 .voice-locked-stop:active { transform: scale(0.95); }
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; }
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-end; }
 .voice-locked-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
 .voice-locked-delete:hover { background: rgba(255,69,58,.1); }
 .voice-locked-delete svg { width: 18px; height: 18px; }
@@ -4290,12 +4294,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px;
+  padding: 0 52px 0 8px;
   background: rgba(var(--bg-rgb),.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   z-index: 20; border-radius: 22px;
   border: 1px solid rgba(255,255,255,.06);
   animation: voiceOverlayIn .22s var(--ease) both;
+  max-height: 44px;
+  overflow: hidden;
 }
 .voice-preview-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--t3); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s, color .12s; }
 .voice-preview-delete:hover { background: rgba(255,69,58,.08); color: var(--red); }
@@ -4328,7 +4334,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   position: relative;
   transition: transform .15s var(--sp), background .15s;
 }
-.btn-voice-rec:hover { background: rgba(139,92,246,.1); }
+/* When there's text in the input, restore the send button appearance */
+.btn-voice-rec.has-text {
+  background: var(--y) !important;
+  color: #fff;
+}
+.btn-voice-rec.has-text .ico-send { opacity: 1; transform: translateY(0) rotate(0deg); }
+.btn-voice-rec.has-text .ico-mic { opacity: 0; transform: translateY(-6px) rotate(30deg); }
+.btn-voice-rec:hover:not(.has-text):not(.voice-send-mode) { background: rgba(139,92,246,.1); }
 .btn-voice-rec:active { transform: scale(0.9); }
 .btn-voice-rec svg { width: 24px; height: 24px; transition: transform .15s var(--sp); }
 .btn-voice-rec.recording svg { color: var(--red); }

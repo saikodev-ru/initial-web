@@ -588,16 +588,35 @@ window.VoiceMsg = (function () {
 
     const bufLen = _analyser.frequencyBinCount;
     const data = new Uint8Array(bufLen);
+    // Progressively reveal bars from right to left as recording continues
+    const totalBars = bars.length;
+    let _lastBarIdx = 0;
 
     function draw() {
       _recAnimFrame = requestAnimationFrame(draw);
       _analyser.getByteFrequencyData(data);
 
-      const step = Math.floor(bufLen / bars.length);
-      for (let i = 0; i < bars.length; i++) {
-        const val = data[i * step] / 255;
-        const h = Math.max(3, val * 28);
-        bars[i].style.height = h + 'px';
+      // Calculate how many bars should be visible based on elapsed time
+      const elapsed = (Date.now() - _recStart) / 1000;
+      const maxDuration = 300; // 5 minutes max
+      const progress = Math.min(1, elapsed / maxDuration);
+      const visibleBars = Math.min(totalBars, Math.ceil(progress * totalBars));
+      
+      // Map frequency data to the visible portion
+      const step = Math.max(1, Math.floor(bufLen / visibleBars));
+      for (let i = 0; i < totalBars; i++) {
+        if (i >= visibleBars) {
+          // Not yet visible — show minimal height
+          bars[i].style.opacity = '0';
+          bars[i].style.height = '3px';
+        } else {
+          bars[i].style.opacity = '1';
+          // Map bar index to frequency data (reverse: rightmost = newest)
+          const freqIdx = Math.min((visibleBars - 1 - i) * step, bufLen - 1);
+          const val = data[freqIdx] / 255;
+          const h = Math.max(3, val * 28);
+          bars[i].style.height = h + 'px';
+        }
       }
     }
     draw();

@@ -1284,6 +1284,11 @@ function _extractBgBottomColor(dataUrl) {
       }
       if (count > 0) {
         r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+        // Darken/mute the color for better gradient effect
+        const darken = 0.45;
+        r = Math.round(r * darken);
+        g = Math.round(g * darken);
+        b = Math.round(b * darken);
         const root = document.documentElement;
         root.style.setProperty('--bg-fade-color', `rgb(${r}, ${g}, ${b})`);
       }
@@ -1361,17 +1366,27 @@ const _chatPadPx = (() => { try { return parseInt(localStorage.getItem('sg_chat_
 function _applyChatPad(px) {
   const msgs = document.getElementById('msgs');
   if (!msgs) return;
+  const inputZone = document.getElementById('input-zone');
   if (px > 0) {
     msgs.style.paddingLeft = px + 'px';
     msgs.style.paddingRight = px + 'px';
     msgs.style.maxWidth = '';
     msgs.style.margin = '';
+    // Also apply padding to input zone
+    if (inputZone) {
+      inputZone.style.paddingLeft = px + 'px';
+      inputZone.style.paddingRight = px + 'px';
+    }
     if (_chatPadVal) _chatPadVal.textContent = px + 'px';
   } else {
     msgs.style.paddingLeft = '';
     msgs.style.paddingRight = '';
     msgs.style.maxWidth = '';
     msgs.style.margin = '';
+    if (inputZone) {
+      inputZone.style.paddingLeft = '';
+      inputZone.style.paddingRight = '';
+    }
     if (_chatPadVal) _chatPadVal.textContent = 'Авто';
   }
 }
@@ -1392,7 +1407,8 @@ const _chatFontSizePx = (() => { try { return parseInt(localStorage.getItem('sg_
 function _applyChatFontSize(px) {
   const msgs = document.getElementById('msgs');
   if (!msgs) return;
-  msgs.style.fontSize = px + 'px';
+  // Use CSS custom property so .mtxt picks it up
+  msgs.style.setProperty('--chat-font-size', px + 'px');
   if (_chatFontSizeVal) _chatFontSizeVal.textContent = px + 'px';
 }
 if (_chatFontSizeRange) {
