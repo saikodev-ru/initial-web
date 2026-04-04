@@ -416,52 +416,10 @@ function startPoll() {
   window._onApiOk = () => { if (S._connecting && navigator.onLine) setConnecting(false); };
 })();
 
-/* ══ GRADIENT POSITION FOR OUTGOING MESSAGES ═══════════════════
-   background-attachment:fixed не работает внутри overflow:scroll контейнера.
-   Вместо этого используем JS для расчёта viewport-позиции каждого
-   исходящего сообщения и установки CSS-переменной --msg-vy.
+/* ══ OUTGOING MESSAGE GRADIENT ═══════════════════════════════════
+   Градиент захардкожен в CSS (linear-gradient 135deg).
+   JS viewport-tracking удалён — градиент не отстаёт при скролле.
    ═══════════════════════════════════════════════════════════════════ */
-(function initMsgGradient() {
-  const msgsEl = document.getElementById('msgs');
-  if (!msgsEl) return;
-
-  function update() {
-    const bodies = msgsEl.querySelectorAll('.me .mbody');
-    for (let i = 0; i < bodies.length; i++) {
-      const rect = bodies[i].getBoundingClientRect();
-      bodies[i].style.setProperty('--msg-vy', rect.top + 'px');
-    }
-  }
-
-  msgsEl.addEventListener('scroll', update, { passive: true });
-  window.addEventListener('resize', update, { passive: true });
-  const observer = new MutationObserver(update);
-  observer.observe(msgsEl, { childList: true, subtree: true });
-})();
-
-/* ══ GRADIENT POSITION FOR OUTGOING MESSAGES ═══════════════════
-   background-attachment:fixed не работает внутри overflow:scroll.
-   Вместо этого JS рассчитывает viewport-позицию каждого исходящего
-   сообщения и устанавливает CSS-переменную --msg-vy.
-   Градиент: 100vh размер, no-repeat — виден только на экране.
-   ═══════════════════════════════════════════════════════════════════ */
-(function initMsgGradient() {
-  const msgsEl = document.getElementById('msgs');
-  if (!msgsEl) return;
-
-  function update() {
-    const bodies = msgsEl.querySelectorAll('.me .mbody');
-    for (let i = 0; i < bodies.length; i++) {
-      const rect = bodies[i].getBoundingClientRect();
-      bodies[i].style.setProperty('--msg-vy', rect.top + 'px');
-    }
-  }
-
-  msgsEl.addEventListener('scroll', update, { passive: true });
-  window.addEventListener('resize', update, { passive: true });
-  const observer = new MutationObserver(update);
-  observer.observe(msgsEl, { childList: true, subtree: true });
-})();
 
 // Persist/restore auth state across backgrounding on mobile/desktop
 document.addEventListener('visibilitychange', () => {
@@ -1097,6 +1055,7 @@ const _bgImgStatus = $('bg-image-status');
 function _applyCustomBg(dataUrl) {
   let el = document.getElementById(BG_IMG_EL_ID);
   const layout = document.querySelector('.layout');
+  const blurred = localStorage.getItem('sg_bg_blur') === '1';
   if (dataUrl) {
     // Show custom bg, hide pattern
     if (!el) {
@@ -1107,11 +1066,20 @@ function _applyCustomBg(dataUrl) {
       if (chatArea) chatArea.prepend(el);
     }
     el.style.backgroundImage = `url(${dataUrl})`;
+    // Apply blur class if enabled
+    el.classList.toggle('blurred', blurred);
     // Also apply to layout so background is visible behind sidebar
     if (layout) {
       layout.style.backgroundImage = `url(${dataUrl})`;
       layout.style.backgroundSize = 'cover';
       layout.style.backgroundPosition = 'center';
+      if (blurred) {
+        layout.style.filter = 'blur(8px) brightness(0.8)';
+        layout.style.transform = 'scale(1.05)';
+      } else {
+        layout.style.filter = '';
+        layout.style.transform = '';
+      }
     }
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
@@ -1122,6 +1090,8 @@ function _applyCustomBg(dataUrl) {
       layout.style.backgroundImage = '';
       layout.style.backgroundSize = '';
       layout.style.backgroundPosition = '';
+      layout.style.filter = '';
+      layout.style.transform = '';
     }
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
@@ -1171,6 +1141,19 @@ if (_bgImgRemove) {
     _applyCustomBg(null);
   };
 }
+
+/* ── BG BLUR TOGGLE ────────────────────────────────── */
+const _bgBlurEl = $('tog-bg-blur');
+const _bgBlurOn = (() => { try { return localStorage.getItem('sg_bg_blur') === '1'; } catch { return false; } })();
+if (_bgBlurEl) { _bgBlurEl.classList.toggle('on', _bgBlurOn); }
+if (_bgBlurEl) _bgBlurEl.onclick = () => {
+  const on = !_bgBlurEl.classList.contains('on');
+  _bgBlurEl.classList.toggle('on', on);
+  try { localStorage.setItem('sg_bg_blur', on ? '1' : '0'); } catch { }
+  // Re-apply background to toggle blur
+  const cached = localStorage.getItem(BG_IMG_KEY);
+  if (cached) _applyCustomBg(cached);
+};
 
 /* ── Show install separator when install button is visible ─ */
 const _installObserver = new MutationObserver(() => {
@@ -1605,3 +1588,30 @@ if ('serviceWorker' in navigator) {
     }
   });
 }
+
+/* ══ CREATE MODAL TABS ══════════════════════════════════════ */
+document.querySelectorAll('.cm-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    document.querySelectorAll('.cm-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.cm-tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    const el = document.getElementById(target);
+    if (el) el.classList.add('active');
+  });
+});
+
+/* ══ CREATE CHAT BUTTON ═════════════════════════════════════ */
+const _btnCreateChat = document.getElementById('btn-create-chat');
+if (_btnCreateChat) {
+  _btnCreateChat.addEventListener('click', () => openMod('modal-create'));
+}
+
+/* ══ NAV RAIL ═══════════════════════════════════════════════ */
+document.getElementById('btn-nav-settings')?.addEventListener('click', () => openProfile());
+document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
