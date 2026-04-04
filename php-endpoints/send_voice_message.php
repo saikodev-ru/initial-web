@@ -111,15 +111,13 @@ $mediaUrl = ltrim($s3Key, '/');
 if (file_exists($tmpPath))     @unlink($tmpPath);
 if (isset($decPath) && file_exists($decPath)) @unlink($decPath);
 
-/* ── Get recipient user (текстовые данные на сервере) ────────── */
-$pdo = get_pdo();
-
-$stmt = $pdo->prepare('SELECT id, signal_id FROM users WHERE LOWER(signal_id) = LOWER(?) LIMIT 1');
+/* ── Найти получателя (как в send_message.php) ──────────────── */
+$stmt = db()->prepare('SELECT id, nickname, fcm_token FROM users WHERE signal_id = ? LIMIT 1');
 $stmt->execute([$toSignalId]);
-$recipient = $stmt->fetch(PDO::FETCH_ASSOC);
+$recipient = $stmt->fetch();
 
 if (!$recipient) {
-    json_err('user_not_found', 'Пользователь не найден');
+    json_err('user_not_found', "Пользователь @{$toSignalId} не найден");
 }
 
 $recipientId = (int) $recipient['id'];
@@ -128,59 +126,65 @@ if ($recipientId === $myId) {
     json_err('self_send', 'Нельзя отправить сообщение самому себе');
 }
 
-/* ── Get or create chat ──────────────────────────────────────── */
-$stmt = $pdo->prepare("
-    SELECT id FROM chats
-    WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)
-    LIMIT 1
-");
-$stmt->execute([$myId, $recipientId, $recipientId, $myId]);
-$chat = $stmt->fetch(PDO::FETCH_ASSOC);
+/* ── Найти или создать чат (user_a/min, user_b/max) ────────── */
+$userA = min($myId, $recipientId);
+$userB = max($myId, $recipientId);
+
+$stmt = db()->prepare('SELECT id FROM chats WHERE user_a = ? AND user_b = ? AND is_saved_msgs = 0 LIMIT 1');
+$stmt->execute([$userA, $userB]);
+$chat = $stmt->fetch();
 
 if ($chat) {
     $chatId = (int) $chat['id'];
 } else {
-    $stmt = $pdo->prepare("
-        INSERT INTO chats (user1_id, user2_id, created_at, updated_at)
-        VALUES (?, ?, NOW(), NOW())
-    ");
-    $stmt->execute([$myId, $recipientId]);
-    $chatId = (int) $pdo->lastInsertId();
+    db()->prepare('INSERT INTO chats (user_a, user_b) VALUES (?, ?)')->execute([$userA, $userB]);
+    $chatId = (int) db()->lastInsertId();
 }
 
-/* ── Insert message (текстовые данные на сервере) ────────────── */
-$stmt = $pdo->prepare("
-    INSERT INTO messages (chat_id, sender_id, body, media_type, media_url, media_file_name,
-                          voice_duration, voice_waveform, reply_to, sent_at, is_read)
-    VALUES (?, ?, ?, 'voice', ?, ?, ?, ?, ?, NOW(), 0)
-");
+/* ── Insert message (как в send_message.php) ────────────────── */
+$stmt = db()->prepare(
+    'INSERT INTO messages (chat_id, sender_id, body, reply_to, media_url, media_type, voice_duration, voice_waveform)
+     VALUES (?, ?, ?, ?, ?, "voice", ?, ?)'
+);
 $stmt->execute([
     $chatId,
     $myId,
-    (string) $voiceDuration,
+    '',              // body — голосовые не имеют текста (duration передаётся отдельно)
+    $replyTo,
     $mediaUrl,
-    'voice.' . $ext,
     $voiceDuration,
     $voiceWaveform,
-    $replyTo,
 ]);
 
-$messageId = (int) $pdo->lastInsertId();
+$messageId = (int) db()->lastInsertId();
 
-/* ── Update chat's last message info ─────────────────────────── */
-$stmt = $pdo->prepare("
-    UPDATE chats SET updated_at = NOW(), last_message_body = ?, last_message_at = NOW()
-    WHERE id = ?
-");
-$stmt->execute(['🎤 Голосовое сообщение', $chatId]);
+/* ── Получить точный sent_at ─────────────────────────────────── */
+$stmt = db()->prepare('SELECT FLOOR(UNIX_TIMESTAMP(sent_at)) AS ts FROM messages WHERE id = ? LIMIT 1');
+$stmt->execute([$messageId]);
+$sentAt = (int) ($stmt->fetchColumn() ?: time());
 
-/* ── Dispatch push / SSE events (optional integration) ────────── */
-// send_push($recipientId, $myId, '🎤 Голосовое сообщение', $chatId, $messageId);
+/* ── Push-уведомление ───────────────────────────────────────── */
+if (!empty($recipient['fcm_token'])) {
+    $senderName = $me['nickname'] ?? $me['email'];
+
+    send_push(
+        $recipient['fcm_token'],
+        $senderName,
+        '🎤 Голосовое сообщение',
+        [
+            'chat_id'          => (string) $chatId,
+            'sender_signal_id' => $me['signal_id'] ?? '',
+            'sender_avatar'    => $me['avatar_url'] ?? '',
+            'media_type'       => 'voice',
+            'voice_duration'   => (string) $voiceDuration,
+        ]
+    );
+}
 
 json_ok([
-    'ok'             => true,
     'message_id'     => $messageId,
     'chat_id'        => $chatId,
+    'sent_at'        => $sentAt,
     'media_url'      => $mediaUrl,
     'voice_duration' => $voiceDuration,
     'voice_waveform' => $voiceWaveform,
