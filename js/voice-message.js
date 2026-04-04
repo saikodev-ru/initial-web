@@ -589,7 +589,7 @@ window.VoiceMsg = (function () {
       const idx = S.msgs[S.chatId].findIndex(m => m.id === tid);
       if (idx >=0) {
         S.msgs[S.chatId][idx].id = res.message_id;
-        if (res.media_url) S.msgs[S.chatId][idx].media_url = res.media_url;
+        if (res.media_url) S.msgs[S.chatId][idx].media_url = getMediaUrl(res.media_url);
         if (res.voice_duration) S.msgs[S.chatId][idx].voice_duration = res.voice_duration;
         if (res.voice_waveform) S.msgs[S.chatId][idx].voice_waveform = res.voice_waveform;
         S.msgs[S.chatId][idx].body = String(res.voice_duration || duration);
