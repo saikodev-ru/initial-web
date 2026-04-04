@@ -45,8 +45,8 @@ window.VoiceMsg = (function () {
   const MIN_DURATION = 1;
   const MAX_DURATION = 300;
   const LOCK_THRESHOLD = 60;
-  const CANCEL_THRESHOLD = 60;
-  const CANCEL_COMPLETE = 140;
+  const CANCEL_THRESHOLD = 100;       // Wider dead zone before cancel starts
+  const CANCEL_COMPLETE = 240;        // Far threshold for complete cancel
 
   /* ══════════════════════════════════════════════════════════════
      RECORDING
@@ -146,18 +146,37 @@ window.VoiceMsg = (function () {
   function cancelRecording() {
     _recCancelled = true;
     _isRecording = false;
+    _isLocked = false;
+    _swipeCancelActive = false;
+    _swipeLockActive = false;
+    _lockedSwiping = false;
+    _recOverlay = null;   // Will be cleaned up by _removeAllOverlays
+    _lockedOverlay = null;
     if (_mediaRecorder && _mediaRecorder.state === 'recording') {
       _stopRecVisualization();
       clearInterval(_recTimer);
       clearInterval(_lockedTimer);
       _mediaRecorder.onstop = () => {
-        if (_stream) _stream.getTracks().forEach(t => t.stop());
+        if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
         if (_audioCtx) { try { _audioCtx.close(); } catch(e){} _audioCtx = null; }
+        _analyser = null;
         _removeAllOverlays();
+        // Full reset of state to allow new recording
+        _recCancelled = false;
+        _isLocked = false;
+        _chunks = [];
+        _mediaRecorder = null;
       };
       _mediaRecorder.stop();
     } else {
+      if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
+      if (_audioCtx) { try { _audioCtx.close(); } catch(e){} _audioCtx = null; }
+      _analyser = null;
       _removeAllOverlays();
+      _recCancelled = false;
+      _isLocked = false;
+      _chunks = [];
+      _mediaRecorder = null;
     }
   }
 
@@ -215,6 +234,8 @@ window.VoiceMsg = (function () {
 
     _isRecording = false;
     _isPreviewMode = false;
+    _recCancelled = false;
+    _isLocked = false;
     _restoreBtnFromSend();
 
     const wrap = document.querySelector('.mfield-wrap');
@@ -230,7 +251,7 @@ window.VoiceMsg = (function () {
     _showMfieldChildren();
 
     const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+    if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording', 'locked-stop-mode');
 
     if (typeof updateSendBtn === 'function') updateSendBtn();
   }
@@ -258,16 +279,15 @@ window.VoiceMsg = (function () {
       <span class="voice-rec-timer">0:00</span>
       <div class="voice-rec-wave" id="voice-rec-wave-container"></div>
       <div class="voice-lock-arrow" id="voice-lock-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-          <polyline points="18 15 12 9 6 15"/>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
-        <span>Заблокировать</span>
       </div>
       <div class="voice-cancel-arrow" id="voice-cancel-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        <span>Отменить</span>
       </div>
     `;
 
@@ -291,10 +311,13 @@ window.VoiceMsg = (function () {
   }
 
   /* ── Lock mode (swipe up) — Telegram Desktop style ───────── */
+  let _isPaused = false;
+  let _pauseChunksBackup = [];
 
   function _transitionToLocked() {
     if (_isLocked || !_recOverlay) return;
     _isLocked = true;
+    _isPaused = false;
     _swipeLockActive = false;
     _swipeCancelActive = false;
     _lockedSwiping = false;
@@ -305,9 +328,12 @@ window.VoiceMsg = (function () {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    // Hide directional hints on mic button
+    // Transform mic button into STOP icon (outer button replaces mic with stop)
     const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+    if (sendBtn) {
+      sendBtn.classList.remove('hints-visible');
+      sendBtn.classList.add('recording', 'locked-stop-mode');
+    }
 
     // Reset wrap transforms (in case user was mid-swipe)
     wrap.style.transform = '';
@@ -317,7 +343,7 @@ window.VoiceMsg = (function () {
     if (_lockedCleanup) { _lockedCleanup(); _lockedCleanup = null; }
 
     // ── Morph recording overlay → locked overlay IN-PLACE ──
-    // Layout: [🗑 DELETE] [timer] [waveform fills remaining space] [■ STOP]
+    // Layout: [🗑 DELETE] [timer] [waveform fills remaining space] [⏸ PAUSE]
     const overlay = _recOverlay;
     _recOverlay = null;
 
@@ -334,8 +360,9 @@ window.VoiceMsg = (function () {
       </button>
       <span class="voice-locked-timer" id="voice-locked-timer">${_formatElapsed()}</span>
       <div class="voice-locked-wave" id="voice-locked-wave-container"></div>
-      <button class="voice-locked-stop" id="voice-locked-stop" title="Остановить">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+      <button class="voice-locked-pause" id="voice-locked-pause" title="Пауза">
+        <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
       </button>
     `;
 
@@ -361,13 +388,13 @@ window.VoiceMsg = (function () {
       if (timerEl) timerEl.textContent = _formatElapsed();
     }, 200);
 
-    // Stop button: stop recording → go to preview
-    const stopBtn = document.getElementById('voice-locked-stop');
-    if (stopBtn) {
-      stopBtn.addEventListener('click', (e) => {
+    // Pause button: toggle pause/resume
+    const pauseBtn = document.getElementById('voice-locked-pause');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        _onLockedStop();
+        _toggleLockedPause();
       });
     }
 
@@ -415,15 +442,16 @@ window.VoiceMsg = (function () {
       if (!_lockedSwiping) return;
 
       const progress = Math.min(1, (dx - LOCKED_CANCEL_THRESHOLD) / (LOCKED_CANCEL_COMPLETE - LOCKED_CANCEL_THRESHOLD));
-      _lockedOverlay.style.transform = 'translateX(' + (-progress * 70) + 'px)';
-      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.18) + ')';
+      // Flying-into-trash: moves left + shrinks + fades
+      _lockedOverlay.style.transform = 'translateX(' + (-progress * 100) + 'px) scale(' + (1 - progress * 0.12) + ')';
+      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.25) + ')';
 
       if (progress > 0.1) _lockedOverlay.classList.add('swipe-delete');
       else _lockedOverlay.classList.remove('swipe-delete');
 
       const db = document.getElementById('voice-locked-delete');
       if (db) {
-        db.style.transform = 'scale(' + (1 + progress * 0.25) + ')';
+        db.style.transform = 'scale(' + (1 + progress * 0.3) + ')';
         db.style.color = 'rgba(255,59,58,' + (0.5 + progress * 0.5) + ')';
         if (progress > 0.3) db.classList.add('trash-open');
         else db.classList.remove('trash-open');
@@ -473,14 +501,14 @@ window.VoiceMsg = (function () {
       if (!_lockedSwiping) return;
 
       const progress = Math.min(1, (dx - LOCKED_CANCEL_THRESHOLD) / (LOCKED_CANCEL_COMPLETE - LOCKED_CANCEL_THRESHOLD));
-      _lockedOverlay.style.transform = 'translateX(' + (-progress * 70) + 'px)';
-      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.18) + ')';
+      _lockedOverlay.style.transform = 'translateX(' + (-progress * 100) + 'px) scale(' + (1 - progress * 0.12) + ')';
+      _lockedOverlay.style.background = 'rgba(255,59,48,' + (progress * 0.25) + ')';
       if (progress > 0.1) _lockedOverlay.classList.add('swipe-delete');
       else _lockedOverlay.classList.remove('swipe-delete');
 
       const db = document.getElementById('voice-locked-delete');
       if (db) {
-        db.style.transform = 'scale(' + (1 + progress * 0.25) + ')';
+        db.style.transform = 'scale(' + (1 + progress * 0.3) + ')';
         db.style.color = 'rgba(255,59,58,' + (0.5 + progress * 0.5) + ')';
         if (progress > 0.3) db.classList.add('trash-open');
         else db.classList.remove('trash-open');
@@ -504,11 +532,53 @@ window.VoiceMsg = (function () {
   }
 
   async function _onLockedStop() {
+    _isPaused = false;
     const result = await stopRecording();
     if (result) {
       _showPreview(result.blob, result.duration, result.waveform);
     } else {
       _removeAllOverlays();
+    }
+  }
+
+  function _toggleLockedPause() {
+    if (!_mediaRecorder) return;
+
+    const pauseBtn = document.getElementById('voice-locked-pause');
+    if (!pauseBtn) return;
+
+    const pauseIcon = pauseBtn.querySelector('.pause-icon');
+    const micIcon = pauseBtn.querySelector('.mic-icon');
+
+    if (!_isPaused) {
+      // Pause recording
+      if (_mediaRecorder.state === 'recording') {
+        _mediaRecorder.pause();
+        _isPaused = true;
+        _stopRecVisualization();
+        clearInterval(_lockedTimer);
+        if (pauseIcon) pauseIcon.style.display = 'none';
+        if (micIcon) micIcon.style.display = '';
+        pauseBtn.title = 'Продолжить';
+
+        // Update outer mic button to show stop icon since mic button now acts as stop
+        const sendBtn = document.getElementById('btn-send');
+        if (sendBtn) sendBtn.classList.add('locked-stop-mode');
+      }
+    } else {
+      // Resume recording
+      if (_mediaRecorder.state === 'paused') {
+        _mediaRecorder.resume();
+        _isPaused = false;
+        _startRecVisualization();
+        _lockedTimer = setInterval(() => {
+          const timerEl = document.getElementById('voice-locked-timer');
+          if (timerEl) timerEl.textContent = _formatElapsed();
+        }, 200);
+        if (pauseIcon) pauseIcon.style.display = '';
+        if (micIcon) micIcon.style.display = 'none';
+        pauseBtn.title = 'Пауза';
+      }
     }
   }
 
@@ -712,7 +782,7 @@ window.VoiceMsg = (function () {
     hints.forEach(h => h.style.display = '');
 
     // Remove voice-send-mode
-    btn.classList.remove('voice-send-mode', 'recording', 'hints-visible');
+    btn.classList.remove('voice-send-mode', 'recording', 'hints-visible', 'locked-stop-mode');
 
     // Remove preview send handler
     if (btn._previewSendHandler) {
@@ -906,17 +976,18 @@ window.VoiceMsg = (function () {
         const p = Math.max(0, cancelProgress);
         const wrap = document.querySelector('.mfield-wrap');
         if (wrap) {
-          wrap.style.transform = 'translateX(' + (-p * 80) + 'px)';
-          wrap.style.opacity = String(1 - p * 0.4);
+          // Flying-into-trash animation: panel moves left + shrinks + fades
+          wrap.style.transform = 'translateX(' + (-p * 120) + 'px) scale(' + (1 - p * 0.15) + ')';
+          wrap.style.opacity = String(1 - p * 0.6);
         }
-        // Red tint on recording overlay
+        // Red tint intensifies with progress
         if (_recOverlay) {
-          _recOverlay.style.background = 'rgba(255,59,48,' + (p * 0.2) + ')';
+          _recOverlay.style.background = 'rgba(255,59,48,' + (p * 0.35) + ')';
         }
         if (cancelHint) {
           cancelHint.style.opacity = String(Math.max(0.5, p));
-          // Scale the cancel hint with progress
-          cancelHint.style.transform = 'translateY(-50%) translateX(calc(100% + 6px)) scale(' + (1 + p * 0.15) + ')';
+          // Scale the cancel hint with progress (trash opens wider)
+          cancelHint.style.transform = 'translateY(-50%) translateX(calc(100% + 6px)) scale(' + (1 + p * 0.3) + ')';
         }
 
         if (p >= 1) {
@@ -1580,6 +1651,24 @@ window.VoiceMsg = (function () {
   /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
+    // Client-side compression (silent — no label shown)
+    try {
+      const compressedBlob = await compressAudio(blob);
+      if (compressedBlob !== blob) {
+        // Re-generate waveform from compressed audio
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+          const buf = await compressedBlob.arrayBuffer();
+          const audio = await audioCtx.decodeAudioData(buf);
+          waveform = generateWaveformFromBuffer(audio);
+          audioCtx.close();
+        } catch(e) { audioCtx.close(); }
+        blob = compressedBlob;
+      }
+    } catch (e) {
+      console.warn('[VoiceMsg] Compression skipped:', e);
+    }
+
     if (!S.partner) return;
     const replyId = replyTo || S.replyTo?.id || null;
     const toSid = toSignalId || S.partner.partner_signal_id;
@@ -1605,15 +1694,11 @@ window.VoiceMsg = (function () {
     appendMsg(S.chatId, tmp);
     scrollBot();
 
-    // Client-side compression in background (silent — server also compresses via ffmpeg)
-    try {
-      const compressedBlob = await compressAudio(blob);
-      if (compressedBlob !== blob) {
-        blob = compressedBlob;
-      }
-    } catch (e) {
-      console.warn('[VoiceMsg] Compression skipped:', e);
-    }
+    // Show upload progress ring on the voice message
+    _showUploadProgress(tid, blob);
+
+    // Sending happens in background (compression on server if ffmpeg available)
+    // No label shown — optimistic UI message is already visible in chat
 
     var fd = new FormData();
     fd.append('voice', blob, 'voice.webm');
@@ -1623,8 +1708,9 @@ window.VoiceMsg = (function () {
     fd.append('voice_waveform', JSON.stringify(waveform));
 
     let res;
-    try { res = await api('send_voice_message', 'POST', fd, true); }
-    catch (e) {
+    try {
+      res = await _apiWithProgress('send_voice_message', 'POST', fd, tid);
+    } catch (e) {
       toast('Ошибка отправки голосового', 'err');
       document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();
       if (S.msgs[S.chatId]) S.msgs[S.chatId] = S.msgs[S.chatId].filter(m => m.id !== tid);
@@ -1632,6 +1718,9 @@ window.VoiceMsg = (function () {
     }
 
     S._pendingTids.delete(tid);
+    // Remove upload progress ring
+    _removeUploadProgress(tid);
+
     if (!res.ok) {
       toast('Ошибка: ' + (res.message || ''), 'err');
       document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();
@@ -1675,6 +1764,158 @@ window.VoiceMsg = (function () {
   }
 
   /* ══════════════════════════════════════════════════════════════
+     UPLOAD PROGRESS RING — Telegram-style circular indicator
+     ══════════════════════════════════════════════════════════════ */
+
+  function _showUploadProgress(tempId, blob) {
+    const row = document.querySelector(`.mrow[data-id="${tempId}"]`);
+    if (!row) return;
+    const playBtn = row.querySelector('.voice-play-btn');
+    if (!playBtn) return;
+
+    // Create progress ring overlay on top of play button
+    const ring = document.createElement('div');
+    ring.className = 'voice-upload-ring';
+    ring.id = 'upload-ring-' + tempId;
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 36 36');
+    svg.classList.add('progress-ring-svg');
+
+    const bg = document.createElementNS(svgNS, 'circle');
+    bg.setAttribute('cx', '18');
+    bg.setAttribute('cy', '18');
+    bg.setAttribute('r', '15.5');
+    bg.setAttribute('fill', 'none');
+    bg.setAttribute('stroke', 'rgba(255,255,255,0.2)');
+    bg.setAttribute('stroke-width', '2.5');
+
+    const fg = document.createElementNS(svgNS, 'circle');
+    fg.setAttribute('cx', '18');
+    fg.setAttribute('cy', '18');
+    fg.setAttribute('r', '15.5');
+    fg.setAttribute('fill', 'none');
+    fg.setAttribute('stroke', '#fff');
+    fg.setAttribute('stroke-width', '2.5');
+    fg.setAttribute('stroke-linecap', 'round');
+    fg.setAttribute('stroke-dasharray', String(2 * Math.PI * 15.5));
+    fg.setAttribute('stroke-dashoffset', String(2 * Math.PI * 15.5));
+    fg.setAttribute('transform', 'rotate(-90 18 18)');
+    fg.style.transition = 'stroke-dashoffset 0.15s ease';
+    fg.classList.add('progress-ring-fg');
+
+    const pct = document.createElement('div');
+    pct.className = 'upload-ring-pct';
+    pct.textContent = '0%';
+
+    svg.appendChild(bg);
+    svg.appendChild(fg);
+    ring.appendChild(svg);
+    ring.appendChild(pct);
+    playBtn.appendChild(ring);
+
+    // Store reference for updating
+    playBtn._uploadRing = ring;
+    playBtn._uploadFg = fg;
+    playBtn._uploadPct = pct;
+    playBtn._uploadBlob = blob;
+    playBtn._uploadDone = false;
+  }
+
+  function _updateUploadProgress(tempId, percent) {
+    const row = document.querySelector(`.mrow[data-id="${tempId}"]`);
+    if (!row) return;
+    const playBtn = row.querySelector('.voice-play-btn');
+    if (!playBtn || !playBtn._uploadFg) return;
+
+    const circumference = 2 * Math.PI * 15.5;
+    const offset = circumference * (1 - percent / 100);
+    playBtn._uploadFg.setAttribute('stroke-dashoffset', String(offset));
+
+    if (playBtn._uploadPct) {
+      playBtn._uploadPct.textContent = Math.round(percent) + '%';
+    }
+  }
+
+  function _removeUploadProgress(tempId) {
+    const row = document.querySelector(`.mrow[data-id="${tempId}"]`);
+    if (!row) return;
+    const playBtn = row.querySelector('.voice-play-btn');
+    if (!playBtn) return;
+    const ring = playBtn.querySelector('.voice-upload-ring');
+    if (ring) ring.remove();
+    playBtn._uploadRing = null;
+    playBtn._uploadFg = null;
+    playBtn._uploadPct = null;
+    playBtn._uploadDone = true;
+  }
+
+  /**
+   * API call with upload progress tracking
+   * Wraps fetch with XMLHttpRequest for progress events
+   */
+  function _apiWithProgress(endpoint, method, body, tempId) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open(method, '/api-deploy/' + endpoint + '.php', true);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + (S.token || ''));
+
+      // Phase 1: upload progress (client → server)
+      let uploadComplete = false;
+      let totalSize = 0;
+
+      if (body instanceof FormData) {
+        // Estimate total size from blob
+        const blob = body.get('voice');
+        totalSize = blob ? blob.size : 0;
+      }
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable && totalSize > 0) {
+          // Upload is ~50% of total, server processing is ~50%
+          const uploadPct = (e.loaded / e.total) * 50;
+          _updateUploadProgress(tempId, uploadPct);
+        }
+      });
+
+      xhr.upload.addEventListener('load', () => {
+        uploadComplete = true;
+        // Mark as 70% — server is now processing
+        _updateUploadProgress(tempId, 70);
+      });
+
+      xhr.addEventListener('load', () => {
+        // Upload + processing complete
+        _updateUploadProgress(tempId, 100);
+        setTimeout(() => {
+          _removeUploadProgress(tempId);
+        }, 400);
+
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch (e) {
+          reject(new Error('Invalid JSON response'));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        _removeUploadProgress(tempId);
+        reject(new Error('Network error'));
+      });
+
+      xhr.addEventListener('timeout', () => {
+        _removeUploadProgress(tempId);
+        reject(new Error('Request timeout'));
+      });
+
+      xhr.timeout = 120000;
+      xhr.send(body);
+    });
+  }
+
+  /* ══════════════════════════════════════════════════════════════
      UI BINDING — Mic button ↔ hold-to-record with gestures
      ══════════════════════════════════════════════════════════════ */
 
@@ -1690,6 +1931,13 @@ window.VoiceMsg = (function () {
 
     // ── Mouse (desktop) ──
     btn.addEventListener('mousedown', (e) => {
+      // If in locked mode, the mic button acts as STOP
+      if (_isLocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        _onLockedStop();
+        return;
+      }
       if (!isMicMode()) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1715,6 +1963,13 @@ window.VoiceMsg = (function () {
 
     // ── Touch (mobile) ──
     btn.addEventListener('touchstart', (e) => {
+      // If in locked mode, the mic button acts as STOP
+      if (_isLocked) {
+        e.preventDefault();
+        e.stopPropagation();
+        _onLockedStop();
+        return;
+      }
       if (!isMicMode()) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1739,7 +1994,7 @@ window.VoiceMsg = (function () {
 
     // Prevent context menu on long press
     btn.addEventListener('contextmenu', (e) => {
-      if (!isMicMode()) return;
+      if (!isMicMode() && !_isLocked) return;
       e.preventDefault();
     });
   }
