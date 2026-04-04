@@ -150,12 +150,12 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   width:100%;
 }
 .link-qr-canvas{
-  width:100%;max-width:260px;margin:0 auto;
+  width:100%;max-width:240px;margin:0 auto;
   border-radius:16px;overflow:hidden;background:#fff;
   box-shadow:0 2px 16px rgba(0,0,0,.18);
-  line-height:0;/* убирает gap под inline SVG */
+  line-height:0;font-size:0;/* убирает gap под inline SVG */
 }
-.link-qr-canvas svg{width:100%!important;height:auto!important;display:block!important}
+.link-qr-canvas canvas,.link-qr-canvas svg{width:240px!important;height:240px!important;display:block!important}
 .link-qr-timer{
   font-size:12px;font-weight:600;color:var(--t3);letter-spacing:.3px;
   font-variant-numeric:tabular-nums;
@@ -549,8 +549,8 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   box-shadow:0 0 6px rgba(139,92,246,.6);
 }
 /* RESIZE HANDLE */
-.resize-handle{width:3px;flex-shrink:0;cursor:col-resize;background:var(--b2);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
-.resize-handle:hover,.resize-handle.dragging{background:var(--b3);box-shadow:0 0 8px rgba(0,0,0,.2)}
+.resize-handle{width:3px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.18);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
+.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.3);box-shadow:0 0 8px rgba(0,0,0,.2)}
 .resize-handle::after{content:none}
 
 /* CHAT + PARTNER PANEL */
@@ -889,7 +889,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 /* ── Settings body ── */
 .tg-settings-body {
   padding: 0 12px 24px;
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex; flex-direction: column; gap: 8px;
 }
 .sb-profile-panel.open .tg-settings-body > * {
   animation: sb-stagger .35s cubic-bezier(.25,1,.5,1) both;
@@ -927,7 +927,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 /* ── Rows ── */
 .tg-row {
   width: 100%; display: flex; align-items: center;
-  padding: 12px 16px; min-height: 48px;
+  padding: 10px 16px; min-height: 42px;
   background: transparent; border: none; cursor: pointer;
   text-align: left; gap: 0;
   transition: background .18s cubic-bezier(.25,1,.5,1), transform .12s;
@@ -1025,7 +1025,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .sb-prof-section-title {
   font-size: 11px; font-weight: 700;
   color: var(--t3);
-  padding: 14px 16px 4px;
+  padding: 10px 16px 4px;
   text-transform: uppercase;
   letter-spacing: .5px;
 }
@@ -1065,10 +1065,10 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 /* ── Toggle rows (notifications, input) ── */
 .sb-notif-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 16px;
 }
-.sb-notif-label { font-size: 14.5px; font-weight: 500; color: var(--t1); }
-.sb-notif-sub   { font-size: 13px; color: var(--t3); margin-top: 2px; }
+.sb-notif-label { font-size: 14px; font-weight: 500; color: var(--t1); }
+.sb-notif-sub   { font-size: 12px; color: var(--t3); margin-top: 2px; }
 
 /* ── Theme grid ── */
 .tg-theme-grid { display: flex; gap: 8px; margin-bottom: 4px; }
@@ -1451,16 +1451,14 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .mavi img{width:100%;height:100%;object-fit:cover}.mavi.ghost{visibility:hidden}
 .mbub{max-width:min(460px, 85%);display:flex;flex-direction:column;align-items:flex-start;position:relative;min-width:0}.me .mbub{align-items:flex-end}
 .mbody{background:var(--msg-bg);border:1px solid var(--b);border-radius:18px;padding:6px 12px 7px;position:relative;word-break:break-word;transition:background .12s,border-color .12s;min-width:0;max-width:100%;box-sizing:border-box}
-.me .mbody{background:transparent;border:none;border-radius:18px;color:#fff;overflow:visible;position:relative}
+.me .mbody{background:linear-gradient(135deg,var(--y),var(--y3));border:none;border-radius:18px;color:#fff;overflow:visible;position:relative}
 .mbody > *{position:relative;z-index:1}
 /* Disable per-message ::before gradient — screen-space gradient overlay on .msgs */
 #active-chat .me .mbody::before{content:none}
 /* Incoming messages — keep normal background */
 .mbody{background:var(--msg-bg)}
-/* Screen-space gradient strip for outgoing messages — spans full viewport height */
-.msgs{position:relative;isolation:isolate}
-.msgs::before{content:'';position:absolute;inset:0;width:55%;left:auto;right:0;background:linear-gradient(180deg, var(--y2) 0%, var(--y3) 100%);border-radius:16px;z-index:-1;pointer-events:none;opacity:.88}
-.me .mbub .mbody:not(.media-only):not(.has-media-caption){background:transparent!important}
+/* Outgoing messages: accent gradient background */
+.me .mbub .mbody:not(.media-only):not(.has-media-caption){background:linear-gradient(135deg,var(--y),var(--y3))!important}
 /* Sending state */
 .mbody.sending{opacity:.7}
 
@@ -2762,7 +2760,17 @@ body[data-theme="light"] .mfield-wrap .emo-btn-in.active {
   color: var(--y);
   background: rgba(139,92,246,.1);
 }
+/* Format bar buttons — dark icons in light theme */
+body[data-theme="light"] .fmt-btn {
+  color: #1c1c1e;
+}
+body[data-theme="light"] .fmt-btn:hover {
+  color: #000;
+}
 
+/* Divider — visible in light theme */
+body[data-theme="light"] .resize-handle{background:rgba(0,0,0,.12)}
+body[data-theme="light"] .resize-handle:hover,body[data-theme="light"] .resize-handle.dragging{background:rgba(0,0,0,.22)}
 /* tg-section (settings rows) — darker surface in light theme */
 body[data-theme="light"] .tg-section{
   background:#e8e8ec;
@@ -3661,6 +3669,11 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   background: rgba(var(--bg-rgb),.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-right: 1px solid var(--b);
   z-index: 2;
+  opacity: 1;
+  transition: opacity .25s ease;
+}
+.nav-rail.fading {
+  opacity: .35;
 }
 .nav-rail-items,
 .nav-rail-bottom {
@@ -3702,6 +3715,24 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   content: '';
   position: absolute;
   left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: var(--y);
+  border-radius: 0 4px 4px 0;
+}
+.nav-rail-btn.active::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  background: var(--y);
+  border-radius: 0 4px 4px 0;
+}
   top: 50%;
   transform: translateY(-50%);
   width: 3px;

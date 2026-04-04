@@ -721,6 +721,29 @@ let sbSearchActive=false,sbSearchTimer,_searchReqId=0;
 function enterSearch(){
   if(sbSearchActive)return;
   sbSearchActive=true;
+  // Hide any active nav-panels and clear their inline styles so CSS can take over
+  document.querySelectorAll('.nav-panel').forEach(p => {
+    p.style.transform = 'translateX(100%)';
+    p.style.opacity = '0';
+    p.style.pointerEvents = 'none';
+  });
+  // Clear inline styles on chat-list so CSS .searching can animate it
+  const chatList = $('chat-list');
+  if (chatList) {
+    chatList.style.transform = '';
+    chatList.style.opacity = '';
+    chatList.style.pointerEvents = '';
+  }
+  const searchResults = $('sb-search-results');
+  if (searchResults) {
+    searchResults.style.transform = '';
+    searchResults.style.opacity = '';
+    searchResults.style.pointerEvents = '';
+  }
+  // Ensure nav-rail "chats" button is active
+  document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
+  const chatsBtn = document.querySelector('.nav-rail-btn[data-nav="chats"]');
+  if (chatsBtn) chatsBtn.classList.add('active');
   // Поднимаем панели на GPU-слой прямо перед анимацией
   const panels=document.querySelectorAll('.sb-panel');
   panels.forEach(p=>p.style.willChange='transform,opacity');
@@ -908,6 +931,7 @@ function goBackToList(){
       S.chatId=null;
       $('active-chat').style.display='';
       $('chat-welcome').style.display='flex';
+      if(typeof startWelcomeTyping==='function')startWelcomeTyping();
     },300); // matches transition duration
   } else {
     // Desktop: animate close
@@ -922,6 +946,7 @@ function goBackToList(){
       ac.style.opacity = '';
       ac.style.transform = '';
       $('chat-welcome').style.display='flex';
+      if(typeof startWelcomeTyping==='function')startWelcomeTyping();
     }, 200);
   }
 }
