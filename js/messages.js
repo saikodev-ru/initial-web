@@ -1017,7 +1017,25 @@ function makeMsgEl(m,newSender=true){
     };
   } else {
     if(hasMedia){
-    if(m.media_type==='document'){
+    if(m.media_type==='voice'){
+      const voiceWrap=document.createElement('div');
+      voiceWrap.className='voice-msg';
+      const dur=m.voice_duration||parseInt(m.body||'0',10)||0;
+      const durStr=`${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}`;
+      const audioUrl=m.media_url;
+      let wfData=[];
+      try{if(m.voice_waveform)wfData=JSON.parse(m.voice_waveform);}catch(e){}
+      voiceWrap.innerHTML=`
+        <button class="voice-play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+        <div class="voice-waveform-wrap">
+          <div class="voice-waveform"></div>
+        </div>
+        <span class="voice-dur">${durStr}</span>
+      `;
+      body.appendChild(voiceWrap);
+      body.classList.add('voice-body');
+      setTimeout(()=>{if(window.VoiceMsg){window.VoiceMsg.createPlayer(voiceWrap,audioUrl,dur,wfData);}},0);
+    } else if(m.media_type==='document'){
       const ext=(m.media_file_name||'file').split('.').pop().toLowerCase();
       const fileName=m.media_file_name||'Файл';
       const fileSize=m.media_file_size?fmtFileSize(m.media_file_size):'';
