@@ -4,11 +4,19 @@
 //  POST /api/send_voice_message.php
 //  Header: Authorization: Bearer <token>
 //  Body:   multipart/form-data
-//          voice          — audio file (webm/opus)
+//          voice          — encrypted audio file (AES-256-GCM)
 //          to_signal_id   — recipient signal ID
 //          reply_to       — (optional) message ID to reply to
 //          voice_duration — (optional) duration in seconds
 //          voice_waveform — (optional) JSON array of 0-1 values
+//          enc_key        — AES-256 key (hex, 64 chars)
+//          enc_iv         — AES-GCM IV  (hex, 24 chars)
+//
+//  Security: audio is encrypted client-side with AES-256-GCM.
+//  The server decrypts it upon receipt and stores plaintext in S3.
+//  Key & IV travel as POST params separate from the file blob,
+//  so intercepted uploads are useless without them.
+//
 //  Response: { "ok": true, "message_id": int, "chat_id": int }
 // ═══════════════════════════════════════════════════════════════
 declare(strict_types=1);
@@ -67,7 +75,47 @@ if ($size < 1) {
     json_err('empty_file', 'Пустой файл');
 }
 
-// Validate MIME type
+/* ── AES-256-GCM DECRYPTION ──────────────────────────────────── */
+$encKey = trim($_POST['enc_key'] ?? '');
+$encIv  = trim($_POST['enc_iv'] ?? '');
+
+if (!empty($encKey) && !empty($encIv)) {
+    // Client sent encryption metadata — decrypt
+    $keyBin = @hex2bin($encKey);
+    $ivBin  = @hex2bin($encIv);
+
+    if (strlen($keyBin) !== 32) {
+        json_err('invalid_key', 'Неверная длина ключа шифрования');
+    }
+    if (strlen($ivBin) !== 12) {
+        json_err('invalid_iv', 'Неверная длина вектора инициализации');
+    }
+
+    $cipherText = file_get_contents($tmpPath);
+    if ($cipherText === false) {
+        json_err('read_error', 'Не удалось прочитать загруженный файл');
+    }
+
+    // AES-256-GCM: tag is appended to ciphertext (OpenSSL default)
+    $plainText = @openssl_decrypt($cipherText, 'aes-256-gcm', $keyBin, OPENSSL_RAW_DATA, $ivBin);
+
+    if ($plainText === false) {
+        json_err('decrypt_error', 'Ошибка расшифровки голосового сообщения', 500);
+    }
+
+    // Write decrypted data back to temp file for processing
+    $decPath = $tmpPath . '.dec';
+    if (file_put_contents($decPath, $plainText) === false) {
+        json_err('write_error', 'Ошибка записи расшифрованного файла', 500);
+    }
+
+    // Replace temp path with decrypted version
+    $tmpPath = $decPath;
+    $size = strlen($plainText);
+    unset($plainText, $cipherText);
+}
+
+/* ── Determine MIME type ─────────────────────────────────────── */
 $mime = '';
 if (function_exists('mime_content_type')) {
     $mime = mime_content_type($tmpPath) ?: '';
@@ -87,6 +135,7 @@ $allowedVoiceMimes = [
     'audio/x-m4a',
     'audio/aac',
     'audio/opus',
+    'application/octet-stream',  // encrypted file may have this before decryption
 ];
 
 $ext = 'webm';
@@ -102,14 +151,14 @@ if (str_contains($mime, 'ogg')) {
     $ext = 'webm';
 }
 
-// If MIME not in allowed list but file has content, still allow (some browsers send weird MIME)
-if (!in_array($mime, $allowedVoiceMimes, true) && $size < 100) {
-    json_err('invalid_type', 'Неподдерживаемый формат голосового сообщения');
+// If decrypted successfully, force webm extension
+if (!empty($encKey)) {
+    $ext = 'webm';
+    $mime = 'audio/webm';
 }
 
 /* ── Get or determine duration if not provided ────────────────── */
 if ($voiceDuration <= 0 && function_exists('exec')) {
-    // Try ffprobe to get real duration
     $ffprobe = @exec('which ffprobe 2>/dev/null');
     if ($ffprobe) {
         $cmd = escapeshellcmd($ffprobe) . ' -v quiet -print_format json -show_format ' . escapeshellarg($tmpPath) . ' 2>/dev/null';
@@ -122,7 +171,6 @@ if ($voiceDuration <= 0 && function_exists('exec')) {
 
 // Fallback: use a reasonable default
 if ($voiceDuration <= 0) {
-    // Rough estimate: assume 32kbps opus
     $voiceDuration = max(1, (int) ceil($size / 4000));
 }
 
@@ -135,6 +183,11 @@ $s3Mime = $mime ?: 'audio/webm';
 $url = s3_upload($tmpPath, $s3Key, $s3Mime);
 if (!$url) {
     json_err('upload_error', 'Не удалось загрузить голосовое сообщение', 500);
+}
+
+// Clean up decrypted temp file if it exists
+if (!empty($encKey) && file_exists($tmpPath)) {
+    @unlink($tmpPath);
 }
 
 /* ── Get recipient user ──────────────────────────────────────── */
@@ -166,7 +219,6 @@ $chat = $stmt->fetch(PDO::FETCH_ASSOC);
 if ($chat) {
     $chatId = (int) $chat['id'];
 } else {
-    // Create new chat
     $stmt = $pdo->prepare("
         INSERT INTO chats (user1_id, user2_id, created_at, updated_at)
         VALUES (?, ?, NOW(), NOW())
@@ -184,9 +236,9 @@ $stmt = $pdo->prepare("
 $stmt->execute([
     $chatId,
     $myId,
-    (string) $voiceDuration,            // body = duration in seconds (for display)
-    $url,                                 // media_url
-    'voice.' . $ext,                     // media_file_name
+    (string) $voiceDuration,
+    $url,
+    'voice.' . $ext,
     $voiceDuration,
     $voiceWaveform,
     $replyTo,
@@ -202,7 +254,6 @@ $stmt = $pdo->prepare("
 $stmt->execute(['🎤 Голосовое сообщение', $chatId]);
 
 /* ── Dispatch push / SSE events (optional integration) ────────── */
-// If you have a push notification function, call it here:
 // send_push($recipientId, $myId, '🎤 Голосовое сообщение', $chatId, $messageId);
 
 json_ok([

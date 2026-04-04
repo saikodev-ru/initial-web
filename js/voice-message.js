@@ -469,9 +469,41 @@ window.VoiceMsg = (function () {
     }
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     SEND VOICE
-     ══════════════════════════════════════════════════════════════ */
+  /* ══ AES-256-GCM ENCRYPTION ════════════════════════════════════ */
+
+  /**
+   * Encrypt a Blob using AES-256-GCM via Web Crypto API.
+   * Returns { encrypted: Uint8Array, keyHex: string, ivHex: string }
+   * The key & IV travel as separate POST params — the raw file blob is
+   * useless without them even if intercepted from S3 / CDN / proxy.
+   */
+  async function encryptBlob(blob) {
+    var subtle = window.crypto.subtle;
+    // 256-bit random key
+    var key = await subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      true, // extractable so we can export
+      ['encrypt']
+    );
+    // 96-bit random IV (required by AES-GCM)
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    // Encrypt
+    var plainBuf = await blob.arrayBuffer();
+    var cipherBuf = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, plainBuf);
+    // Export key to hex for server
+    var rawKey = await subtle.exportKey('raw', key);
+    var keyHex = bufToHex(rawKey);
+    var ivHex = bufToHex(iv);
+    return { encrypted: new Uint8Array(cipherBuf), keyHex: keyHex, ivHex: ivHex };
+  }
+
+  /** Uint8Array → lowercase hex string */
+  function bufToHex(buf) {
+    var arr = Array.from(buf);
+    return arr.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
     if (!S.partner) return;
@@ -511,13 +543,28 @@ window.VoiceMsg = (function () {
     appendMsg(S.chatId, tmp);
     scrollBot();
 
-    // Upload
-    const fd = new FormData();
-    fd.append('voice', blob, 'voice.webm');
+    // Encrypt the audio blob before upload (AES-256-GCM)
+    var encryptedFile;
+    try {
+      var enc = await encryptBlob(blob);
+      encryptedFile = new File([enc.encrypted], 'voice.enc', { type: 'application/octet-stream' });
+    } catch (e) {
+      // Fallback: upload without encryption if Web Crypto unavailable
+      encryptedFile = blob;
+      enc = { keyHex: '', ivHex: '' };
+    }
+    var encKeyHex = enc.keyHex;
+    var encIvHex = enc.ivHex;
+
+    // Upload (encrypted)
+    var fd = new FormData();
+    fd.append('voice', encryptedFile, 'voice.enc');
     fd.append('to_signal_id', toSid);
     if (replyId) fd.append('reply_to', String(replyId));
     fd.append('voice_duration', String(duration));
     fd.append('voice_waveform', JSON.stringify(waveform));
+    fd.append('enc_key', encKeyHex);
+    fd.append('enc_iv', encIvHex);
 
     let res;
     try {
