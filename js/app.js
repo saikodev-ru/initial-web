@@ -1241,8 +1241,9 @@ function _applyCustomBg(dataUrl) {
     el.style.backgroundImage = `url(${dataUrl})`;
     // Apply blur class if enabled
     el.classList.remove('blurred', 'blurred-med', 'blurred-strong');
-    if (blurLevel >= 2) el.classList.add('blurred-strong');
-    else if (blurLevel === 1) el.classList.add('blurred-med');
+    if (blurLevel >= 3) el.classList.add('blurred-strong');
+    else if (blurLevel === 2) el.classList.add('blurred-med');
+    else if (blurLevel === 1) el.classList.add('blurred');
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
@@ -1252,7 +1253,7 @@ function _applyCustomBg(dataUrl) {
     if (el) el.remove();
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
-    if (_bgImgStatus) _bgStatus.textContent = 'Не установлено';
+    if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
     // Reset gradient accent
     const root = document.documentElement;
     if (root.style.getPropertyValue('--bg-fade-color')) {
@@ -1338,47 +1339,51 @@ if (_bgImgRemove) {
 const _bgBlurEl = $('tog-bg-blur');
 const _bgBlurLabel = $('blur-level-label');
 const BLUR_LABELS = ['Выкл', 'Слабое', 'Среднее', 'Сильное'];
-const _bgBlurLevel = (() => { try { return parseInt(localStorage.getItem('sg_bg_blur') || '0', 10); } catch { return 0; } })();
+let _bgBlurLevel = (() => { try { return parseInt(localStorage.getItem('sg_bg_blur') || '0', 10); } catch { return 0; } })();
 function _updateBlurUI(level) {
   if (_bgBlurEl) _bgBlurEl.classList.toggle('on', level > 0);
   if (_bgBlurLabel) _bgBlurLabel.textContent = BLUR_LABELS[level] || 'Выкл';
 }
 _updateBlurUI(_bgBlurLevel);
 if (_bgBlurEl) _bgBlurEl.onclick = () => {
-  const next = (_bgBlurLevel + 1) % 4;
-  try { localStorage.setItem('sg_bg_blur', String(next)); } catch { }
-  _updateBlurUI(next);
+  _bgBlurLevel = (_bgBlurLevel + 1) % 4;
+  try { localStorage.setItem('sg_bg_blur', String(_bgBlurLevel)); } catch { }
+  _updateBlurUI(_bgBlurLevel);
   // Re-apply background to toggle blur
   const cached = localStorage.getItem(BG_IMG_KEY);
   if (cached) _applyCustomBg(cached);
 };
 
-/* ── CHAT MAX WIDTH ────────────────────────────────── */
-const _chatMaxWidthRange = $('chat-max-width-range');
-const _chatMaxWidthVal = $('chat-max-width-val');
-const _chatMaxWidthPx = (() => { try { return parseInt(localStorage.getItem('sg_chat_max_width') || '0', 10); } catch { return 0; } })();
-function _applyChatMaxWidth(px) {
+/* ── CHAT PADDING ─────────────────────────────────── */
+const _chatPadRange = $('chat-max-width-range');
+const _chatPadVal = $('chat-max-width-val');
+const _chatPadPx = (() => { try { return parseInt(localStorage.getItem('sg_chat_max_width') || '0', 10); } catch { return 0; } })();
+function _applyChatPad(px) {
   const msgs = document.getElementById('msgs');
   if (!msgs) return;
   if (px > 0) {
-    msgs.style.maxWidth = px + 'px';
-    msgs.style.margin = '0 auto';
-    if (_chatMaxWidthVal) _chatMaxWidthVal.textContent = px + 'px';
-  } else {
+    msgs.style.paddingLeft = px + 'px';
+    msgs.style.paddingRight = px + 'px';
     msgs.style.maxWidth = '';
     msgs.style.margin = '';
-    if (_chatMaxWidthVal) _chatMaxWidthVal.textContent = 'Авто';
+    if (_chatPadVal) _chatPadVal.textContent = px + 'px';
+  } else {
+    msgs.style.paddingLeft = '';
+    msgs.style.paddingRight = '';
+    msgs.style.maxWidth = '';
+    msgs.style.margin = '';
+    if (_chatPadVal) _chatPadVal.textContent = 'Авто';
   }
 }
-if (_chatMaxWidthRange) {
-  _chatMaxWidthRange.value = _chatMaxWidthPx;
-  _chatMaxWidthRange.oninput = () => {
-    const val = parseInt(_chatMaxWidthRange.value, 10);
+if (_chatPadRange) {
+  _chatPadRange.value = _chatPadPx;
+  _chatPadRange.oninput = () => {
+    const val = parseInt(_chatPadRange.value, 10);
     try { localStorage.setItem('sg_chat_max_width', String(val)); } catch {}
-    _applyChatMaxWidth(val);
+    _applyChatPad(val);
   };
 }
-_applyChatMaxWidth(_chatMaxWidthPx);
+_applyChatPad(_chatPadPx);
 
 /* ── Show install separator when install button is visible ─ */
 const _installObserver = new MutationObserver(() => {
