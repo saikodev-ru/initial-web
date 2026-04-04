@@ -413,10 +413,9 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .ci:hover{background:var(--s0)}.ci.active{background:var(--ybg)}
 
 /* ── Chat list dividers ── */
-body.chat-dividers .ci:not(.pinned) + .ci:not(.pinned){border-top:1px solid var(--b);border-left:none;border-right:none;border-image:linear-gradient(90deg,transparent,var(--b) 16px,var(--b) calc(100% - 16px),transparent) 1;padding-top:9px;margin:0}
-body.chat-dividers .ci.pinned + .ci.pinned{border-top:1px solid var(--b);border-left:none;border-right:none;border-image:linear-gradient(90deg,transparent,var(--b) 16px,var(--b) calc(100% - 16px),transparent) 1;padding-top:9px;margin:0}
-body.chat-dividers .sb-section-pin + .ci:not(.pinned){border-top:none;padding-top:10px}
-body.chat-dividers .sb-pin-divider + .ci.pinned{border-top:none;padding-top:9px}
+body.chat-dividers .ci + .ci{border-top:1px solid var(--b);border-left:none;border-right:none;border-image:linear-gradient(90deg,transparent,var(--b) 32px,var(--b) calc(100% - 32px),transparent) 1;padding-top:9px;margin:0}
+body.chat-dividers .sb-section-pin + .ci{border-top:none;padding-top:10px}
+body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci.active::after{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:56%;background:var(--y);border-radius:0 4px 4px 0}
 .av{position:relative;flex-shrink:0}.av-img{width:44px;height:44px;border-radius:50%;background:var(--solid1);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900;color:var(--t2);position:relative;flex-shrink:0}
 .av-img[data-initials]:not(:has(img[style*="block"]))::after,.av-img:not(:has(img)){content:attr(data-initials)}
@@ -1116,6 +1115,10 @@ body.chat-dividers .sb-pin-divider + .ci.pinned{border-top:none;padding-top:9px}
 .tp-dark   { background: var(--bg); border: 1px solid var(--b); }
 .tp-light  { background: #ffffff; border: 1px solid var(--b); }
 .tp-amoled { background: #000000; border: 1px solid var(--b); }
+.tp-import { background: var(--s0); border: 1px dashed var(--b); display: flex; align-items: center; justify-content: center; }
+.tp-reset  { background: var(--s0); border: 1px dashed var(--b); display: flex; align-items: center; justify-content: center; }
+.tp-import svg, .tp-reset svg { color: var(--t3); }
+.tp-import:hover svg, .tp-reset:hover svg { color: var(--y); }
 .tp-bubble {
   height: 13px; border-radius: 6px 6px 6px 2px;
   max-width: 68%; background: var(--s2);
@@ -4074,4 +4077,173 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 }
 .tdtheme-swatch {
   flex: 1; border-radius: 3px 3px 0 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VOICE MESSAGES
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Voice message player in chat ── */
+.voice-msg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  min-width: 200px;
+  cursor: pointer;
+  user-select: none;
+}
+.voice-body {
+  /* ensure bubble doesn't collapse */
+}
+.voice-play-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--y);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.voice-play-btn:hover { transform: scale(1.08); }
+.voice-play-btn:active { transform: scale(0.95); }
+.voice-play-btn svg {
+  width: 16px;
+  height: 16px;
+  margin-left: 2px; /* visual center for play triangle */
+}
+.voice-play-btn.playing svg {
+  margin-left: 0;
+}
+.voice-waveform-wrap {
+  flex: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+}
+.voice-waveform {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 100%;
+  width: 100%;
+}
+.voice-waveform .voice-bar {
+  flex: 1;
+  max-width: 3px;
+  min-width: 1.5px;
+  border-radius: 99px;
+  background: var(--t3);
+  transition: background .1s ease;
+  height: 40%;
+  min-height: 3px;
+}
+.voice-waveform .voice-bar.played {
+  background: var(--y);
+}
+.voice-waveform .voice-bar.active {
+  height: 80%;
+}
+.voice-dur {
+  font-size: 11.5px;
+  color: var(--t3);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: right;
+}
+.voice-time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Recording overlay ── */
+.voice-recording {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 10px;
+  background: var(--bg2, var(--solid2));
+  z-index: 10;
+  border-radius: 12px;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.voice-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: voicePulse 1s ease-in-out infinite;
+}
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+.voice-rec-timer {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.voice-rec-waveform {
+  flex: 1;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 1.5px;
+  overflow: hidden;
+}
+.voice-rec-bar {
+  width: 2px;
+  border-radius: 99px;
+  background: var(--y);
+  transition: height .05s ease;
+  min-height: 2px;
+}
+.voice-rec-cancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--t3);
+  font-size: 12px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.voice-rec-cancel:hover { opacity: 0.7; }
+.voice-rec-cancel svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ── Swipe to cancel indicator ── */
+.voice-rec-overlay {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  opacity: 0;
+  transition: opacity .15s;
+  pointer-events: none;
+}
+.voice-rec-overlay.active {
+  opacity: 1;
 }

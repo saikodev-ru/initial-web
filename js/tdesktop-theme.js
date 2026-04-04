@@ -187,56 +187,65 @@
     }
   }
 
-  /* ── Parse .tdesktop-theme file (ZIP) ── */
+  /* ── Parse .tdesktop-theme file (ZIP or plain text) ── */
   function parseTdesktopTheme(file) {
     return new Promise(function(resolve, reject) {
-      if (typeof JSZip === 'undefined') {
-        reject(new Error('JSZip library not loaded'));
-        return;
-      }
-
       var reader = new FileReader();
+      reader.onerror = function() { reject(new Error('Failed to read file')); };
       reader.onload = function(e) {
-        JSZip.loadAsync(e.target.result).then(function(zip) {
-          // 1. Find and parse colors.tdesktop-theme
-          var colorsFile = zip.file('colors.tdesktop-theme');
-          if (!colorsFile) {
-            reject(new Error('colors.tdesktop-theme not found in theme file'));
+        var buffer = e.target.result;
+        var textReader = new FileReader();
+        textReader.onerror = function() { reject(new Error('Failed to read file as text')); };
+        textReader.onload = function(e2) {
+          var text = e2.target.result;
+
+          // Try to parse as plain text colors file first (many .tdesktop-theme files are just text)
+          var raw = parseColorsFile(text);
+          if (Object.keys(raw).length > 0) {
+            resolve({ name: null, vars: mapColors(raw), bgDataUrl: null });
             return;
           }
 
-          colorsFile.async('string').then(function(text) {
-            var raw = parseColorsFile(text);
-            if (Object.keys(raw).length === 0) {
-              reject(new Error('No valid colors found in theme file'));
+          // If plain text didn't work, try as ZIP
+          if (typeof JSZip === 'undefined') {
+            reject(new Error('Could not parse theme file (not a valid colors file and JSZip not loaded)'));
+            return;
+          }
+
+          JSZip.loadAsync(buffer).then(function(zip) {
+            var colorsFile = zip.file('colors.tdesktop-theme');
+            if (!colorsFile) {
+              reject(new Error('colors.tdesktop-theme not found in ZIP and file is not a plain colors file'));
               return;
             }
-
-            var vars = mapColors(raw);
-
-            // 2. Try to find background image
-            var bgDataUrl = null;
-            var bgFile = zip.file('background.jpg') || zip.file('background.png');
-            var bgPromise;
-
-            if (bgFile) {
-              bgPromise = bgFile.async('base64').then(function(base64) {
-                var ext = bgFile.name.endsWith('.png') ? 'png' : 'jpeg';
-                bgDataUrl = 'data:image/' + ext + ';base64,' + base64;
-              }).catch(function() {
-                bgDataUrl = null;
+            colorsFile.async('string').then(function(zipText) {
+              var zipRaw = parseColorsFile(zipText);
+              if (Object.keys(zipRaw).length === 0) {
+                reject(new Error('No valid colors found in theme file'));
+                return;
+              }
+              var vars = mapColors(zipRaw);
+              var bgDataUrl = null;
+              var bgFile = zip.file('background.jpg') || zip.file('background.png');
+              var bgPromise;
+              if (bgFile) {
+                bgPromise = bgFile.async('base64').then(function(base64) {
+                  var ext = bgFile.name.endsWith('.png') ? 'png' : 'jpeg';
+                  bgDataUrl = 'data:image/' + ext + ';base64,' + base64;
+                }).catch(function() { bgDataUrl = null; });
+              } else {
+                bgPromise = Promise.resolve();
+              }
+              bgPromise.then(function() {
+                resolve({ name: null, vars: vars, bgDataUrl: bgDataUrl });
               });
-            } else {
-              bgPromise = Promise.resolve();
-            }
-
-            bgPromise.then(function() {
-              resolve({ name: null, vars: vars, bgDataUrl: bgDataUrl });
-            });
-          }).catch(reject);
-        }).catch(reject);
+            }).catch(reject);
+          }).catch(function() {
+            reject(new Error('Could not parse theme file — not a valid .tdesktop-theme'));
+          });
+        };
+        textReader.readAsText(file);
       };
-      reader.onerror = function() { reject(new Error('Failed to read file')); };
       reader.readAsArrayBuffer(file);
     });
   }
