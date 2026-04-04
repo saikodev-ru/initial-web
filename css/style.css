@@ -2018,11 +2018,21 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   top:-80px;
   background: linear-gradient(to top, 
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
-    rgba(var(--chat-bg-rgb), .92) 10%,
-    rgba(var(--chat-bg-rgb), .78) 22%,
-    rgba(var(--chat-bg-rgb), .55) 38%,
-    rgba(var(--chat-bg-rgb), .3) 55%,
-    rgba(var(--chat-bg-rgb), .12) 75%,
+    rgba(var(--chat-bg-rgb), .96) 4%,
+    rgba(var(--chat-bg-rgb), .91) 8%,
+    rgba(var(--chat-bg-rgb), .85) 13%,
+    rgba(var(--chat-bg-rgb), .78) 18%,
+    rgba(var(--chat-bg-rgb), .70) 24%,
+    rgba(var(--chat-bg-rgb), .62) 30%,
+    rgba(var(--chat-bg-rgb), .54) 36%,
+    rgba(var(--chat-bg-rgb), .46) 42%,
+    rgba(var(--chat-bg-rgb), .38) 48%,
+    rgba(var(--chat-bg-rgb), .30) 55%,
+    rgba(var(--chat-bg-rgb), .22) 62%,
+    rgba(var(--chat-bg-rgb), .16) 69%,
+    rgba(var(--chat-bg-rgb), .10) 76%,
+    rgba(var(--chat-bg-rgb), .05) 84%,
+    rgba(var(--chat-bg-rgb), .02) 92%,
     rgba(var(--chat-bg-rgb), 0) 100%
   );
   pointer-events:none;
@@ -2031,11 +2041,21 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 body[data-theme="light"] .input-zone::before {
   background: linear-gradient(to top, 
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
-    rgba(var(--chat-bg-rgb), .92) 10%,
-    rgba(var(--chat-bg-rgb), .78) 22%,
-    rgba(var(--chat-bg-rgb), .55) 38%,
-    rgba(var(--chat-bg-rgb), .3) 55%,
-    rgba(var(--chat-bg-rgb), .12) 75%,
+    rgba(var(--chat-bg-rgb), .96) 4%,
+    rgba(var(--chat-bg-rgb), .91) 8%,
+    rgba(var(--chat-bg-rgb), .85) 13%,
+    rgba(var(--chat-bg-rgb), .78) 18%,
+    rgba(var(--chat-bg-rgb), .70) 24%,
+    rgba(var(--chat-bg-rgb), .62) 30%,
+    rgba(var(--chat-bg-rgb), .54) 36%,
+    rgba(var(--chat-bg-rgb), .46) 42%,
+    rgba(var(--chat-bg-rgb), .38) 48%,
+    rgba(var(--chat-bg-rgb), .30) 55%,
+    rgba(var(--chat-bg-rgb), .22) 62%,
+    rgba(var(--chat-bg-rgb), .16) 69%,
+    rgba(var(--chat-bg-rgb), .10) 76%,
+    rgba(var(--chat-bg-rgb), .05) 84%,
+    rgba(var(--chat-bg-rgb), .02) 92%,
     rgba(var(--chat-bg-rgb), 0) 100%
   );
 }

@@ -51,12 +51,26 @@ window.VoiceMsg = (function () {
 
   async function startRecording() {
     if (_mediaRecorder && _mediaRecorder.state === 'recording') return;
+
+    // Show overlay IMMEDIATELY for instant UI feedback (Telegram behavior)
+    _showRecOverlay();
+
+    let stream;
     try {
-      _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e) {
       toast('Нет доступа к микрофону', 'err');
+      _removeAllOverlays();
       return;
     }
+
+    // Guard: user may have released before permission was granted
+    if (_recCancelled || !_recOverlay) {
+      stream.getTracks().forEach(t => t.stop());
+      return;
+    }
+
+    _stream = stream;
 
     let mimeType = '';
     const candidates = [
@@ -81,8 +95,6 @@ window.VoiceMsg = (function () {
     _analyser = _audioCtx.createAnalyser();
     _analyser.fftSize = 128;
     source.connect(_analyser);
-
-    _showRecOverlay();
 
     _recStart = Date.now();
     _recTimer = setInterval(_updateRecTimer, 200);
@@ -749,7 +761,7 @@ window.VoiceMsg = (function () {
 
   function _onPointerEnd() {
     // Hold mode: stop recording → send directly (Telegram behavior)
-    if (!_isLocked && _mediaRecorder && _mediaRecorder.state === 'recording' && !_recCancelled) {
+    if (!_isLocked && !_recCancelled) {
       // Reset transform on wrap
       const wrap = document.querySelector('.mfield-wrap');
       if (wrap) {
@@ -769,27 +781,31 @@ window.VoiceMsg = (function () {
       _swipeCancelActive = false;
       _swipeLockActive = false;
 
-      // Hold-release: stop and send directly
-      stopRecording().then(result => {
-        if (result) {
-          // Clean up overlays before sending
-          _removeVoiceOverlays();
-          _restoreBtnFromSend();
-          if (wrap) {
-            wrap.classList.remove('voice-rec-active');
-            wrap.style.height = '';
-            wrap.style.minHeight = '';
-            wrap.style.maxHeight = '';
-            wrap.style.overflow = '';
-          }
-          _showMfieldChildren();
-          if (typeof updateSendBtn === 'function') updateSendBtn();
+      // If media recorder is actually recording, stop and send
+      if (_mediaRecorder && _mediaRecorder.state === 'recording') {
+        stopRecording().then(result => {
+          if (result) {
+            _removeVoiceOverlays();
+            _restoreBtnFromSend();
+            if (wrap) {
+              wrap.classList.remove('voice-rec-active');
+              wrap.style.height = '';
+              wrap.style.minHeight = '';
+              wrap.style.maxHeight = '';
+              wrap.style.overflow = '';
+            }
+            _showMfieldChildren();
+            if (typeof updateSendBtn === 'function') updateSendBtn();
 
-          sendVoice(result.blob, result.duration, result.waveform);
-        } else {
-          _removeAllOverlays();
-        }
-      });
+            sendVoice(result.blob, result.duration, result.waveform);
+          } else {
+            _removeAllOverlays();
+          }
+        });
+      } else {
+        // Recording never started (e.g. permission denied) — just clean up overlay
+        _removeAllOverlays();
+      }
     }
   }
 
@@ -1332,7 +1348,8 @@ window.VoiceMsg = (function () {
     });
 
     document.addEventListener('mouseup', () => {
-      if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
+      // Check if we're in voice recording flow (overlay shown OR recorder active)
+      if (!_recOverlay && (!_mediaRecorder || _mediaRecorder.state !== 'recording')) return;
       if (_recCancelled || _isLocked) return;
       btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
@@ -1356,7 +1373,7 @@ window.VoiceMsg = (function () {
     }, { passive: true });
 
     document.addEventListener('touchend', () => {
-      if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
+      if (!_recOverlay && (!_mediaRecorder || _mediaRecorder.state !== 'recording')) return;
       if (_recCancelled || _isLocked) return;
       btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
