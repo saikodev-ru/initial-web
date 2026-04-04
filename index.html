@@ -222,6 +222,7 @@ if (window._swSupported) {
 </script>
 <script type="text/javascript" src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
 </head>
 <body>
 <div id="splash">
@@ -595,6 +596,27 @@ if (window._swSupported) {
               </button>
             </div>
 
+            <div class="sb-prof-section-title" style="padding:10px 0 4px">Кастомная тема</div>
+            <div class="sb-prof-section">
+              <div class="sb-notif-row" id="tdtheme-row-upload">
+                <div>
+                  <div class="sb-notif-label">Загрузить .tdesktop-theme</div>
+                  <div class="sb-notif-sub">Файл темы Telegram Desktop</div>
+                </div>
+                <button class="ico-btn" id="tdtheme-btn-upload" title="Загрузить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg></button>
+              </div>
+              <input type="file" id="tdtheme-file-input" accept=".tdesktop-theme" style="display:none">
+              <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row" id="tdtheme-row-reset">
+                <div>
+                  <div class="sb-notif-label">Сбросить</div>
+                  <div class="sb-notif-sub">Вернуть встроенную тему</div>
+                </div>
+                <button class="ico-btn" id="tdtheme-btn-reset" title="Сбросить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 9A9 9 0 0 0 5.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 0 1 3.51 15"/></svg></button>
+              </div>
+            </div>
+            <div class="tdtheme-grid" id="tdtheme-grid"></div>
+
             <div class="sb-prof-section-title" style="padding:10px 0 4px">Ввод</div>
             <div class="sb-prof-section">
               <div class="sb-notif-row"><div><div class="sb-notif-label">Отправка по Ctrl+Enter</div><div class="sb-notif-sub">Включите, чтобы Enter был переносом строки</div></div><button class="toggle" id="tog-ctrl-enter-send"></button></div>
@@ -902,7 +924,7 @@ if (window._swSupported) {
               <button class="fmt-btn" id="fmt-clear"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21 18 19.73 3.27 5zM6 5v.18L8.82 8h2.4l-.72 1.68 2.1 2.1L14.21 8H20V5H6z"/></svg><span>Очист.</span></button>
             </div>
             <div class="input-row">
-              <input type="file" id="file-in" accept="image/*,video/*,.txt,.xls,.xlsx,.pdf,.html,.css,.xml,.csv,.json,.md,.log" multiple>
+              <input type="file" id="file-in" accept="image/*,video/*,.txt,.xls,.xlsx,.pdf,.html,.css,.xml,.csv,.json,.md,.log,.doc,.docx,.rtf,.ppt,.pptx,.zip,.rar,.7z" multiple>
               <div class="mfield-wrap">
                 <button class="emo-btn-in attach-btn-in" id="btn-attach" title="Прикрепить"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg></button>
                 <div class="mfield" id="mfield" contenteditable="true" role="textbox" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-placeholder="Сообщение…"></div>
@@ -1353,6 +1375,7 @@ if (window._swSupported) {
   </button>
 </div>
 <script src="js/theme.js"></script>
+<script src="js/tdesktop-theme.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/chat-list.js"></script>
 <script src="js/messages.js"></script>

@@ -54,7 +54,7 @@ const MAX_DOC_BYTES = 50 * 1024 * 1024; // 50 MB for text documents
 // Check if a file is a document (text-based, non-media)
 function isDocFile(file) {
   const ext = file.name.split('.').pop().toLowerCase();
-  const docExts = ['txt','xls','xlsx','pdf','html','css','xml','csv','json','md','log','doc','docx','rtf'];
+  const docExts = ['txt','xls','xlsx','pdf','html','css','xml','csv','json','md','log','doc','docx','rtf','ppt','pptx','zip','rar','7z'];
   return docExts.includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/');
 }
 
@@ -69,6 +69,11 @@ function getDocIcon(ext) {
     json: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
     md: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
     csv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+    ppt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="6" rx="1"/><rect x="7" y="15" width="10" height="2" rx="0.5"/><rect x="7" y="18.5" width="6" height="2" rx="0.5"/></svg>',
+    pptx: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="6" rx="1"/><rect x="7" y="15" width="10" height="2" rx="0.5"/><rect x="7" y="18.5" width="6" height="2" rx="0.5"/></svg>',
+    zip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="10" y="12" width="4" height="5" rx="0.5"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="10" y1="14.5" x2="14" y2="14.5"/></svg>',
+    rar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="10" y="12" width="4" height="5" rx="0.5"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="10" y1="14.5" x2="14" y2="14.5"/></svg>',
+    '7z': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><rect x="10" y="12" width="4" height="5" rx="0.5"/><line x1="12" y1="12" x2="12" y2="17"/><line x1="10" y1="14.5" x2="14" y2="14.5"/></svg>',
   };
   return icons[ext] || icons.txt;
 }
