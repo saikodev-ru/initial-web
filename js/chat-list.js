@@ -790,7 +790,7 @@ function renderSearchIdle(){
     aviEl.innerHTML=`<svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M19 21l-7-3-7 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" fill="rgba(255,255,255,.95)" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-linejoin="round"/></svg>`;
     el.appendChild(aviEl);
     el.insertAdjacentHTML('beforeend',`<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">Избранное</div><div style="font-size:12px;color:var(--t2)">Ваши заметки</div></div>`);
-    el.onclick=()=>{exitSearch();openChat(savedChat);};
+    el.onclick=()=>{exitSearch();};
     c.appendChild(el);
   }
 
@@ -813,14 +813,19 @@ function makeSbItem(u,isRecent=false){
     el.appendChild(del);
   }
   wtn(el);
-  el.onclick=()=>{saveRecentUser(u);exitSearch();startChat(u);};
+  el.onclick=()=>{saveRecentUser(u);exitSearch();};
   return el;
 }
 
 $('sb-q').onfocus=()=>{if(!sbSearchActive)enterSearch();};
-// Cancel search on blur
-$('sb-q').onblur=()=>{if(sbSearchActive)exitSearch();};
-// btn-search-cancel replaced by btn-sb-close
+// Cancel search via X button
+$('btn-sb-close').onclick = () => { if(sbSearchActive) exitSearch(); };
+// Cancel search when clicking outside sidebar
+document.addEventListener('mousedown', e => {
+  if (!sbSearchActive) return;
+  const sb = $('sidebar');
+  if (sb && !sb.contains(e.target)) exitSearch();
+});
 $('btn-sb-search').onclick=()=>{if(sbCollapsed)toggleSidebar(false);setTimeout(()=>{$('sb-q').focus();},320);};
 
 $('sb-q').oninput=()=>{
@@ -866,7 +871,7 @@ $('sb-q').oninput=()=>{
       }
       el.innerHTML=`${avHtml}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(dispName)}</div><div style="font-size:12px;color:var(--t2)">${sub}</div></div>`;
       wtn(el);
-      el.onclick=()=>{exitSearch();openChat(ch);};
+      el.onclick=()=>{exitSearch();};
       c.appendChild(el);
     });
   }
