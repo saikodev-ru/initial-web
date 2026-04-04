@@ -459,15 +459,14 @@ window.VoiceMsg = (function () {
 
   function _hideInputChildren(zone) {
     if (!zone) return;
-    const children = zone.querySelectorAll(':scope > *:not(.voice-recording):not(.voice-locked):not(.voice-preview)');
-    children.forEach(el => el.style.display = 'none');
+    const children = zone.querySelectorAll(':scope > .input-row, :scope > .rbar, :scope > .fmt-bar');
+    children.forEach(el => el.classList.add('voice-hidden'));
   }
 
   function _showInputChildren(zone) {
     if (!zone) return;
-    zone.querySelectorAll(':scope > *').forEach(el => {
-      el.style.display = '';
-    });
+    const children = zone.querySelectorAll(':scope > .input-row, :scope > .rbar, :scope > .fmt-bar');
+    children.forEach(el => el.classList.remove('voice-hidden'));
   }
 
   function _removeAllOverlays() {
@@ -678,7 +677,7 @@ window.VoiceMsg = (function () {
 
     const playBtn = container.querySelector('.voice-play-btn');
     const wfWrap = container.querySelector('.voice-wf-bars');
-    const timeEl = container.querySelector('.voice-time');
+    const durEl = container.querySelector('.voice-dur');
     if (!playBtn || !wfWrap) return;
 
     if (!waveform || waveform.length === 0) {
@@ -716,7 +715,7 @@ window.VoiceMsg = (function () {
         bar.classList.toggle('played', i < playedIdx);
         bar.classList.toggle('active', i === playedIdx);
       });
-      if (timeEl) timeEl.textContent = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
+      if (durEl) durEl.textContent = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
     }
 
     function startAnim() {
@@ -732,8 +731,8 @@ window.VoiceMsg = (function () {
     }
 
     audio.addEventListener('loadedmetadata', () => {
-      if (isFinite(audio.duration) && audio.duration > 0 && timeEl) {
-        timeEl.textContent = formatTimeSec(audio.duration);
+      if (isFinite(audio.duration) && audio.duration > 0 && durEl) {
+        durEl.textContent = formatTimeSec(audio.duration);
       }
     }, { once: true });
 
@@ -743,12 +742,12 @@ window.VoiceMsg = (function () {
       playBtn.classList.remove('playing');
       stopAnim();
       bars.forEach(b => { b.classList.remove('played', 'active'); });
-      if (timeEl) timeEl.textContent = formatTimeSec(audio.duration || duration);
+      if (durEl) durEl.textContent = formatTimeSec(audio.duration || duration);
       if (_currentAudio === audio) { _currentAudio = null; _currentBtn = null; _currentContainer = null; }
     });
 
     audio.addEventListener('error', () => {
-      if (timeEl) timeEl.textContent = formatTimeSec(duration);
+      if (durEl) durEl.textContent = formatTimeSec(duration);
     });
 
     function toggle() {
@@ -762,9 +761,9 @@ window.VoiceMsg = (function () {
         }
         if (_currentContainer) {
           _currentContainer.querySelectorAll('.voice-wf-bar').forEach(b => b.classList.remove('played', 'active'));
-          const otherTime = _currentContainer.querySelector('.voice-time');
-          if (otherTime && _currentContainer._voiceAudio && isFinite(_currentContainer._voiceAudio.duration)) {
-            otherTime.textContent = formatTimeSec(_currentContainer._voiceAudio.duration);
+          const otherDur = _currentContainer.querySelector('.voice-dur');
+          if (otherDur && _currentContainer._voiceAudio && isFinite(_currentContainer._voiceAudio.duration)) {
+            otherDur.textContent = formatTimeSec(_currentContainer._voiceAudio.duration);
           }
         }
       }
@@ -809,8 +808,8 @@ window.VoiceMsg = (function () {
       if (!isPlaying) toggle();
     });
 
-    if (duration > 0 && timeEl) {
-      timeEl.textContent = formatTimeSec(duration);
+    if (duration > 0 && durEl) {
+      durEl.textContent = formatTimeSec(duration);
     }
   }
 

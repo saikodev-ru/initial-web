@@ -941,7 +941,7 @@ function makeMsgEl(m,newSender=true){
   const aviEl=document.createElement('div');aviEl.className='mavi'+(isMe?' ghost':'');if(!isMe)aviEl.innerHTML=aviHtml(m.nickname,m.avatar_url);
   const bub=document.createElement('div');bub.className='mbub';
 
-  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim()),mediaOnly=hasMedia&&!hasText&&m.media_type!=='document';
+  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim())&&m.media_type!=='voice',mediaOnly=hasMedia&&!hasText&&m.media_type!=='document'&&m.media_type!=='voice';
   const mediaCaption=hasMedia&&hasText;
   const rxns=sortRxns(S.rxns[m.id]||(Array.isArray(m.reactions)?m.reactions:[]));const hasRxns=rxns.length>0;
 
@@ -1030,10 +1030,17 @@ function makeMsgEl(m,newSender=true){
         <div class="voice-waveform">
           <div class="voice-wf-bars"></div>
         </div>
-        <span class="voice-time">${durStr}</span>
+        <span class="voice-dur">${durStr}</span>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
+
+      // Time + ticks below waveform (Telegram-style)
+      const voiceMeta=document.createElement('div');
+      voiceMeta.className='voice-meta';
+      voiceMeta.appendChild(makeMeta(m,isMe,sending));
+      body.appendChild(voiceMeta);
+
       setTimeout(()=>{if(window.VoiceMsg){window.VoiceMsg.createPlayer(voiceWrap,audioUrl,dur,wfData);}},0);
     } else if(m.media_type==='document'){
       const ext=(m.media_file_name||'file').split('.').pop().toLowerCase();
@@ -1236,7 +1243,7 @@ function makeMsgEl(m,newSender=true){
       attachLinkPreview(body, m.body);
     }
 
-    if(!hasText){
+    if(!hasText && m.media_type!=='voice'){
 
     if(mediaOnly){
       body.appendChild(makeMeta(m,isMe,sending));
