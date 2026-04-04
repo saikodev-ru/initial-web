@@ -698,6 +698,9 @@ window.VoiceMsg = (function () {
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
 
+    console.log('[VoicePlayer] init container=', container.className, 'url=', audioUrl?.substring(0, 100));
+    console.log('[VoicePlayer] playBtn=', !!playBtn, 'wfWrap=', !!wfWrap, 'durEl=', !!durEl);
+
     const audio = new Audio();
     audio.preload = 'metadata';
     audio.src = audioUrl;
@@ -747,8 +750,17 @@ window.VoiceMsg = (function () {
     });
 
     audio.addEventListener('error', () => {
+      console.error('[VoicePlayer] audio error:', audio.error?.code, audio.error?.message, 'networkState=', audio.networkState, 'readyState=', audio.readyState);
       if (durEl) durEl.textContent = formatTimeSec(duration);
     });
+
+    audio.addEventListener('canplaythrough', () => {
+      console.log('[VoicePlayer] canplaythrough, duration=', audio.duration);
+    }, { once: true });
+
+    audio.addEventListener('loadeddata', () => {
+      console.log('[VoicePlayer] loadeddata, duration=', audio.duration, 'readyState=', audio.readyState);
+    }, { once: true });
 
     function toggle() {
       // Stop any other playing voice
@@ -791,7 +803,9 @@ window.VoiceMsg = (function () {
     }
 
     playBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
+      console.log('[VoicePlayer] playBtn click, isPlaying=', isPlaying, 'audio.readyState=', audio.readyState, 'audio.error=', audio.error?.message);
       toggle();
     });
 
