@@ -910,8 +910,7 @@ window.VoiceMsg = (function () {
     if (replyId) fd.append('reply_to', String(replyId));
     fd.append('voice_duration', String(duration));
     fd.append('voice_waveform', JSON.stringify(waveform));
-    fd.append('voice_ek', encKeyHex);
-    fd.append('voice_ei', encIvHex);
+    fd.append('voice_meta', JSON.stringify({ ek: encKeyHex, ei: encIvHex }));
 
     let res;
     try {
