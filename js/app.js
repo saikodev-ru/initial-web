@@ -1372,6 +1372,12 @@ function syncEnterUI() {
   // Single toggle: ON = Ctrl+Enter sends (enterSend=false), OFF = Enter sends (enterSend=true)
   $('tog-ctrl-enter-send').classList.toggle('on', !S.enterSend);
   if($('tog-quick-reply')) $('tog-quick-reply').classList.toggle('on', S.quickReply);
+  // Chat dividers: enabled by default, persisted in localStorage
+  if (S.chatDividers === undefined) {
+    try { S.chatDividers = localStorage.getItem('sg_chat_dividers') !== '0'; } catch(e) { S.chatDividers = true; }
+  }
+  if($('tog-chat-dividers')) $('tog-chat-dividers').classList.toggle('on', S.chatDividers);
+  document.body.classList.toggle('chat-dividers', S.chatDividers);
 }
 function saveEnterSend() {
   localStorage.setItem('sg_enter_send', S.enterSend ? 'true' : 'false');
@@ -1383,6 +1389,12 @@ $('tog-quick-reply').onclick = () => {
   S.quickReply = !S.quickReply;
   localStorage.setItem('sg_quick_reply', S.quickReply ? 'true' : 'false');
   syncEnterUI();
+};
+$('tog-chat-dividers').onclick = () => {
+  const on = $('tog-chat-dividers').classList.toggle('on');
+  document.body.classList.toggle('chat-dividers', on);
+  S.chatDividers = on;
+  try { localStorage.setItem('sg_chat_dividers', on ? '1' : '0'); } catch(e){}
 };
 
 $('btn-savepm').onclick = async () => {

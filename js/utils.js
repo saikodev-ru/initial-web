@@ -50,6 +50,7 @@ const NS=(()=>{try{return JSON.parse(localStorage.getItem('sg_notif')||'{"enable
 // enterSend: true = Enter sends, false = Ctrl+Enter sends (default: Enter)
 const _enterSend=(()=>{try{const v=localStorage.getItem('sg_enter_send');return v!==null?v==='true':true;}catch{return true;}})();
 const _quickReply=(()=>{try{const v=localStorage.getItem('sg_quick_reply');return v!==null?v==='true':true;}catch{return true;}})();
+const _chatDividers=(()=>{try{return localStorage.getItem('sg_chat_dividers')!=='0';}catch{return true;}})();
 const S={
   token:(()=>{try{return localStorage.getItem('sg_token');}catch{return null;}})(),
   user:(()=>{try{return JSON.parse(localStorage.getItem('sg_user')||'null');}catch{return null;}})(),
@@ -66,6 +67,7 @@ const S={
   notif:NS,
   enterSend:_enterSend,
   quickReply:_quickReply,
+  chatDividers:_chatDividers,
 };
 
 

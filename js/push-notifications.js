@@ -148,7 +148,7 @@
     text = truncate(text, 120);
 
     // Build a unique tag per chat to prevent duplicate notifications
-    var tag = 'signal-' + (opts.chatId || 'msg').replace(/\s+/g, '-');
+    var tag = 'signal-' + String(opts.chatId || 'msg').replace(/\s+/g, '-');
 
     // Attempt to load the sender's avatar as the notification icon
     if (opts.senderAvatar) {
