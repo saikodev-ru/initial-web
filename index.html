@@ -385,10 +385,16 @@ if (window._swSupported) {
             <div class="srch-new" style="flex:1">
               <div class="srch-new-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div>
               <input type="text" id="sb-q" placeholder="Поиск…" autocomplete="off">
+              <button class="srch-new-btn" id="btn-sb-close" title="Отменить поиск">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
               <button class="srch-new-btn" id="btn-create-chat" title="Создать">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
+                <svg class="ico-plus" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
               </button>
             </div>
+            <button class="ico-btn" id="btn-collapse-sb" title="Свернуть">
+              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg>
+            </button>
           </div>
         </div>
         <!-- ── Collapsed header ── -->
@@ -884,7 +890,7 @@ if (window._swSupported) {
                 <div class="mfield" id="mfield" contenteditable="true" role="textbox" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-placeholder="Сообщение…"></div>
                 <button class="emo-btn-in" id="btn-emo-in" title="Эмодзи"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="22" height="22"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
               </div>
-              <button class="send-btn" id="btn-send"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>
+              <button class="send-btn" id="btn-send"><svg class="ico-send" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><svg class="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="display:none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
             </div>
           </div>
           <!-- Scroll-to-bottom FAB -->
