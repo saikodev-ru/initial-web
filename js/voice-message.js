@@ -10,9 +10,9 @@ window.VoiceMsg = (function () {
   let _chunks = [];
   let _recStart = 0;
   let _recTimer = null;
-  let _recOverlay = null;       // recording overlay DOM element
-  let _lockedOverlay = null;    // locked recording overlay
-  let _previewOverlay = null;   // preview overlay
+  let _recOverlay = null;
+  let _lockedOverlay = null;
+  let _previewOverlay = null;
   let _recAnimFrame = null;
   let _recCancelled = false;
   let _isLocked = false;
@@ -30,17 +30,20 @@ window.VoiceMsg = (function () {
   let _previewAudio = null;
   let _previewPlaying = false;
   let _previewAnimFrame = null;
-  let _miniPlayer = null;       // mini player DOM element
+  let _miniPlayer = null;
   let _miniPlayerAnimFrame = null;
-  const _audioCache = new Map(); // url → Audio object
+  const _audioCache = new Map();
+
+  let _isRecording = false;
+  let _isPreviewMode = false;
 
   const BAR_COUNT = 44;
-  const REC_BAR_COUNT = 36;
+  const REC_BAR_COUNT = 48;
   const MIN_DURATION = 1;
   const MAX_DURATION = 300;
-  const LOCK_THRESHOLD = 50;   // px up to lock
-  const CANCEL_THRESHOLD = 60; // px left to start cancel
-  const CANCEL_COMPLETE = 120; // px left to complete cancel
+  const LOCK_THRESHOLD = 60;
+  const CANCEL_THRESHOLD = 60;
+  const CANCEL_COMPLETE = 140;
 
   /* ══════════════════════════════════════════════════════════════
      RECORDING
@@ -69,17 +72,16 @@ window.VoiceMsg = (function () {
     _chunks = [];
     _recCancelled = false;
     _isLocked = false;
+    _isRecording = true;
     _mediaRecorder = new MediaRecorder(_stream, mimeType ? { mimeType } : {});
     _mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _chunks.push(e.data); };
 
-    // Analyser for live waveform
     _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const source = _audioCtx.createMediaStreamSource(_stream);
     _analyser = _audioCtx.createAnalyser();
     _analyser.fftSize = 128;
     source.connect(_analyser);
 
-    // Show recording UI
     _showRecOverlay();
 
     _recStart = Date.now();
@@ -89,7 +91,7 @@ window.VoiceMsg = (function () {
   }
 
   function stopRecording() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       if (!_mediaRecorder || _mediaRecorder.state !== 'recording') {
         resolve(null);
         return;
@@ -100,13 +102,14 @@ window.VoiceMsg = (function () {
       clearInterval(_lockedTimer);
 
       _mediaRecorder.onstop = async () => {
+        _isRecording = false;
         if (_stream) _stream.getTracks().forEach(t => t.stop());
         if (_audioCtx) { try { _audioCtx.close(); } catch(e){} _audioCtx = null; }
 
         const duration = Math.round((Date.now() - _recStart) / 1000);
-        _removeAllOverlays();
 
         if (_recCancelled || duration < MIN_DURATION) {
+          _removeAllOverlays();
           resolve(null);
           return;
         }
@@ -127,6 +130,7 @@ window.VoiceMsg = (function () {
 
   function cancelRecording() {
     _recCancelled = true;
+    _isRecording = false;
     if (_mediaRecorder && _mediaRecorder.state === 'recording') {
       _stopRecVisualization();
       clearInterval(_recTimer);
@@ -137,7 +141,70 @@ window.VoiceMsg = (function () {
         _removeAllOverlays();
       };
       _mediaRecorder.stop();
+    } else {
+      _removeAllOverlays();
     }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     OVERLAY MANAGEMENT — show/hide approach (preserves event handlers)
+     ══════════════════════════════════════════════════════════════ */
+
+  function _hideMfieldChildren() {
+    const wrap = document.querySelector('.mfield-wrap');
+    if (!wrap) return;
+    // Hide original children using display:none (preserves DOM + event handlers)
+    const children = wrap.querySelectorAll(':scope > .attach-btn-in, :scope > .mfield, :scope > .emo-btn-in:not(.attach-btn-in)');
+    children.forEach(c => { c.style.display = 'none'; });
+  }
+
+  function _showMfieldChildren() {
+    const wrap = document.querySelector('.mfield-wrap');
+    if (!wrap) return;
+    const children = wrap.querySelectorAll(':scope > .attach-btn-in, :scope > .mfield, :scope > .emo-btn-in:not(.attach-btn-in)');
+    children.forEach(c => { c.style.display = ''; });
+  }
+
+  function _removeVoiceOverlays() {
+    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
+    if (_lockedOverlay) { _lockedOverlay.remove(); _lockedOverlay = null; }
+    if (_previewOverlay) {
+      if (_previewAudio) {
+        _previewAudio.pause();
+        if (_previewAudio.src.startsWith('blob:')) URL.revokeObjectURL(_previewAudio.src);
+        _previewAudio = null;
+      }
+      _previewPlaying = false;
+      _stopPreviewAnim();
+      _previewBlob = null;
+      _previewOverlay.remove();
+      _previewOverlay = null;
+    }
+  }
+
+  function _removeAllOverlays() {
+    _removeVoiceOverlays();
+
+    _isRecording = false;
+    _isPreviewMode = false;
+    _restoreBtnFromSend();
+
+    const wrap = document.querySelector('.mfield-wrap');
+    if (wrap) {
+      wrap.classList.remove('voice-rec-active');
+      wrap.style.height = '';
+      wrap.style.minHeight = '';
+      wrap.style.maxHeight = '';
+      wrap.style.overflow = '';
+      wrap.style.transform = '';
+      wrap.style.opacity = '';
+    }
+    _showMfieldChildren();
+
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+
+    if (typeof updateSendBtn === 'function') updateSendBtn();
   }
 
   /* ── Recording UI (hold mode) ─────────────────────────────── */
@@ -146,18 +213,14 @@ window.VoiceMsg = (function () {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    wrap.classList.add('voice-rec-active');
-    wrap.style.height = '44px';
-    wrap.style.minHeight = '44px';
-    wrap.style.maxHeight = '44px';
-    wrap.style.overflow = 'hidden';
-    _hideInputChildren(wrap);
-    // Show hints on mic button
-    const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.classList.add('hints-visible', 'recording');
+    // Remove existing overlays first
+    _removeVoiceOverlays();
 
-    // Remove any existing overlays
-    _removeAllOverlays(true); // silent remove, don't show input children yet
+    // Hide original children
+    _hideMfieldChildren();
+
+    // Activate recording mode on wrap
+    wrap.classList.add('voice-rec-active');
 
     const overlay = document.createElement('div');
     overlay.className = 'voice-recording';
@@ -165,7 +228,7 @@ window.VoiceMsg = (function () {
     overlay.innerHTML = `
       <div class="voice-rec-dot"></div>
       <span class="voice-rec-timer">0:00</span>
-      <div class="voice-rec-wave"></div>
+      <div class="voice-rec-wave" id="voice-rec-wave-container"></div>
       <div class="voice-lock-arrow" id="voice-lock-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
           <polyline points="18 15 12 9 6 15"/>
@@ -183,13 +246,19 @@ window.VoiceMsg = (function () {
     wrap.appendChild(overlay);
     _recOverlay = overlay;
 
-    // Build recording bars
-    const wfWrap = overlay.querySelector('.voice-rec-wave');
-    for (let i = 0; i < REC_BAR_COUNT; i++) {
-      const bar = document.createElement('div');
-      bar.className = 'voice-rec-bar';
-      bar.style.height = '4px';
-      wfWrap.appendChild(bar);
+    // Show hints on mic button
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.classList.add('hints-visible', 'recording');
+
+    // Build recording waveform bars
+    const wfWrap = overlay.querySelector('#voice-rec-wave-container');
+    if (wfWrap) {
+      for (let i = 0; i < REC_BAR_COUNT; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'voice-rec-bar';
+        bar.style.height = '3px';
+        wfWrap.appendChild(bar);
+      }
     }
   }
 
@@ -198,23 +267,19 @@ window.VoiceMsg = (function () {
   function _transitionToLocked() {
     if (_isLocked || !_recOverlay) return;
     _isLocked = true;
+    _stopRecVisualization();
 
-    // Remove hold overlay
-    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
-
-    _showLockedOverlay();
-  }
-
-  function _showLockedOverlay() {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    wrap.classList.add('voice-rec-active');
-    wrap.style.height = '44px';
-    wrap.style.minHeight = '44px';
-    wrap.style.maxHeight = '44px';
-    wrap.style.overflow = 'hidden';
+    // Remove recording overlay
+    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
 
+    // Hide hints on mic button
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+
+    // Create locked overlay
     const overlay = document.createElement('div');
     overlay.className = 'voice-locked';
     overlay.id = 'voice-locked-overlay';
@@ -223,7 +288,7 @@ window.VoiceMsg = (function () {
         <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
       </button>
       <span class="voice-locked-timer" id="voice-locked-timer">${_formatElapsed()}</span>
-      <div class="voice-locked-wave"></div>
+      <div class="voice-locked-wave" id="voice-locked-wave-container"></div>
       <button class="voice-locked-delete" id="voice-locked-delete" title="Удалить">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -234,17 +299,18 @@ window.VoiceMsg = (function () {
     wrap.appendChild(overlay);
     _lockedOverlay = overlay;
 
-    // Build bars
-    const wfWrap = overlay.querySelector('.voice-locked-wave');
-    for (let i = 0; i < REC_BAR_COUNT; i++) {
-      const bar = document.createElement('div');
-      bar.className = 'voice-rec-bar';
-      bar.style.height = '4px';
-      wfWrap.appendChild(bar);
+    // Build waveform bars
+    const wfWrap = overlay.querySelector('#voice-locked-wave-container');
+    if (wfWrap) {
+      for (let i = 0; i < REC_BAR_COUNT; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'voice-rec-bar';
+        bar.style.height = '3px';
+        wfWrap.appendChild(bar);
+      }
     }
 
     // Restart visualization for new bars
-    _stopRecVisualization();
     _startRecVisualization();
 
     // Locked timer
@@ -272,74 +338,26 @@ window.VoiceMsg = (function () {
     const result = await stopRecording();
     if (result) {
       _showPreview(result.blob, result.duration, result.waveform);
+    } else {
+      _removeAllOverlays();
     }
   }
 
   /* ── Preview mode ─────────────────────────────────────────── */
 
-  // Original mic SVG — used to restore the button after preview
-  const _micSvg = '<svg class="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
-
-  function _transformBtnToSend() {
-    const btn = document.getElementById('btn-send');
-    if (!btn) return;
-    // Hide hint elements
-    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
-    hints.forEach(h => h.style.display = 'none');
-    // Add voice-send-mode class (CSS handles icon visibility)
-    btn.classList.add('voice-send-mode');
-    btn.classList.remove('recording', 'hints-visible');
-    // CRITICAL: Override onclick to prevent sendText from interfering
-    btn._origOnclick = btn.onclick;
-    btn.onclick = null; // Remove sendText handler
-    // Remove voice recording mousedown/touchstart handlers
-    btn.removeEventListener('mousedown', btn._voiceMousedownHandler);
-    btn.removeEventListener('touchstart', btn._voiceTouchstartHandler);
-    // Add preview send handler
-    btn._previewSendHandler = function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      _sendPreview();
-    };
-    btn.addEventListener('click', btn._previewSendHandler);
-  }
-
-  function _restoreBtnFromSend() {
-    const btn = document.getElementById('btn-send');
-    if (!btn) return;
-    // Restore hint elements
-    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
-    hints.forEach(h => h.style.display = '');
-    // Remove voice-send-mode
-    btn.classList.remove('voice-send-mode', 'recording', 'hints-visible');
-    // CRITICAL: Restore original onclick handler
-    if (btn._origOnclick !== undefined) {
-      btn.onclick = btn._origOnclick;
-      btn._origOnclick = undefined;
-    }
-    // Remove preview send handler
-    if (btn._previewSendHandler) {
-      btn.removeEventListener('click', btn._previewSendHandler);
-      btn._previewSendHandler = null;
-    }
-  }
-
   function _showPreview(blob, duration, waveform) {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
-    wrap.style.height = '44px';
-    wrap.style.minHeight = '44px';
-    wrap.style.maxHeight = '44px';
-    wrap.style.overflow = 'hidden';
-    _hideInputChildren(wrap);
-
+    _isPreviewMode = true;
     _previewBlob = blob;
     _previewDuration = duration;
     _previewWaveform = waveform;
     _previewPlaying = false;
 
-    // Create preview overlay
+    // Remove any existing overlays
+    _removeVoiceOverlays();
+
     const overlay = document.createElement('div');
     overlay.className = 'voice-preview';
     overlay.id = 'voice-preview-overlay';
@@ -360,12 +378,10 @@ window.VoiceMsg = (function () {
     _previewOverlay = overlay;
 
     // Transform mic button into send button
-    const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.style.visibility = '';
     _transformBtnToSend();
 
     // Build waveform bars in preview
-    const wfWrap = overlay.querySelector('.voice-preview-wave');
+    const wfWrap = overlay.querySelector('#voice-preview-wave');
     const wfData = waveform || Array.from({ length: BAR_COUNT }, () => 0.3 + Math.random() * 0.7);
     for (let i = 0; i < wfData.length; i++) {
       const bar = document.createElement('div');
@@ -391,7 +407,7 @@ window.VoiceMsg = (function () {
     });
 
     // Waveform seek
-    document.getElementById('voice-preview-wave').addEventListener('click', (e) => {
+    wfWrap.addEventListener('click', (e) => {
       e.stopPropagation();
       if (!_previewAudio.duration || !isFinite(_previewAudio.duration)) return;
       const rect = e.currentTarget.getBoundingClientRect();
@@ -411,7 +427,8 @@ window.VoiceMsg = (function () {
     // Audio ended
     _previewAudio.addEventListener('ended', () => {
       _previewPlaying = false;
-      document.getElementById('voice-preview-play').innerHTML = PLAY_SVG;
+      const playBtn = document.getElementById('voice-preview-play');
+      if (playBtn) playBtn.innerHTML = PLAY_SVG;
       _stopPreviewAnim();
       _resetPreviewWaveform();
       _updatePreviewDur();
@@ -424,12 +441,14 @@ window.VoiceMsg = (function () {
     if (_previewPlaying) {
       _previewAudio.pause();
       _previewPlaying = false;
-      document.getElementById('voice-preview-play').innerHTML = PLAY_SVG;
+      const playBtn = document.getElementById('voice-preview-play');
+      if (playBtn) playBtn.innerHTML = PLAY_SVG;
       _stopPreviewAnim();
     } else {
       _previewAudio.play().catch(() => {});
       _previewPlaying = true;
-      document.getElementById('voice-preview-play').innerHTML = PAUSE_SVG;
+      const playBtn = document.getElementById('voice-preview-play');
+      if (playBtn) playBtn.innerHTML = PAUSE_SVG;
       _startPreviewAnim();
     }
   }
@@ -477,6 +496,68 @@ window.VoiceMsg = (function () {
     bars.forEach(b => { b.classList.remove('played', 'active'); });
   }
 
+  /* ── Button state management ──────────────────────────────── */
+
+  function _transformBtnToSend() {
+    const btn = document.getElementById('btn-send');
+    if (!btn) return;
+
+    // Hide hint elements
+    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
+    hints.forEach(h => h.style.display = 'none');
+
+    // Add voice-send-mode class
+    btn.classList.add('voice-send-mode');
+    btn.classList.remove('recording', 'hints-visible');
+
+    // Store original onclick and remove it
+    if (!btn._origOnclick && btn.onclick) {
+      btn._origOnclick = btn.onclick;
+    }
+    btn.onclick = null;
+
+    // Remove any previous preview handler
+    if (btn._previewSendHandler) {
+      btn.removeEventListener('click', btn._previewSendHandler, true);
+    }
+
+    // Add preview send handler in capture phase
+    btn._previewSendHandler = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      _sendPreview();
+      return false;
+    };
+    btn.addEventListener('click', btn._previewSendHandler, true);
+  }
+
+  function _restoreBtnFromSend() {
+    const btn = document.getElementById('btn-send');
+    if (!btn) return;
+
+    _isPreviewMode = false;
+
+    // Restore hint elements
+    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
+    hints.forEach(h => h.style.display = '');
+
+    // Remove voice-send-mode
+    btn.classList.remove('voice-send-mode', 'recording', 'hints-visible');
+
+    // Remove preview send handler
+    if (btn._previewSendHandler) {
+      btn.removeEventListener('click', btn._previewSendHandler, true);
+      btn._previewSendHandler = null;
+    }
+
+    // Restore original onclick handler
+    if (btn._origOnclick !== undefined && btn._origOnclick !== null) {
+      btn.onclick = btn._origOnclick;
+      btn._origOnclick = undefined;
+    }
+  }
+
   function _dismissPreview() {
     if (_previewAudio) {
       _previewAudio.pause();
@@ -487,9 +568,7 @@ window.VoiceMsg = (function () {
     _stopPreviewAnim();
     _previewBlob = null;
 
-    if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
-    _restoreBtnFromSend();
-    _showInputChildren(document.querySelector('.mfield-wrap'));
+    _removeAllOverlays();
   }
 
   async function _sendPreview() {
@@ -499,7 +578,7 @@ window.VoiceMsg = (function () {
     const duration = _previewDuration;
     const waveform = _previewWaveform;
 
-    // Clean up preview
+    // Clean up preview audio
     if (_previewAudio) {
       _previewAudio.pause();
       if (_previewAudio.src.startsWith('blob:')) URL.revokeObjectURL(_previewAudio.src);
@@ -509,59 +588,10 @@ window.VoiceMsg = (function () {
     _stopPreviewAnim();
     _previewBlob = null;
 
-    if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
+    // Remove preview overlay and restore button
+    _removeVoiceOverlays();
     _restoreBtnFromSend();
-    _showInputChildren(document.querySelector('.mfield-wrap'));
 
-    // Send voice
-    sendVoice(blob, duration, waveform);
-  }
-
-  /* ── Overlay helpers ──────────────────────────────────────── */
-
-  function _hideInputChildren(wrap) {
-    if (!wrap) return;
-    // Hide the children INSIDE mfield-wrap: attach button, mfield, emoji button
-    const attach = wrap.querySelector(':scope > .attach-btn-in');
-    const mfield = wrap.querySelector(':scope > .mfield');
-    const emo = wrap.querySelector(':scope > .emo-btn-in:not(.attach-btn-in)');
-    if (attach) attach.classList.add('voice-hidden');
-    if (mfield) mfield.classList.add('voice-hidden');
-    if (emo) emo.classList.add('voice-hidden');
-  }
-
-  function _showInputChildren(wrap) {
-    if (!wrap) return;
-    // Restore explicit height when showing input children
-    wrap.style.height = '';
-    wrap.style.minHeight = '';
-    wrap.style.maxHeight = '';
-    wrap.style.overflow = '';
-    const attach = wrap.querySelector(':scope > .attach-btn-in');
-    const mfield = wrap.querySelector(':scope > .mfield');
-    const emo = wrap.querySelector(':scope > .emo-btn-in:not(.attach-btn-in)');
-    if (attach) attach.classList.remove('voice-hidden');
-    if (mfield) mfield.classList.remove('voice-hidden');
-    if (emo) emo.classList.remove('voice-hidden');
-  }
-
-  function _removeAllOverlays(silent) {
-    if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
-    if (_lockedOverlay) { _lockedOverlay.remove(); _lockedOverlay = null; }
-    if (_previewOverlay) {
-      if (_previewAudio) {
-        _previewAudio.pause();
-        if (_previewAudio.src.startsWith('blob:')) URL.revokeObjectURL(_previewAudio.src);
-        _previewAudio = null;
-      }
-      _previewPlaying = false;
-      _stopPreviewAnim();
-      _previewBlob = null;
-      _previewOverlay.remove();
-      _previewOverlay = null;
-    }
-
-    // Clean up mfield-wrap state
     const wrap = document.querySelector('.mfield-wrap');
     if (wrap) {
       wrap.classList.remove('voice-rec-active');
@@ -570,14 +600,14 @@ window.VoiceMsg = (function () {
       wrap.style.maxHeight = '';
       wrap.style.overflow = '';
     }
-    const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) {
-      sendBtn.style.visibility = '';
-      sendBtn.classList.remove('hints-visible', 'recording', 'voice-send-mode');
-    }
+    _showMfieldChildren();
+    if (typeof updateSendBtn === 'function') updateSendBtn();
 
-    if (!silent) _showInputChildren(wrap);
+    // Send voice
+    sendVoice(blob, duration, waveform);
   }
+
+  /* ── Timer helpers ──────────────────────────────────────── */
 
   function _updateRecTimer() {
     if (!_recOverlay && !_isLocked) return;
@@ -589,9 +619,15 @@ window.VoiceMsg = (function () {
     }
 
     if (elapsed >= MAX_DURATION) {
-      stopRecording().then(result => {
-        if (result) _showPreview(result.blob, result.duration, result.waveform);
-      });
+      if (_isLocked) {
+        stopRecording().then(result => {
+          if (result) _showPreview(result.blob, result.duration, result.waveform);
+        });
+      } else {
+        stopRecording().then(result => {
+          if (result) sendVoice(result.blob, result.duration, result.waveform);
+        });
+      }
     }
   }
 
@@ -611,17 +647,17 @@ window.VoiceMsg = (function () {
       _recAnimFrame = requestAnimationFrame(draw);
       _analyser.getByteFrequencyData(data);
 
-      // Read bars fresh each frame (container may change from hold→locked)
       const container = _recOverlay || _lockedOverlay;
-      const bars = container?.querySelectorAll('.voice-rec-bar');
+      if (!container) return;
+
+      const bars = container.querySelectorAll('.voice-rec-bar');
       if (!bars || !bars.length) return;
 
       const totalBars = bars.length;
       const elapsed = (Date.now() - _recStart) / 1000;
-      const maxDuration = 300; // 5 minutes max
-      const progress = Math.min(1, elapsed / maxDuration);
-      const visibleBars = Math.min(totalBars, Math.ceil(progress * totalBars));
-      
+      const progress = Math.min(1, elapsed / MAX_DURATION);
+      const visibleBars = Math.max(3, Math.min(totalBars, Math.ceil(progress * totalBars)));
+
       const step = Math.max(1, Math.floor(bufLen / visibleBars));
       for (let i = 0; i < totalBars; i++) {
         if (i >= visibleBars) {
@@ -651,8 +687,8 @@ window.VoiceMsg = (function () {
   function _onPointerMove(clientX, clientY) {
     if (_isLocked || !_recOverlay) return;
 
-    const dx = _pointerStartX - clientX;   // positive = swiped left
-    const dy = _pointerStartY - clientY;   // positive = swiped up
+    const dx = _pointerStartX - clientX;
+    const dy = _pointerStartY - clientY;
 
     const cancelHint = _recOverlay.querySelector('#voice-cancel-arrow');
     const lockHint = _recOverlay.querySelector('#voice-lock-arrow');
@@ -687,12 +723,12 @@ window.VoiceMsg = (function () {
       }
       if (_swipeCancelActive) {
         const p = Math.max(0, cancelProgress);
-        _recOverlay.style.transform = 'translateX(' + (-p * 80) + 'px)';
-        _recOverlay.style.opacity = String(1 - p * 0.5);
-
-        if (cancelHint) {
-          cancelHint.style.opacity = String(p);
+        const wrap = document.querySelector('.mfield-wrap');
+        if (wrap) {
+          wrap.style.transform = 'translateX(' + (-p * 80) + 'px)';
+          wrap.style.opacity = String(1 - p * 0.5);
         }
+        if (cancelHint) cancelHint.style.opacity = String(p);
 
         if (p >= 1) {
           cancelRecording();
@@ -701,31 +737,58 @@ window.VoiceMsg = (function () {
     } else {
       if (_swipeCancelActive) {
         _swipeCancelActive = false;
-        _recOverlay.style.transform = '';
-        _recOverlay.style.opacity = '';
+        const wrap = document.querySelector('.mfield-wrap');
+        if (wrap) {
+          wrap.style.transform = '';
+          wrap.style.opacity = '';
+        }
         if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; }
       }
     }
   }
 
   function _onPointerEnd() {
-    // If we were in hold mode (not locked), stop recording → preview
+    // Hold mode: stop recording → send directly (Telegram behavior)
     if (!_isLocked && _mediaRecorder && _mediaRecorder.state === 'recording' && !_recCancelled) {
-      // Reset any transform
-      if (_recOverlay) {
-        _recOverlay.style.transform = '';
-        _recOverlay.style.opacity = '';
+      // Reset transform on wrap
+      const wrap = document.querySelector('.mfield-wrap');
+      if (wrap) {
+        wrap.style.transform = '';
+        wrap.style.opacity = '';
       }
+
       const cancelHint = _recOverlay?.querySelector('#voice-cancel-arrow');
       if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; }
       const lockHint = _recOverlay?.querySelector('#voice-lock-arrow');
       if (lockHint) { lockHint.classList.remove('show'); lockHint.style.opacity = ''; }
 
+      // Hide hints
+      const sendBtn = document.getElementById('btn-send');
+      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+
       _swipeCancelActive = false;
       _swipeLockActive = false;
 
+      // Hold-release: stop and send directly
       stopRecording().then(result => {
-        if (result) _showPreview(result.blob, result.duration, result.waveform);
+        if (result) {
+          // Clean up overlays before sending
+          _removeVoiceOverlays();
+          _restoreBtnFromSend();
+          if (wrap) {
+            wrap.classList.remove('voice-rec-active');
+            wrap.style.height = '';
+            wrap.style.minHeight = '';
+            wrap.style.maxHeight = '';
+            wrap.style.overflow = '';
+          }
+          _showMfieldChildren();
+          if (typeof updateSendBtn === 'function') updateSendBtn();
+
+          sendVoice(result.blob, result.duration, result.waveform);
+        } else {
+          _removeAllOverlays();
+        }
       });
     }
   }
@@ -782,7 +845,6 @@ window.VoiceMsg = (function () {
 
     const playBtn = container.querySelector('.voice-play-btn');
     const wfWrap = container.querySelector('.voice-wf-bars');
-    // dur is inside .voice-meta (sibling of .voice-msg)
     const metaEl = container.closest('.mbody')?.querySelector('.voice-meta') || container.parentElement?.querySelector('.voice-meta');
     const durEl = metaEl ? metaEl.querySelector('.voice-dur') : null;
     if (!playBtn || !wfWrap) return;
@@ -793,7 +855,6 @@ window.VoiceMsg = (function () {
 
     const barCount = waveform.length;
 
-    // Build waveform bars
     wfWrap.innerHTML = '';
     for (let i = 0; i < barCount; i++) {
       const bar = document.createElement('div');
@@ -805,7 +866,6 @@ window.VoiceMsg = (function () {
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
 
-    // Check cache for existing Audio object
     let audio;
     const cached = _audioCache.get(audioUrl);
     if (cached) {
@@ -829,7 +889,6 @@ window.VoiceMsg = (function () {
     const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 
-    // Get sender info from parent .mrow
     const mrow = container.closest('.mrow');
     let senderName = '';
     let senderAvatar = null;
@@ -852,7 +911,6 @@ window.VoiceMsg = (function () {
       });
       const timeStr = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
       if (durEl) durEl.textContent = timeStr;
-      // Update mini player
       _updateMiniPlayer(audio, waveform, timeStr);
     }
 
@@ -882,11 +940,7 @@ window.VoiceMsg = (function () {
       bars.forEach(b => { b.classList.remove('played', 'active'); });
       if (durEl) durEl.textContent = formatTimeSec(audio.duration || duration);
       if (_currentAudio === audio) { _currentAudio = null; _currentBtn = null; _currentContainer = null; }
-
-      // Hide mini player
       _hideMiniPlayer();
-
-      // Auto-play next voice message
       _autoPlayNext(container);
     });
 
@@ -895,7 +949,6 @@ window.VoiceMsg = (function () {
     });
 
     function toggle() {
-      // Stop any other playing voice
       if (_currentAudio && _currentAudio !== audio && !_currentAudio.paused) {
         _currentAudio.pause();
         _currentAudio.currentTime = 0;
@@ -921,7 +974,6 @@ window.VoiceMsg = (function () {
         _currentAudio = null;
         _currentBtn = null;
         _currentContainer = null;
-        // Hide mini player on pause
         _hideMiniPlayer();
       } else {
         audio.play().catch(() => {});
@@ -933,8 +985,6 @@ window.VoiceMsg = (function () {
         _currentBtn = playBtn;
         _currentContainer = container;
         container._voiceAudio = audio;
-
-        // Show mini player
         _showMiniPlayer(audio, waveform, senderName, senderAvatar);
       }
     }
@@ -966,18 +1016,14 @@ window.VoiceMsg = (function () {
   /* ── Auto-play next voice message ─────────────────────────── */
 
   function _autoPlayNext(currentContainer) {
-    // Find the current voice-msg's parent .mrow
     const currentRow = currentContainer.closest('.mrow');
     if (!currentRow) return;
-
     const msgs = document.getElementById('msgs');
     if (!msgs) return;
 
-    // Find all voice messages after the current one
     const allVoiceMsgs = msgs.querySelectorAll('.voice-msg');
     let foundCurrent = false;
     let nextVoice = null;
-
     for (let i = 0; i < allVoiceMsgs.length; i++) {
       const voiceEl = allVoiceMsgs[i];
       if (!foundCurrent) {
@@ -986,52 +1032,36 @@ window.VoiceMsg = (function () {
         }
         continue;
       }
-      // Check if this voice message is visible in viewport
       const rect = voiceEl.getBoundingClientRect();
       if (rect.top < window.innerHeight && rect.bottom > 0) {
         nextVoice = voiceEl;
         break;
       }
     }
-
-    if (nextVoice) {
-      _playVoiceByElement(nextVoice);
-    }
+    if (nextVoice) _playVoiceByElement(nextVoice);
   }
 
   function _playPrevVoice(currentContainer) {
     const msgs = document.getElementById('msgs');
     if (!msgs) return;
-
     const allVoiceMsgs = msgs.querySelectorAll('.voice-msg');
     let prevVoice = null;
-
     for (let i = 0; i < allVoiceMsgs.length; i++) {
       const voiceEl = allVoiceMsgs[i];
-      if (voiceEl === currentContainer || voiceEl.contains(currentContainer)) {
-        break;
-      }
+      if (voiceEl === currentContainer || voiceEl.contains(currentContainer)) break;
       const rect = voiceEl.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        prevVoice = voiceEl;
-      }
+      if (rect.top < window.innerHeight && rect.bottom > 0) prevVoice = voiceEl;
     }
-
-    if (prevVoice) {
-      _playVoiceByElement(prevVoice);
-    }
+    if (prevVoice) _playVoiceByElement(prevVoice);
   }
 
   function _playVoiceByElement(voiceEl) {
     const nextRow = voiceEl.closest('.mrow');
     if (!nextRow) return;
-
     const dataId = nextRow.dataset.id;
     if (!dataId) return;
-
     const chatMsgs = (S.chatId && S.msgs) ? S.msgs[S.chatId] : null;
     if (!chatMsgs) return;
-
     const msgData = chatMsgs.find(m => String(m.id) === dataId);
     if (!msgData || msgData.media_type !== 'voice') return;
 
@@ -1040,14 +1070,11 @@ window.VoiceMsg = (function () {
     let wfData = [];
     try { if (msgData.voice_waveform) wfData = JSON.parse(msgData.voice_waveform); } catch(e) {}
 
-    // Scroll into view
     voiceEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     voiceEl.classList.add('msg-flash');
     setTimeout(() => voiceEl.classList.remove('msg-flash'), 1000);
 
-    // Small delay then play
     setTimeout(() => {
-      // Stop current if playing
       if (_currentAudio && !_currentAudio.paused) {
         _currentAudio.pause();
         _currentAudio.currentTime = 0;
@@ -1056,10 +1083,8 @@ window.VoiceMsg = (function () {
           _currentBtn.classList.remove('playing');
         }
       }
-
       if (window.VoiceMsg) {
         window.VoiceMsg.createPlayer(voiceEl, audioUrl, dur, wfData);
-        // Auto-trigger play
         const playBtn = voiceEl.querySelector('.voice-play-btn');
         if (playBtn) playBtn.click();
       }
@@ -1073,7 +1098,6 @@ window.VoiceMsg = (function () {
   function _initMiniPlayer() {
     const chatArea = document.getElementById('chat-area');
     if (!chatArea) return;
-
     const chatHdr = chatArea.querySelector('.chat-hdr');
     if (!chatHdr) return;
 
@@ -1085,9 +1109,7 @@ window.VoiceMsg = (function () {
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
       </button>
       <div class="vmp-avatar" id="vmp-avatar"></div>
-      <div class="vmp-info">
-        <div class="vmp-name" id="vmp-name"></div>
-      </div>
+      <div class="vmp-info"><div class="vmp-name" id="vmp-name"></div></div>
       <div class="vmp-wave" id="vmp-wave"></div>
       <span class="vmp-time" id="vmp-time">0:00</span>
       <button class="vmp-btn vmp-play" id="vmp-play" title="Воспроизвести">
@@ -1101,17 +1123,14 @@ window.VoiceMsg = (function () {
       </button>
     `;
 
-    // Insert after chat-hdr
     chatHdr.insertAdjacentElement('afterend', el);
     _miniPlayer = el;
 
     const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 
-    // Play/pause button
     document.getElementById('vmp-play').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       if (_currentAudio) {
         if (_currentAudio.paused) {
           _currentAudio.play().catch(() => {});
@@ -1125,31 +1144,19 @@ window.VoiceMsg = (function () {
       }
     });
 
-    // Previous
     document.getElementById('vmp-prev').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (_currentAudio && _currentContainer) {
-        _playPrevVoice(_currentContainer);
-      }
+      e.preventDefault(); e.stopPropagation();
+      if (_currentAudio && _currentContainer) _playPrevVoice(_currentContainer);
     });
 
-    // Next
     document.getElementById('vmp-next').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (_currentAudio && _currentContainer) {
-        _autoPlayNext(_currentContainer);
-      }
+      e.preventDefault(); e.stopPropagation();
+      if (_currentAudio && _currentContainer) _autoPlayNext(_currentContainer);
     });
 
-    // Close button
     document.getElementById('vmp-close').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (_currentAudio && !_currentAudio.paused) {
-        _currentAudio.pause();
-      }
+      e.preventDefault(); e.stopPropagation();
+      if (_currentAudio && !_currentAudio.paused) _currentAudio.pause();
       if (_currentBtn) { _currentBtn.innerHTML = PLAY_SVG; _currentBtn.classList.remove('playing'); }
       _hideMiniPlayer();
     });
@@ -1157,26 +1164,17 @@ window.VoiceMsg = (function () {
 
   function _showMiniPlayer(audio, waveform, senderName, avatarEl) {
     if (!_miniPlayer) return;
-
-    // Set sender name
     const nameEl = document.getElementById('vmp-name');
     if (nameEl) nameEl.textContent = senderName || 'Голосовое сообщение';
 
-    // Set avatar
     const avatarContainer = document.getElementById('vmp-avatar');
     if (avatarContainer) {
       if (avatarEl) {
-        const img = document.createElement('img');
-        img.src = avatarEl.src;
-        img.alt = '';
-        avatarContainer.innerHTML = '';
-        avatarContainer.appendChild(img);
-      } else {
-        avatarContainer.textContent = '';
-      }
+        const img = document.createElement('img'); img.src = avatarEl.src; img.alt = '';
+        avatarContainer.innerHTML = ''; avatarContainer.appendChild(img);
+      } else { avatarContainer.textContent = ''; }
     }
 
-    // Build mini waveform bars
     const waveEl = document.getElementById('vmp-wave');
     if (waveEl) {
       waveEl.innerHTML = '';
@@ -1185,37 +1183,28 @@ window.VoiceMsg = (function () {
         const bar = document.createElement('div');
         bar.className = 'vmp-wf-bar';
         bar.style.height = (2 + wfData[i] * 14) + 'px';
-        bar.dataset.idx = String(i);
         waveEl.appendChild(bar);
       }
     }
 
-    // Set play icon to pause if playing
     const playBtn = document.getElementById('vmp-play');
     if (playBtn && audio && !audio.paused) {
       playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
     } else if (playBtn) {
       playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     }
-
     _miniPlayer.classList.add('visible');
   }
 
   function _updateMiniPlayer(audio, waveform, timeStr) {
     if (!_miniPlayer || !_miniPlayer.classList.contains('visible')) return;
-
     const waveEl = document.getElementById('vmp-wave');
     if (waveEl && audio.duration && isFinite(audio.duration)) {
       const pct = audio.currentTime / audio.duration;
       const bars = waveEl.querySelectorAll('.vmp-wf-bar');
-      const count = bars.length;
-      const playedIdx = Math.floor(pct * count);
-      bars.forEach((bar, i) => {
-        bar.classList.toggle('played', i < playedIdx);
-        bar.classList.toggle('active', i === playedIdx);
-      });
+      const playedIdx = Math.floor(pct * bars.length);
+      bars.forEach((bar, i) => { bar.classList.toggle('played', i < playedIdx); bar.classList.toggle('active', i === playedIdx); });
     }
-
     const timeEl = document.getElementById('vmp-time');
     if (timeEl) timeEl.textContent = timeStr || '';
   }
@@ -1225,60 +1214,25 @@ window.VoiceMsg = (function () {
     _miniPlayer.classList.remove('visible');
   }
 
-  /* ══ AES-256-GCM ENCRYPTION ════════════════════════════════════ */
-
-  async function encryptBlob(blob) {
-    var subtle = window.crypto.subtle;
-    var key = await subtle.generateKey(
-      { name: 'AES-GCM', length: 256 },
-      true,
-      ['encrypt']
-    );
-    var iv = crypto.getRandomValues(new Uint8Array(12));
-    var plainBuf = await blob.arrayBuffer();
-    var cipherBuf = await subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, plainBuf);
-    var rawKey = await subtle.exportKey('raw', key);
-    var keyHex = bufToHex(rawKey);
-    var ivHex = bufToHex(iv);
-    return { encrypted: new Uint8Array(cipherBuf), keyHex: keyHex, ivHex: ivHex };
-  }
-
-  function bufToHex(buf) {
-    var arr = Array.from(buf);
-    return arr.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-  }
-
   /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
     if (!S.partner) return;
-
     const replyId = replyTo || S.replyTo?.id || null;
     const toSid = toSignalId || S.partner.partner_signal_id;
     if (!toSid) return;
 
     const tid = 't' + Date.now();
-    const durStr = formatTimeSec(duration);
     const tmp = {
-      id: tid,
-      sender_id: S.user.id,
-      body: String(duration),
-      sent_at: Math.floor(Date.now() / 1000),
-      is_read: 0,
-      is_edited: 0,
-      nickname: S.user.nickname,
-      avatar_url: S.user.avatar_url,
-      reply_to: replyId,
-      media_url: URL.createObjectURL(blob),
-      media_type: 'voice',
-      voice_duration: duration,
-      voice_waveform: JSON.stringify(waveform),
-      media_file_name: 'voice.webm',
-      reactions: []
+      id: tid, sender_id: S.user.id, body: String(duration),
+      sent_at: Math.floor(Date.now() / 1000), is_read: 0, is_edited: 0,
+      nickname: S.user.nickname, avatar_url: S.user.avatar_url, reply_to: replyId,
+      media_url: URL.createObjectURL(blob), media_type: 'voice',
+      voice_duration: duration, voice_waveform: JSON.stringify(waveform),
+      media_file_name: 'voice.webm', reactions: []
     };
 
     if (S.replyTo) { S.replyTo = null; hideRbar(); }
-
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmp);
     S.rxns[tid] = [];
@@ -1287,7 +1241,6 @@ window.VoiceMsg = (function () {
     appendMsg(S.chatId, tmp);
     scrollBot();
 
-    // Upload voice directly (HTTPS protects in transit, no client-side encryption)
     var fd = new FormData();
     fd.append('voice', blob, 'voice.webm');
     fd.append('to_signal_id', toSid);
@@ -1296,9 +1249,8 @@ window.VoiceMsg = (function () {
     fd.append('voice_waveform', JSON.stringify(waveform));
 
     let res;
-    try {
-      res = await api('send_voice_message', 'POST', fd, true);
-    } catch (e) {
+    try { res = await api('send_voice_message', 'POST', fd, true); }
+    catch (e) {
       toast('Ошибка отправки голосового', 'err');
       document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();
       if (S.msgs[S.chatId]) S.msgs[S.chatId] = S.msgs[S.chatId].filter(m => m.id !== tid);
@@ -1313,35 +1265,30 @@ window.VoiceMsg = (function () {
       return;
     }
 
-    // Promote temp → real id
     if (S.msgs[S.chatId]) {
       const idx = S.msgs[S.chatId].findIndex(m => m.id === tid);
       if (idx >= 0) {
         S.msgs[S.chatId][idx].id = res.message_id;
-        if (res.media_url) S.msgs[S.chatId][idx].media_url = getMediaUrl(res.media_url);
-        if (res.voice_duration) S.msgs[S.chatId][idx].voice_duration = res.voice_duration;
-        if (res.voice_waveform) S.msgs[S.chatId][idx].voice_waveform = res.voice_waveform;
-        S.msgs[S.chatId][idx].body = String(res.voice_duration || duration);
+        S.msgs[S.chatId][idx].media_url = res.media_url ? getMediaUrl(res.media_url) : S.msgs[S.chatId][idx].media_url;
       }
     }
-    S.rxns[res.message_id] = S.rxns[tid] || [];
-    delete S.rxns[tid];
-
-    const tmpEl = document.querySelector(`.mrow[data-id="${tid}"]`);
-    if (tmpEl) tmpEl.dataset.id = String(res.message_id);
-
+    S.rxns[res.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
     S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, res.message_id);
 
-    if (!S.chatId || res.chat_id) {
-      if (res.chat_id) S.chatId = res.chat_id;
-      S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, res.message_id);
+    const rowEl = document.querySelector(`.mrow[data-id="${tid}"]`);
+    if (rowEl) {
+      rowEl.dataset.id = res.message_id;
+      const realMsg = S.msgs[S.chatId]?.find(m => m.id === res.message_id);
+      if (realMsg) patchMsgDom(realMsg);
+    }
+
+    if (!S.chatId && res.chat_id) {
+      S.chatId = res.chat_id;
+      S.lastId[res.chat_id] = res.message_id;
+      S.msgs[res.chat_id] = [];
       await loadChats();
-      const nc = S.chats.find(c => c.chat_id === S.chatId);
-      if (nc) {
-        S.partner = nc;
-        $$('.ci').forEach(e => e.classList.remove('active'));
-        document.querySelector(`.ci[data-chat-id="${S.chatId}"]`)?.classList.add('active');
-      }
+      const nc = S.chats.find(c => c.chat_id === res.chat_id);
+      if (nc) { S.partner = nc; $$('.ci').forEach(e => e.classList.remove('active')); document.querySelector(`.ci[data-chat-id="${S.chatId}"]`)?.classList.add('active'); }
     }
 
     const sentMsg = S.msgs[S.chatId]?.find(m => m.id === res.message_id);
@@ -1361,22 +1308,21 @@ window.VoiceMsg = (function () {
     const btn = document.getElementById('btn-send');
     if (!btn) return;
 
-    // Initialize mini player
     _initMiniPlayer();
 
     function isMicMode() {
-      return !btn.classList.contains('has-text');
+      return !btn.classList.contains('has-text') && !_isPreviewMode;
     }
 
     // ── Mouse (desktop) ──
     btn.addEventListener('mousedown', (e) => {
       if (!isMicMode()) return;
       e.preventDefault();
+      e.stopPropagation();
       _pointerStartX = e.clientX;
       _pointerStartY = e.clientY;
       startRecording();
-      // Remove hints after 600ms
-      setTimeout(() => { btn.classList.remove('hints-visible'); }, 600);
+      setTimeout(() => { btn.classList.remove('hints-visible'); }, 800);
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -1387,8 +1333,7 @@ window.VoiceMsg = (function () {
 
     document.addEventListener('mouseup', () => {
       if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
-      if (_recCancelled) return;
-      if (_isLocked) return; // locked mode has its own buttons
+      if (_recCancelled || _isLocked) return;
       btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
     });
@@ -1397,11 +1342,11 @@ window.VoiceMsg = (function () {
     btn.addEventListener('touchstart', (e) => {
       if (!isMicMode()) return;
       e.preventDefault();
+      e.stopPropagation();
       _pointerStartX = e.touches[0].clientX;
       _pointerStartY = e.touches[0].clientY;
       startRecording();
-      // Remove hints after 600ms
-      setTimeout(() => { btn.classList.remove('hints-visible'); }, 600);
+      setTimeout(() => { btn.classList.remove('hints-visible'); }, 800);
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
@@ -1412,23 +1357,12 @@ window.VoiceMsg = (function () {
 
     document.addEventListener('touchend', () => {
       if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
-      if (_recCancelled) return;
-      if (_isLocked) return;
+      if (_recCancelled || _isLocked) return;
       btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
     });
 
-    // ── Cancel button click ──
-    document.addEventListener('click', (e) => {
-      const cancelBtn = e.target.closest('#voice-rec-cancel');
-      if (cancelBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        cancelRecording();
-      }
-    });
-
-    // ── Prevent context menu on long press ──
+    // Prevent context menu on long press
     btn.addEventListener('contextmenu', (e) => {
       if (!isMicMode()) return;
       e.preventDefault();
