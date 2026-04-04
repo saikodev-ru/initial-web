@@ -408,6 +408,22 @@ if (window._swSupported) {
         <div class="chat-list sb-panel" id="chat-list"></div>
         <!-- search results (users + chats) -->
         <div class="sb-search-results sb-panel" id="sb-search-results"></div>
+        <!-- Feed panel -->
+        <div class="sb-panel nav-panel" id="panel-feed" style="transform:translateX(100%);opacity:0;pointer-events:none">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center;color:var(--t3)">
+            <div style="font-size:48px;margin-bottom:16px;opacity:.3">📰</div>
+            <div style="font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px">Лента</div>
+            <div style="font-size:13px;max-width:240px">Скоро здесь появится лента новостей и обновлений</div>
+          </div>
+        </div>
+        <!-- Servers panel -->
+        <div class="sb-panel nav-panel" id="panel-servers" style="transform:translateX(100%);opacity:0;pointer-events:none">
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center;color:var(--t3)">
+            <div style="font-size:48px;margin-bottom:16px;opacity:.3">🖥️</div>
+            <div style="font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px">Серверы</div>
+            <div style="font-size:13px;max-width:240px">Скоро здесь появятся серверы и сообщества</div>
+          </div>
+        </div>
       </div>
       <div class="sb-foot"><div class="prof-row" id="prof-row"><div class="av"><div class="av-img" id="foot-av"></div></div><div class="prof-meta"><div class="prof-name" id="foot-name">—</div><div class="prof-id" id="foot-id"></div></div></div></div>
     </aside>
@@ -720,7 +736,7 @@ if (window._swSupported) {
 
     <div class="chat-wrap">
       <main class="chat-area" id="chat-area">
-        <div class="chat-welcome" id="chat-welcome"><div class="welc-orb">✦</div><h2 id="welc-title"></h2><p id="welc-sub"></p></div>
+        <div class="chat-welcome" id="chat-welcome"><div class="welc-content"><h2 id="welc-title"></h2><p id="welc-sub"></p></div></div>
         <div id="active-chat" style="display:none;flex-direction:column;height:100%;position:relative">
           <div class="chat-hdr">
             <button class="ico-btn back-btn-mb" id="btn-back-mb"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
@@ -890,7 +906,7 @@ if (window._swSupported) {
                 <div class="mfield" id="mfield" contenteditable="true" role="textbox" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-placeholder="Сообщение…"></div>
                 <button class="emo-btn-in" id="btn-emo-in" title="Эмодзи"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" width="22" height="22"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></button>
               </div>
-              <button class="send-btn" id="btn-send"><svg class="ico-send" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><svg class="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="display:none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+              <button class="send-btn" id="btn-send"><svg class="ico-send" viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><svg class="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
             </div>
           </div>
           <!-- Scroll-to-bottom FAB -->

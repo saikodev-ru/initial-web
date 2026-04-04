@@ -910,9 +910,19 @@ function goBackToList(){
       $('chat-welcome').style.display='flex';
     },300); // matches transition duration
   } else {
-    S.chatId=null;
-    $('active-chat').style.display='none';
-    $('chat-welcome').style.display='flex';
+    // Desktop: animate close
+    const ac = $('active-chat');
+    ac.style.transition = 'opacity .2s ease, transform .2s ease';
+    ac.style.opacity = '0';
+    ac.style.transform = 'translateX(20px)';
+    setTimeout(()=>{
+      S.chatId=null;
+      ac.style.display='none';
+      ac.style.transition = '';
+      ac.style.opacity = '';
+      ac.style.transform = '';
+      $('chat-welcome').style.display='flex';
+    }, 200);
   }
 }
 

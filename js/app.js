@@ -1097,28 +1097,16 @@ function _applyCustomBg(dataUrl) {
       el = document.createElement('div');
       el.id = BG_IMG_EL_ID;
       el.className = 'chat-bg-custom';
-      const chatArea = document.querySelector('.chat-area') || document.getElementById('active-chat');
-      if (chatArea) chatArea.prepend(el);
+      if (layout) layout.prepend(el);
     }
     el.style.backgroundImage = `url(${dataUrl})`;
     // Apply blur class if enabled
     el.classList.toggle('blurred', blurred);
-    // Also apply to layout so background is visible behind sidebar
-    if (layout) {
-      layout.style.backgroundImage = `url(${dataUrl})`;
-      layout.style.backgroundSize = 'cover';
-      layout.style.backgroundPosition = 'center';
-    }
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
   } else {
     if (el) el.remove();
-    if (layout) {
-      layout.style.backgroundImage = '';
-      layout.style.backgroundSize = '';
-      layout.style.backgroundPosition = '';
-    }
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
@@ -1639,5 +1627,36 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
+    const nav = btn.dataset.nav;
+    // Hide all nav panels
+    document.querySelectorAll('.nav-panel').forEach(p => {
+      p.style.transform = 'translateX(100%)';
+      p.style.opacity = '0';
+      p.style.pointerEvents = 'none';
+    });
+    // Show/hide chat-list and search-results based on active nav
+    const chatList = document.getElementById('chat-list');
+    const searchResults = document.getElementById('sb-search-results');
+    if (nav === 'chats') {
+      chatList.style.transform = 'translateX(0)';
+      chatList.style.opacity = '1';
+      chatList.style.pointerEvents = 'auto';
+      searchResults.style.transform = 'translateX(100%)';
+      searchResults.style.opacity = '0';
+      searchResults.style.pointerEvents = 'none';
+    } else {
+      chatList.style.transform = 'translateX(-100%)';
+      chatList.style.opacity = '0';
+      chatList.style.pointerEvents = 'none';
+      searchResults.style.transform = 'translateX(100%)';
+      searchResults.style.opacity = '0';
+      searchResults.style.pointerEvents = 'none';
+      const panel = document.getElementById('panel-' + nav);
+      if (panel) {
+        panel.style.transform = 'translateX(0)';
+        panel.style.opacity = '1';
+        panel.style.pointerEvents = 'auto';
+      }
+    }
   });
 });
