@@ -26,7 +26,7 @@ $me   = auth_user();
 $myId = (int) $me['id'];
 
 /* ── Debug log setup ─────────────────────────────────────────── */
-$vLog = __DIR__ . '/voice_upload.log';
+$vLog = (__DIR__ ?: dirname(__FILE__)) . '/voice_upload.log';
 $vTs  = '[' . date('Y-m-d H:i:s') . '] ';
 
 /* ── Validate required fields ────────────────────────────────── */
@@ -57,7 +57,7 @@ $size    = $upload['size'];
 
 /* ── Null-safety: ensure tmpPath is valid ────────────────────── */
 if (empty($tmpPath) || !file_exists($tmpPath)) {
-    @file_put_contents($vLog, $vTs . "FAIL tmpPath is empty or file not found: tmpPath=" . var_export($tmpPath, true) . "\n", FILE_APPEND);
+    @file_put_contents($vLog ?? __DIR__ . '/voice_upload.log', $vTs . "FAIL tmpPath is empty or file not found: tmpPath=" . var_export($tmpPath, true) . "\n", FILE_APPEND);
     json_err('no_file', 'Файл голосового не найден на сервере');
 }
 
@@ -183,7 +183,7 @@ if (function_exists('exec')) {
             ? round((1 - $outSize / $originalSize) * 100, 1)
             : 0;
         @file_put_contents(
-            $vLog,
+            $vLog ?? __DIR__ . '/voice_upload.log',
             $vTs
             . "VOICE COMPRESS: "
             . ($compressed ? "OK" : "SKIPPED")
@@ -199,20 +199,20 @@ if (function_exists('exec')) {
 
 /* ── Upload to S3 (медиа в S3) ──────────────────────────────── */
 $s3Path = make_voice_s3_path($myId, $ext);
-@file_put_contents($vLog, $vTs . "S3 uploading: tmpPath=" . $tmpPath . " exists=" . (file_exists($tmpPath) ? 'yes' : 'no')
+@file_put_contents($vLog ?? __DIR__ . '/voice_upload.log', $vTs . "S3 uploading: tmpPath=" . $tmpPath . " exists=" . (file_exists($tmpPath) ? 'yes' : 'no')
     . " size=" . filesize($tmpPath) . " key=" . $s3Path['key'] . " mime=" . $s3Path['mime'] . "\n", FILE_APPEND);
 
 if (empty($s3Path['key']) || empty($s3Path['mime'])) {
-    @file_put_contents($vLog, $vTs . "FAIL s3Path key/mime is null\n", FILE_APPEND);
+    @file_put_contents($vLog ?? __DIR__ . '/voice_upload.log', $vTs . "FAIL s3Path key/mime is null\n", FILE_APPEND);
     json_err('upload_error', 'Ошибка формирования пути к файлу', 500);
 }
 
 $s3Key = s3_upload($tmpPath, $s3Path['key'], $s3Path['mime']);
 if (!$s3Key) {
-    @file_put_contents($vLog, $vTs . "FAIL s3_upload returned null\n", FILE_APPEND);
+    @file_put_contents($vLog ?? __DIR__ . '/voice_upload.log', $vTs . "FAIL s3_upload returned null\n", FILE_APPEND);
     json_err('upload_error', 'Не удалось загрузить голосовое сообщение', 500);
 }
-@file_put_contents($vLog, $vTs . "S3 OK key=" . $s3Key . "\n", FILE_APPEND);
+@file_put_contents($vLog ?? __DIR__ . '/voice_upload.log', $vTs . "S3 OK key=" . $s3Key . "\n", FILE_APPEND);
 
 // В БД храним относительный s3Key для унификации со всеми остальными медиа
 $mediaUrl = ltrim($s3Key, '/');
