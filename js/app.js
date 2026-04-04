@@ -1,5 +1,40 @@
 /* ══ APP — Медиа · SSE · Polling · Просмотрщик · Профиль · Boot ══ */
 
+/* ══ WELCOME SCREEN TYPING ANIMATION ═══════════════════════ */
+(function initWelcomeTyping() {
+  const titleEl = $('welc-title');
+  const subEl = $('welc-sub');
+  if (!titleEl || !subEl) return;
+  const emojis = ['💬','👋','✨','🎯','🚀','💡','🌟','🎨','🔮','💎'];
+  const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+  const fullTitle = 'Кому бы написать сегодня?';
+  const fullSub = `Выбери чат или создай новый ${emoji}`;
+  let ti = 0;
+  const titleCursor = document.createElement('span');
+  titleCursor.className = 'welc-cursor';
+  function typeTitle() {
+    if (ti <= fullTitle.length) {
+      titleEl.textContent = fullTitle.slice(0, ti);
+      titleEl.appendChild(titleCursor);
+      ti++;
+      setTimeout(typeTitle, 55 + Math.random() * 40);
+    } else {
+      // Remove cursor after a pause
+      setTimeout(() => { titleCursor.style.display = 'none'; }, 1800);
+    }
+  }
+  // Show sub text after title finishes
+  const subObserver = new MutationObserver(() => {
+    if (titleEl.textContent === fullTitle) {
+      subObserver.disconnect();
+      setTimeout(() => { subEl.textContent = fullSub; }, 300);
+    }
+  });
+  subObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+  // Start typing after short delay
+  setTimeout(typeTitle, 600);
+})();
+
 /* ══ MEDIA PREVIEW SEND ══════════════════════════════════════ */
 /* ── Performance / low-end device detection ─────────────────── */
 (function detectPerfMode() {
@@ -1073,13 +1108,6 @@ function _applyCustomBg(dataUrl) {
       layout.style.backgroundImage = `url(${dataUrl})`;
       layout.style.backgroundSize = 'cover';
       layout.style.backgroundPosition = 'center';
-      if (blurred) {
-        layout.style.filter = 'blur(8px) brightness(0.8)';
-        layout.style.transform = 'scale(1.05)';
-      } else {
-        layout.style.filter = '';
-        layout.style.transform = '';
-      }
     }
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
@@ -1090,8 +1118,6 @@ function _applyCustomBg(dataUrl) {
       layout.style.backgroundImage = '';
       layout.style.backgroundSize = '';
       layout.style.backgroundPosition = '';
-      layout.style.filter = '';
-      layout.style.transform = '';
     }
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
