@@ -49,18 +49,76 @@ startWelcomeTyping();
 })();
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024; // 100 MB
+const MAX_DOC_BYTES = 50 * 1024 * 1024; // 50 MB for text documents
+
+// Check if a file is a document (text-based, non-media)
+function isDocFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const docExts = ['txt','xls','xlsx','pdf','html','css','xml','csv','json','md','log','doc','docx','rtf'];
+  return docExts.includes(ext) && !file.type.startsWith('image/') && !file.type.startsWith('video/');
+}
+
+function getDocIcon(ext) {
+  const icons = {
+    pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    xls: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="9" y1="9" x2="9" y2="15"/><line x1="15" y1="9" x2="15" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/></svg>',
+    txt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+    html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="15" y1="4" x2="9" y2="20"/><line x1="9" y1="4" x2="15" y2="20"/></svg>',
+    css: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="15" y1="4" x2="9" y2="20"/><line x1="9" y1="4" x2="15" y2="20"/></svg>',
+    xml: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="15" y1="4" x2="9" y2="20"/><line x1="9" y1="4" x2="15" y2="20"/></svg>',
+    json: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    md: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>',
+    csv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+  };
+  return icons[ext] || icons.txt;
+}
+
+function fmtFileSize(bytes) {
+  if (bytes < 1024) return bytes + ' Б';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' МБ';
+}
 
 function openSendPreview(files) {
   const arr = Array.from(files);
-  const tooBig = arr.filter(f => f.size > MAX_FILE_BYTES);
-  if (tooBig.length) {
-    toast(`Файл слишком большой (макс. 100 МБ): ${tooBig.map(f => f.name).join(', ')}`, 'err');
-    const ok = arr.filter(f => f.size <= MAX_FILE_BYTES);
-    if (!ok.length) return;
-    files = ok;
+  // Separate document files from media files
+  const docs = arr.filter(f => isDocFile(f));
+  const media = arr.filter(f => !isDocFile(f));
+
+  // Check document file size limit
+  const docTooBig = docs.filter(f => f.size > MAX_DOC_BYTES);
+  if (docTooBig.length) {
+    toast(`Документ слишком большой (макс. 50 МБ): ${docTooBig.map(f => f.name).join(', ')}`, 'err');
+    const okDocs = docs.filter(f => f.size <= MAX_DOC_BYTES);
+    docs.length = 0;
+    docs.push(...okDocs);
   }
-  S.prevFiles = Array.from(files).map(f => ({ file: f, url: URL.createObjectURL(f), type: f.type.startsWith('video') ? 'video' : 'image', uploaded: null }));
-  S.prevIdx = 0; renderPreview(); openMod('modal-preview');
+  // Check media file size limit
+  const mediaTooBig = media.filter(f => f.size > MAX_FILE_BYTES);
+  if (mediaTooBig.length) {
+    toast(`Файл слишком большой (макс. 100 МБ): ${mediaTooBig.map(f => f.name).join(', ')}`, 'err');
+    const okMedia = media.filter(f => f.size <= MAX_FILE_BYTES);
+    media.length = 0;
+    media.push(...okMedia);
+  }
+  if (!docs.length && !media.length) return;
+
+  // If there are document files, send them directly as document messages (no preview modal)
+  if (docs.length && !media.length) {
+    // Only documents — upload and send directly
+    sendDocumentFiles(docs);
+    return;
+  }
+  if (docs.length && media.length) {
+    // Mixed — send docs first, then show media preview
+    sendDocumentFiles(docs);
+  }
+
+  // Show media preview for image/video files
+  if (media.length) {
+    S.prevFiles = media.map(f => ({ file: f, url: URL.createObjectURL(f), type: f.type.startsWith('video') ? 'video' : 'image', uploaded: null }));
+    S.prevIdx = 0; renderPreview(); openMod('modal-preview');
+  }
 }
 function renderPreview() {
   const files = S.prevFiles, idx = S.prevIdx, cur = files[idx];
@@ -308,6 +366,81 @@ function startSSE(chatId, lastId) {
   if (S.sse) { S.sse.close(); S.sse = null; }
   // SSE отключен для снижения нагрузки на сервер.
   // Сообщения забираются через AJAX-опрос (startPoll) и FCM Push.
+}
+
+
+
+/* ══ DOCUMENT FILE UPLOAD ═════════════════════════════════════ */
+async function sendDocumentFiles(docFiles) {
+  if (!S.partner) { toast('Выберите чат', 'err'); return; }
+  for (var i = 0; i < docFiles.length; i++) {
+    var file = docFiles[i];
+    var ext = file.name.split('.').pop().toLowerCase();
+    var tid = 'td' + Date.now() + '_' + i;
+    var tmpMsg = {
+      id: tid, sender_id: S.user.id, body: '',
+      sent_at: Math.floor(Date.now() / 1000),
+      is_read: 0, is_edited: 0,
+      nickname: S.user.nickname, avatar_url: S.user.avatar_url,
+      media_type: 'document', media_url: null,
+      media_file_name: file.name, media_file_size: file.size,
+      media_file_ext: ext, reactions: [],
+      reply_to: S.replyTo?.id || null,
+    };
+    S.msgs[S.chatId] = S.msgs[S.chatId] || [];
+    S.msgs[S.chatId].push(tmpMsg);
+    S.rxns[tid] = [];
+    appendMsg(S.chatId, tmpMsg);
+    scrollBot();
+    try {
+      var formData = new FormData();
+      formData.append('file', file);
+      var uploadRes = await fetch('/api/upload_file', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + S.token },
+        body: formData,
+      });
+      var res = await uploadRes.json();
+      if (!res.ok) { toast(res.message || 'Ошибка загрузки файла', 'err'); removeMsgById(tid); continue; }
+      var payload = {
+        to_signal_id: S.partner.partner_signal_id, body: '',
+        media_url: res.url, media_type: 'document',
+        media_file_name: file.name, media_file_size: file.size,
+      };
+      if (tmpMsg.reply_to) payload.reply_to = tmpMsg.reply_to;
+      var sendRes = await api('send_message', 'POST', payload);
+      if (!sendRes.ok) { toast(sendRes.message || 'Ошибка отправки', 'err'); removeMsgById(tid); continue; }
+      var finalUrl = getMediaUrl(sendRes.media_url || res.url);
+      if (S.msgs[S.chatId]) {
+        var idx = S.msgs[S.chatId].findIndex(function(m) { return m.id === tid; });
+        if (idx >= 0) Object.assign(S.msgs[S.chatId][idx], {
+          id: sendRes.message_id, media_url: finalUrl,
+          media_type: 'document', media_file_name: file.name, media_file_size: file.size,
+        });
+      }
+      S.rxns[sendRes.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
+      S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, sendRes.message_id);
+      var rowEl = document.querySelector('.mrow[data-id="' + tid + '"]');
+      if (rowEl) {
+        rowEl.dataset.id = sendRes.message_id;
+        var realMsg = S.msgs[S.chatId]?.find(function(m) { return m.id === sendRes.message_id; });
+        if (realMsg) {
+          var newEl = makeMsgEl(realMsg, rowEl.classList.contains('ns'));
+          newEl.style.animation = 'none';
+          rowEl.replaceWith(newEl);
+        }
+      }
+      if (!S.chatId) {
+        S.chatId = sendRes.chat_id; S.lastId[sendRes.chat_id] = sendRes.message_id;
+        S.msgs[sendRes.chat_id] = [];
+        await loadChats();
+        var nc = S.chats.find(function(c) { return c.chat_id === sendRes.chat_id; });
+        if (nc) { S.partner = nc; $$('.ci').forEach(function(e) { e.classList.remove('active'); });
+          document.querySelector('.ci[data-chat-id="' + sendRes.chat_id + '"]').classList.add('active'); }
+        $('msgs').innerHTML = ''; await fetchMsgs(sendRes.chat_id, true);
+      }
+    } catch(e) { console.error('Document upload error:', e); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
+  }
 }
 
 
@@ -1626,10 +1759,11 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
-    // Fade nav-rail briefly during transition
-    if (navRail) {
-      navRail.classList.add('fading');
-      setTimeout(() => navRail.classList.remove('fading'), 300);
+    // Fade sidebar content during panel transition
+    const listWrap = document.getElementById('sb-list-wrap');
+    if (listWrap) {
+      listWrap.classList.add('fading');
+      setTimeout(() => listWrap.classList.remove('fading'), 300);
     }
     // Hide all nav panels
     document.querySelectorAll('.nav-panel').forEach(p => {

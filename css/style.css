@@ -330,7 +330,8 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .sidebar.searching #btn-create-chat{display:none!important}
 
 /* ── List wrap ── */
-.sb-list-wrap{flex:1;position:relative;overflow:hidden;min-height:0}
+.sb-list-wrap{flex:1;position:relative;overflow:hidden;min-height:0;transition:opacity .25s cubic-bezier(.4,0,.2,1)}
+.sb-list-wrap.fading{opacity:.3}
 .sb-panel{position:absolute;inset:0;overflow-y:auto;padding:4px 0;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .25s cubic-bezier(.4,0,.2,1)}
 /* chat-list resting state */
 #chat-list{transform:translateX(0);opacity:1}
@@ -549,8 +550,8 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   box-shadow:0 0 6px rgba(139,92,246,.6);
 }
 /* RESIZE HANDLE */
-.resize-handle{width:3px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.18);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
-.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.3);box-shadow:0 0 8px rgba(0,0,0,.2)}
+.resize-handle{width:1px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
+.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.25);width:2px}
 .resize-handle::after{content:none}
 
 /* CHAT + PARTNER PANEL */
@@ -1451,14 +1452,14 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .mavi img{width:100%;height:100%;object-fit:cover}.mavi.ghost{visibility:hidden}
 .mbub{max-width:min(460px, 85%);display:flex;flex-direction:column;align-items:flex-start;position:relative;min-width:0}.me .mbub{align-items:flex-end}
 .mbody{background:var(--msg-bg);border:1px solid var(--b);border-radius:18px;padding:6px 12px 7px;position:relative;word-break:break-word;transition:background .12s,border-color .12s;min-width:0;max-width:100%;box-sizing:border-box}
-.me .mbody{background:linear-gradient(135deg,var(--y),var(--y3));border:none;border-radius:18px;color:#fff;overflow:visible;position:relative}
+.me .mbody{background:var(--y);border:none;border-radius:18px;color:#fff;overflow:visible;position:relative}
 .mbody > *{position:relative;z-index:1}
-/* Disable per-message ::before gradient — screen-space gradient overlay on .msgs */
+/* Disable per-message ::before gradient */
 #active-chat .me .mbody::before{content:none}
 /* Incoming messages — keep normal background */
 .mbody{background:var(--msg-bg)}
-/* Outgoing messages: accent gradient background */
-.me .mbub .mbody:not(.media-only):not(.has-media-caption){background:linear-gradient(135deg,var(--y),var(--y3))!important}
+/* Outgoing messages: accent color only */
+.me .mbub .mbody:not(.media-only):not(.has-media-caption):not(.emo-only){background:var(--y)!important}
 /* Sending state */
 .mbody.sending{opacity:.7}
 
@@ -1616,13 +1617,13 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 /* Media */
 .mbody.media-only{padding:3px;overflow:hidden;background:var(--msg-bg);border:1px solid var(--b);border-radius:18px;position:relative}
 .me .mbody.media-only{background:var(--msg-bg);border:none;overflow:hidden;isolation:isolate}
-.me .mbody.media-only::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg, var(--y2), var(--y3));pointer-events:none;z-index:-1}
+.me .mbody.media-only::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--y);pointer-events:none;z-index:-1}
 .mbody.media-only .mmeta{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.55);border-radius:8px;padding:2px 7px}
 .mbody.media-only .mtime{color:rgba(255,255,255,.92)}.mbody.media-only .tick{color:rgba(255,255,255,.7)}.mbody.media-only .tick.r{color:#fff}
 /* ── Media + Caption (Telegram-style) ── */
 .mbody.has-media-caption{padding:3px;overflow:hidden;background:var(--msg-bg);border:1px solid var(--b);border-radius:18px;position:relative;min-width:0;max-width:100%;box-sizing:border-box}
 .me .mbody.has-media-caption{background:var(--msg-bg);border:none;overflow:hidden;isolation:isolate}
-.me .mbody.has-media-caption::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(135deg, var(--y2), var(--y3));pointer-events:none;z-index:-1}
+.me .mbody.has-media-caption::before{content:'';position:absolute;inset:0;border-radius:inherit;background:var(--y);pointer-events:none;z-index:-1}
 .mbody.has-media-caption .single-media,.mbody.has-media-caption .vid-wrap{border-radius:14px!important;max-width:none!important;width:100%;display:block}
 /* В caption-режиме ширина задаётся родителем, убираем фиксированную ширину */
 .mbody.has-media-caption .single-media[data-sized]{width:100%!important}
@@ -1692,6 +1693,39 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 @keyframes mlr-spin{to{transform:rotate(360deg)}}
 .mlr-bg{fill:none;stroke:rgba(255,255,255,.2);stroke-width:3}
 .mlr-fg{fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-dasharray:110;stroke-dashoffset:72}
+/* ── Document file message card ── */
+.doc-card{
+  display:flex;align-items:center;gap:12px;
+  padding:10px 12px;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:14px;
+  text-decoration:none!important;
+  color:inherit!important;
+  cursor:pointer;
+  transition:background .15s, border-color .15s;
+  max-width:320px;
+}
+.doc-card:hover{background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.12)}
+.doc-card:active{transform:scale(.98)}
+.me .doc-card{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.1)}
+.me .doc-card:hover{background:rgba(255,255,255,.22)}
+.doc-card-icon{
+  width:44px;height:44px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:12px;
+  color:#fff;
+}
+.doc-card-icon-pdf{background:#ff3b30}
+.doc-card-icon-xls,.doc-card-icon-xlsx,.doc-card-icon-csv{background:#34c759}
+.doc-card-icon-txt,.doc-card-icon-md,.doc-card-icon-log,.doc-card-icon-rtf{background:#8e8e93}
+.doc-card-icon-html,.doc-card-icon-css,.doc-card-icon-xml{background:#ff9500}
+.doc-card-icon-doc,.doc-card-icon-docx{background:#007aff}
+.doc-card-icon svg{width:22px;height:22px}
+.doc-card-icon-rtf{background:#007aff}
+.doc-card-info{flex:1;min-width:0}
+.doc-card-name{font-size:14px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-card-size{font-size:12px;color:var(--t2);margin-top:1px}
 /* Скрытое медиа */
 .single-media.media-spoiler img,.single-media.media-spoiler video{filter:blur(20px);transform:scale(1.15);transition:filter .35s,transform .35s}
 .single-media.media-spoiler .spoiler-media-cover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:2;cursor:pointer;background:rgba(0,0,0,.3)}
@@ -2707,15 +2741,29 @@ body[data-theme="light"] {
 
 /* Nav-rail — lighter in light theme */
 body[data-theme="light"] .nav-rail {
-  background: rgba(var(--bg-rgb),.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background: rgba(var(--bg-rgb),.90);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
 }
 
-/* Sidebar — slight transparency in light theme */
+/* Sidebar — slightly more opaque in light theme for better blur readability */
 body[data-theme="light"] .sidebar {
-  background: rgba(var(--bg-rgb),.82);
+  background: rgba(var(--bg-rgb),.95);
 }
 body[data-theme="light"] .sidebar::before {
-  background: rgba(0,0,0,.03);
+  background: rgba(0,0,0,.02);
+}
+
+/* Chat header — more opaque in light theme for better blur readability */
+body[data-theme="light"] .chat-hdr {
+  background: rgba(var(--bg-rgb),.95);
+}
+
+/* Resize handle — lighter color for light theme */
+body[data-theme="light"] .resize-handle {
+  background: rgba(0,0,0,.08);
+}
+body[data-theme="light"] .resize-handle:hover,
+body[data-theme="light"] .resize-handle.dragging {
+  background: rgba(0,0,0,.18);
 }
 
 /* 2. Делаем кнопки заметными (добавляем фон, окантовку и темный цвет иконок) */
@@ -2768,9 +2816,6 @@ body[data-theme="light"] .fmt-btn:hover {
   color: #000;
 }
 
-/* Divider — visible in light theme */
-body[data-theme="light"] .resize-handle{background:rgba(0,0,0,.12)}
-body[data-theme="light"] .resize-handle:hover,body[data-theme="light"] .resize-handle.dragging{background:rgba(0,0,0,.22)}
 /* tg-section (settings rows) — darker surface in light theme */
 body[data-theme="light"] .tg-section{
   background:#e8e8ec;
@@ -2818,6 +2863,12 @@ body[data-theme="light"] .pm-danger-group{
   border-color:rgba(0,0,0,.1);
 }
 body[data-theme="light"] .pm-danger-btn:hover{background:rgba(255,69,58,.07)}
+
+/* Document card — light theme */
+body[data-theme="light"] .doc-card{background:rgba(0,0,0,.04);border-color:rgba(0,0,0,.08)}
+body[data-theme="light"] .doc-card:hover{background:rgba(0,0,0,.07)}
+body[data-theme="light"] .me .doc-card{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.15)}
+body[data-theme="light"] .me .doc-card:hover{background:rgba(255,255,255,.28)}
 
 /* Incoming spoiler — visible in light theme */
 body[data-theme="light"] .mtxt .spoiler{
@@ -3669,11 +3720,6 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   background: rgba(var(--bg-rgb),.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-right: 1px solid var(--b);
   z-index: 2;
-  opacity: 1;
-  transition: opacity .25s ease;
-}
-.nav-rail.fading {
-  opacity: .35;
 }
 .nav-rail-items,
 .nav-rail-bottom {

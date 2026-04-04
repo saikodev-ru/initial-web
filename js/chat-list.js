@@ -609,6 +609,16 @@ function syncChats(rawChats){
        bodyText = (c.last_media_type==='video'?'🎥 Видео':'🖼 Фото')||'Новое сообщение';
     }
     showNotif(name,bodyText);
+    // Rich notification with avatar
+    if (typeof showRichNotif === 'function') {
+      showRichNotif({
+        senderName: name,
+        senderAvatar: c.partner_avatar || null,
+        body: bodyText,
+        chatId: c.chat_id,
+        onClick: function() { if (S.chatId !== c.chat_id) openChat(c); }
+      });
+    }
   });
 
   // ── Update chat list with FLIP animation (no jumps) ─────────
@@ -808,6 +818,8 @@ function makeSbItem(u,isRecent=false){
 }
 
 $('sb-q').onfocus=()=>{if(!sbSearchActive)enterSearch();};
+// Cancel search on blur
+$('sb-q').onblur=()=>{if(sbSearchActive)exitSearch();};
 // btn-search-cancel replaced by btn-sb-close
 $('btn-sb-search').onclick=()=>{if(sbCollapsed)toggleSidebar(false);setTimeout(()=>{$('sb-q').focus();},320);};
 

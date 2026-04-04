@@ -688,17 +688,8 @@ async function openLinkDeviceModal() {
     if (loading) loading.style.display = 'none';
 
     try {
-      const linkQrCodeStylingInstance = new QRCodeStyling({
-        width: 240,
-        height: 240,
-        type: "svg",
-        data: res.url,
-        dotsOptions: { color: "#000000", type: "extra-rounded" },
-        backgroundOptions: { color: "#ffffff" },
-        cornersSquareOptions: { type: "extra-rounded" },
-        qrOptions: { errorCorrectionLevel: 'M' }
-      });
-      linkQrCodeStylingInstance.append(canvas);
+      // Use standalone renderer — canvas-based for reliable sizing
+      renderLinkQR(canvas, res.url, 240);
     } catch(e) {
       if (canvas) canvas.innerHTML = `<div style="font-size:10px;word-break:break-all;opacity:.5;padding:8px">${res.url}</div>`;
     }

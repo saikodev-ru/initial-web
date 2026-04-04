@@ -18,6 +18,8 @@ const CRITICAL = [
   'js/utils.js',
   'js/chat-list.js',
   'js/auth.js',
+  'js/link-qr-renderer.js',
+  'js/push-notifications.js',
   'js/messages.js',
   'js/context-menu.js',
   'js/app.js',
