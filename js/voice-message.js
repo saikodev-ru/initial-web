@@ -30,6 +30,8 @@ window.VoiceMsg = (function () {
   let _previewAudio = null;
   let _previewPlaying = false;
   let _previewAnimFrame = null;
+  let _miniPlayer = null;       // mini player DOM element
+  let _miniPlayerAnimFrame = null;
 
   const BAR_COUNT = 44;
   const REC_BAR_COUNT = 36;
@@ -140,10 +142,10 @@ window.VoiceMsg = (function () {
   /* ── Recording UI (hold mode) ─────────────────────────────── */
 
   function _showRecOverlay() {
-    const zone = $('input-zone');
-    if (!zone) return;
+    const wrap = document.querySelector('.mfield-wrap');
+    if (!wrap) return;
 
-    _hideInputChildren(zone);
+    _hideInputChildren(wrap);
 
     // Remove any existing overlays
     _removeAllOverlays();
@@ -173,7 +175,7 @@ window.VoiceMsg = (function () {
       </div>
     `;
 
-    zone.appendChild(overlay);
+    wrap.appendChild(overlay);
     _recOverlay = overlay;
 
     // Build recording bars
@@ -192,16 +194,16 @@ window.VoiceMsg = (function () {
     if (_isLocked || !_recOverlay) return;
     _isLocked = true;
 
-    const zone = $('input-zone');
-    if (!zone) return;
-
     // Remove hold overlay
     if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
 
-    _showLockedOverlay(zone);
+    _showLockedOverlay();
   }
 
-  function _showLockedOverlay(zone) {
+  function _showLockedOverlay() {
+    const wrap = document.querySelector('.mfield-wrap');
+    if (!wrap) return;
+
     const overlay = document.createElement('div');
     overlay.className = 'voice-locked';
     overlay.id = 'voice-locked-overlay';
@@ -218,7 +220,7 @@ window.VoiceMsg = (function () {
       </button>
     `;
 
-    zone.appendChild(overlay);
+    wrap.appendChild(overlay);
     _lockedOverlay = overlay;
 
     // Build bars
@@ -236,19 +238,19 @@ window.VoiceMsg = (function () {
 
     // Locked timer
     _lockedTimer = setInterval(() => {
-      const timerEl = $('voice-locked-timer');
+      const timerEl = document.getElementById('voice-locked-timer');
       if (timerEl) timerEl.textContent = _formatElapsed();
     }, 200);
 
     // Stop button: stop recording, go to preview
-    $('voice-locked-stop').addEventListener('click', (e) => {
+    document.getElementById('voice-locked-stop').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       _onLockedStop();
     });
 
     // Delete button: cancel recording
-    $('voice-locked-delete').addEventListener('click', (e) => {
+    document.getElementById('voice-locked-delete').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       cancelRecording();
@@ -265,10 +267,10 @@ window.VoiceMsg = (function () {
   /* ── Preview mode ─────────────────────────────────────────── */
 
   function _showPreview(blob, duration, waveform) {
-    const zone = $('input-zone');
-    if (!zone) return;
+    const wrap = document.querySelector('.mfield-wrap');
+    if (!wrap) return;
 
-    _hideInputChildren(zone);
+    _hideInputChildren(wrap);
 
     _previewBlob = blob;
     _previewDuration = duration;
@@ -295,7 +297,7 @@ window.VoiceMsg = (function () {
       </button>
     `;
 
-    zone.appendChild(overlay);
+    wrap.appendChild(overlay);
     _previewOverlay = overlay;
 
     // Build waveform bars in preview
@@ -304,7 +306,7 @@ window.VoiceMsg = (function () {
     for (let i = 0; i < wfData.length; i++) {
       const bar = document.createElement('div');
       bar.className = 'voice-wf-bar';
-      bar.style.height = (4 + wfData[i] * 24) + 'px';
+      bar.style.height = (3 + wfData[i] * 25) + 'px';
       bar.dataset.idx = String(i);
       wfWrap.appendChild(bar);
     }
@@ -318,14 +320,14 @@ window.VoiceMsg = (function () {
     const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 
     // Play button
-    $('voice-preview-play').addEventListener('click', (e) => {
+    document.getElementById('voice-preview-play').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       _togglePreviewPlay(PLAY_SVG, PAUSE_SVG);
     });
 
     // Waveform seek
-    $('voice-preview-wave').addEventListener('click', (e) => {
+    document.getElementById('voice-preview-wave').addEventListener('click', (e) => {
       e.stopPropagation();
       if (!_previewAudio.duration || !isFinite(_previewAudio.duration)) return;
       const rect = e.currentTarget.getBoundingClientRect();
@@ -336,14 +338,14 @@ window.VoiceMsg = (function () {
     });
 
     // Delete button
-    $('voice-preview-delete').addEventListener('click', (e) => {
+    document.getElementById('voice-preview-delete').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       _dismissPreview();
     });
 
     // Send button
-    $('voice-preview-send').addEventListener('click', (e) => {
+    document.getElementById('voice-preview-send').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       _sendPreview();
@@ -352,7 +354,7 @@ window.VoiceMsg = (function () {
     // Audio ended
     _previewAudio.addEventListener('ended', () => {
       _previewPlaying = false;
-      $('voice-preview-play').innerHTML = PLAY_SVG;
+      document.getElementById('voice-preview-play').innerHTML = PLAY_SVG;
       _stopPreviewAnim();
       _resetPreviewWaveform();
       _updatePreviewDur();
@@ -365,12 +367,12 @@ window.VoiceMsg = (function () {
     if (_previewPlaying) {
       _previewAudio.pause();
       _previewPlaying = false;
-      $('voice-preview-play').innerHTML = PLAY_SVG;
+      document.getElementById('voice-preview-play').innerHTML = PLAY_SVG;
       _stopPreviewAnim();
     } else {
       _previewAudio.play().catch(() => {});
       _previewPlaying = true;
-      $('voice-preview-play').innerHTML = PAUSE_SVG;
+      document.getElementById('voice-preview-play').innerHTML = PAUSE_SVG;
       _startPreviewAnim();
     }
   }
@@ -390,7 +392,7 @@ window.VoiceMsg = (function () {
   function _updatePreviewProgress() {
     if (!_previewAudio || !_previewAudio.duration || !isFinite(_previewAudio.duration)) return;
     const pct = _previewAudio.currentTime / _previewAudio.duration;
-    const bars = $$('.voice-wf-bar', _previewOverlay);
+    const bars = _previewOverlay ? _previewOverlay.querySelectorAll('.voice-wf-bar') : [];
     const count = bars.length;
     const playedIdx = Math.floor(pct * count);
     bars.forEach((bar, i) => {
@@ -402,7 +404,7 @@ window.VoiceMsg = (function () {
 
   function _updatePreviewDur() {
     if (!_previewAudio) return;
-    const durEl = $('voice-preview-dur');
+    const durEl = document.getElementById('voice-preview-dur');
     if (!durEl) return;
     const dur = isFinite(_previewAudio.duration) ? _previewAudio.duration : _previewDuration;
     if (_previewPlaying) {
@@ -413,7 +415,8 @@ window.VoiceMsg = (function () {
   }
 
   function _resetPreviewWaveform() {
-    const bars = $$('.voice-wf-bar', _previewOverlay);
+    if (!_previewOverlay) return;
+    const bars = _previewOverlay.querySelectorAll('.voice-wf-bar');
     bars.forEach(b => { b.classList.remove('played', 'active'); });
   }
 
@@ -428,7 +431,7 @@ window.VoiceMsg = (function () {
     _previewBlob = null;
 
     if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
-    _showInputChildren($('input-zone'));
+    _showInputChildren(document.querySelector('.mfield-wrap'));
   }
 
   async function _sendPreview() {
@@ -449,7 +452,7 @@ window.VoiceMsg = (function () {
     _previewBlob = null;
 
     if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
-    _showInputChildren($('input-zone'));
+    _showInputChildren(document.querySelector('.mfield-wrap'));
 
     // Send voice
     sendVoice(blob, duration, waveform);
@@ -457,22 +460,28 @@ window.VoiceMsg = (function () {
 
   /* ── Overlay helpers ──────────────────────────────────────── */
 
-  function _hideInputChildren(zone) {
-    if (!zone) return;
-    const children = zone.querySelectorAll(':scope > .input-row, :scope > .rbar, :scope > .fmt-bar');
-    children.forEach(el => el.classList.add('voice-hidden'));
+  function _hideInputChildren(wrap) {
+    if (!wrap) return;
+    // Hide the children INSIDE mfield-wrap: attach button, mfield, emoji button
+    const attach = wrap.querySelector(':scope > .attach-btn-in');
+    const mfield = wrap.querySelector(':scope > .mfield');
+    const emo = wrap.querySelector(':scope > .emo-btn-in:not(.attach-btn-in)');
+    if (attach) attach.classList.add('voice-hidden');
+    if (mfield) mfield.classList.add('voice-hidden');
+    if (emo) emo.classList.add('voice-hidden');
   }
 
-  function _showInputChildren(zone) {
-    if (!zone) return;
-    const children = zone.querySelectorAll(':scope > .input-row, :scope > .rbar, :scope > .fmt-bar');
-    children.forEach(el => el.classList.remove('voice-hidden'));
+  function _showInputChildren(wrap) {
+    if (!wrap) return;
+    const attach = wrap.querySelector(':scope > .attach-btn-in');
+    const mfield = wrap.querySelector(':scope > .mfield');
+    const emo = wrap.querySelector(':scope > .emo-btn-in:not(.attach-btn-in)');
+    if (attach) attach.classList.remove('voice-hidden');
+    if (mfield) mfield.classList.remove('voice-hidden');
+    if (emo) emo.classList.remove('voice-hidden');
   }
 
   function _removeAllOverlays() {
-    const zone = $('input-zone');
-    if (!zone) return;
-
     if (_recOverlay) { _recOverlay.remove(); _recOverlay = null; }
     if (_lockedOverlay) { _lockedOverlay.remove(); _lockedOverlay = null; }
     if (_previewOverlay) {
@@ -488,7 +497,7 @@ window.VoiceMsg = (function () {
       _previewOverlay = null;
     }
 
-    _showInputChildren(zone);
+    _showInputChildren(document.querySelector('.mfield-wrap'));
   }
 
   function _updateRecTimer() {
@@ -691,15 +700,12 @@ window.VoiceMsg = (function () {
     for (let i = 0; i < barCount; i++) {
       const bar = document.createElement('div');
       bar.className = 'voice-wf-bar';
-      bar.style.height = (4 + waveform[i] * 24) + 'px';
+      bar.style.height = (3 + waveform[i] * 25) + 'px';
       bar.dataset.idx = String(i);
       wfWrap.appendChild(bar);
     }
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
-
-    console.log('[VoicePlayer] init container=', container.className, 'url=', audioUrl?.substring(0, 100));
-    console.log('[VoicePlayer] playBtn=', !!playBtn, 'wfWrap=', !!wfWrap, 'durEl=', !!durEl);
 
     const audio = new Audio();
     audio.preload = 'metadata';
@@ -710,6 +716,19 @@ window.VoiceMsg = (function () {
     const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
     const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
 
+    // Get sender info from parent .mrow
+    const mrow = container.closest('.mrow');
+    let senderName = '';
+    let senderAvatar = null;
+    if (mrow) {
+      const dataId = mrow.dataset.id;
+      if (dataId && S.chatId && S.msgs && S.msgs[S.chatId]) {
+        const msgData = S.msgs[S.chatId].find(m => String(m.id) === dataId);
+        if (msgData) senderName = msgData.nickname || '';
+      }
+      senderAvatar = mrow.querySelector('.av-img img');
+    }
+
     function updateProgress() {
       if (!audio.duration || !isFinite(audio.duration)) return;
       const pct = audio.currentTime / audio.duration;
@@ -718,7 +737,10 @@ window.VoiceMsg = (function () {
         bar.classList.toggle('played', i < playedIdx);
         bar.classList.toggle('active', i === playedIdx);
       });
-      if (durEl) durEl.textContent = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
+      const timeStr = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
+      if (durEl) durEl.textContent = timeStr;
+      // Update mini player
+      _updateMiniPlayer(audio, waveform, timeStr);
     }
 
     function startAnim() {
@@ -747,20 +769,17 @@ window.VoiceMsg = (function () {
       bars.forEach(b => { b.classList.remove('played', 'active'); });
       if (durEl) durEl.textContent = formatTimeSec(audio.duration || duration);
       if (_currentAudio === audio) { _currentAudio = null; _currentBtn = null; _currentContainer = null; }
+
+      // Hide mini player
+      _hideMiniPlayer();
+
+      // Auto-play next voice message
+      _autoPlayNext(container);
     });
 
     audio.addEventListener('error', () => {
-      console.error('[VoicePlayer] audio error:', audio.error?.code, audio.error?.message, 'networkState=', audio.networkState, 'readyState=', audio.readyState);
       if (durEl) durEl.textContent = formatTimeSec(duration);
     });
-
-    audio.addEventListener('canplaythrough', () => {
-      console.log('[VoicePlayer] canplaythrough, duration=', audio.duration);
-    }, { once: true });
-
-    audio.addEventListener('loadeddata', () => {
-      console.log('[VoicePlayer] loadeddata, duration=', audio.duration, 'readyState=', audio.readyState);
-    }, { once: true });
 
     function toggle() {
       // Stop any other playing voice
@@ -789,10 +808,10 @@ window.VoiceMsg = (function () {
         _currentAudio = null;
         _currentBtn = null;
         _currentContainer = null;
+        // Hide mini player on pause
+        _hideMiniPlayer();
       } else {
-        audio.play().catch((err) => {
-          console.error('[VoicePlayer] play() failed:', err.name, err.message, 'readyState=', audio.readyState, 'error=', audio.error?.code, audio.error?.message);
-        });
+        audio.play().catch(() => {});
         isPlaying = true;
         playBtn.innerHTML = PAUSE_SVG;
         playBtn.classList.add('playing');
@@ -801,13 +820,15 @@ window.VoiceMsg = (function () {
         _currentBtn = playBtn;
         _currentContainer = container;
         container._voiceAudio = audio;
+
+        // Show mini player
+        _showMiniPlayer(audio, waveform, senderName, senderAvatar);
       }
     }
 
     playBtn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      console.log('[VoicePlayer] playBtn click, isPlaying=', isPlaying, 'audio.readyState=', audio.readyState, 'audio.error=', audio.error?.message);
       toggle();
     });
 
@@ -827,6 +848,170 @@ window.VoiceMsg = (function () {
     if (duration > 0 && durEl) {
       durEl.textContent = formatTimeSec(duration);
     }
+  }
+
+  /* ── Auto-play next voice message ─────────────────────────── */
+
+  function _autoPlayNext(currentContainer) {
+    // Find the current voice-msg's parent .mrow
+    const currentRow = currentContainer.closest('.mrow');
+    if (!currentRow) return;
+
+    const msgs = document.getElementById('msgs');
+    if (!msgs) return;
+
+    // Find all voice messages after the current one
+    const allVoiceMsgs = msgs.querySelectorAll('.voice-msg');
+    let foundCurrent = false;
+    let nextVoice = null;
+
+    for (let i = 0; i < allVoiceMsgs.length; i++) {
+      const voiceEl = allVoiceMsgs[i];
+      if (!foundCurrent) {
+        if (voiceEl === currentContainer || voiceEl.contains(currentContainer)) {
+          foundCurrent = true;
+        }
+        continue;
+      }
+      // Check if this voice message is visible in viewport
+      const rect = voiceEl.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        nextVoice = voiceEl;
+        break;
+      }
+    }
+
+    if (nextVoice) {
+      // Find the parent row to get message data
+      const nextRow = nextVoice.closest('.mrow');
+      if (!nextRow) return;
+
+      const dataId = nextRow.dataset.id;
+      if (!dataId) return;
+
+      // Look up the message data from S.msgs
+      const chatMsgs = (S.chatId && S.msgs) ? S.msgs[S.chatId] : null;
+      if (!chatMsgs) return;
+
+      const msgData = chatMsgs.find(m => String(m.id) === dataId);
+      if (!msgData || msgData.media_type !== 'voice') return;
+
+      const audioUrl = msgData.media_url;
+      const dur = msgData.voice_duration || parseInt(msgData.body || '0', 10) || 0;
+      let wfData = [];
+      try { if (msgData.voice_waveform) wfData = JSON.parse(msgData.voice_waveform); } catch(e) {}
+
+      // Small delay before auto-playing next
+      setTimeout(() => {
+        if (window.VoiceMsg) {
+          window.VoiceMsg.createPlayer(nextVoice, audioUrl, dur, wfData);
+        }
+      }, 400);
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     MINI PLAYER
+     ══════════════════════════════════════════════════════════════ */
+
+  function _initMiniPlayer() {
+    const chatArea = document.getElementById('chat-area');
+    if (!chatArea) return;
+
+    const chatHdr = chatArea.querySelector('.chat-hdr');
+    if (!chatHdr) return;
+
+    const el = document.createElement('div');
+    el.className = 'voice-mini-player';
+    el.id = 'voice-mini-player';
+    el.innerHTML = `
+      <div class="vmp-avatar" id="vmp-avatar"></div>
+      <div class="vmp-info">
+        <div class="vmp-name" id="vmp-name"></div>
+      </div>
+      <div class="vmp-wave" id="vmp-wave"></div>
+      <span class="vmp-time" id="vmp-time">0:00</span>
+      <button class="vmp-close" id="vmp-close" title="Закрыть">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+
+    // Insert after chat-hdr
+    chatHdr.insertAdjacentElement('afterend', el);
+    _miniPlayer = el;
+
+    // Close button
+    document.getElementById('vmp-close').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Pause current audio
+      if (_currentAudio && !_currentAudio.paused) {
+        _currentAudio.pause();
+      }
+      _hideMiniPlayer();
+    });
+  }
+
+  function _showMiniPlayer(audio, waveform, senderName, avatarEl) {
+    if (!_miniPlayer) return;
+
+    // Set sender name
+    const nameEl = document.getElementById('vmp-name');
+    if (nameEl) nameEl.textContent = senderName || 'Голосовое сообщение';
+
+    // Set avatar
+    const avatarContainer = document.getElementById('vmp-avatar');
+    if (avatarContainer) {
+      if (avatarEl) {
+        const img = document.createElement('img');
+        img.src = avatarEl.src;
+        img.alt = '';
+        avatarContainer.innerHTML = '';
+        avatarContainer.appendChild(img);
+      } else {
+        avatarContainer.textContent = '';
+      }
+    }
+
+    // Build mini waveform bars
+    const waveEl = document.getElementById('vmp-wave');
+    if (waveEl) {
+      waveEl.innerHTML = '';
+      const wfData = waveform || Array.from({ length: BAR_COUNT }, () => 0.3);
+      for (let i = 0; i < wfData.length; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'vmp-wf-bar';
+        bar.style.height = (2 + wfData[i] * 14) + 'px';
+        bar.dataset.idx = String(i);
+        waveEl.appendChild(bar);
+      }
+    }
+
+    _miniPlayer.classList.add('visible');
+  }
+
+  function _updateMiniPlayer(audio, waveform, timeStr) {
+    if (!_miniPlayer || !_miniPlayer.classList.contains('visible')) return;
+
+    const waveEl = document.getElementById('vmp-wave');
+    if (waveEl && audio.duration && isFinite(audio.duration)) {
+      const pct = audio.currentTime / audio.duration;
+      const bars = waveEl.querySelectorAll('.vmp-wf-bar');
+      const count = bars.length;
+      const playedIdx = Math.floor(pct * count);
+      bars.forEach((bar, i) => {
+        bar.classList.toggle('played', i < playedIdx);
+        bar.classList.toggle('active', i === playedIdx);
+      });
+    }
+
+    const timeEl = document.getElementById('vmp-time');
+    if (timeEl) timeEl.textContent = timeStr || '';
+  }
+
+  function _hideMiniPlayer() {
+    if (!_miniPlayer) return;
+    _miniPlayer.classList.remove('visible');
   }
 
   /* ══ AES-256-GCM ENCRYPTION ════════════════════════════════════ */
@@ -962,8 +1147,11 @@ window.VoiceMsg = (function () {
      ══════════════════════════════════════════════════════════════ */
 
   function init() {
-    const btn = $('btn-send');
+    const btn = document.getElementById('btn-send');
     if (!btn) return;
+
+    // Initialize mini player
+    _initMiniPlayer();
 
     function isMicMode() {
       return !btn.classList.contains('has-text');
