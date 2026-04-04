@@ -2015,13 +2015,25 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   content:'';
   position:absolute;
   inset:0;
-  top:-40px;
-  background: linear-gradient(to top, var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, rgba(var(--chat-bg-rgb), 0) 100%);
+  top:-60px;
+  background: linear-gradient(to top, 
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
+    rgba(var(--chat-bg-rgb), .85) 15%,
+    rgba(var(--chat-bg-rgb), .5) 40%,
+    rgba(var(--chat-bg-rgb), .15) 70%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
   pointer-events:none;
   z-index:-1;
 }
 body[data-theme="light"] .input-zone::before {
-  background: linear-gradient(to top, var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, rgba(var(--chat-bg-rgb), 0) 100%);
+  background: linear-gradient(to top, 
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
+    rgba(var(--chat-bg-rgb), .85) 15%,
+    rgba(var(--chat-bg-rgb), .5) 40%,
+    rgba(var(--chat-bg-rgb), .15) 70%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
 }
 
 /* Selection — фирменный лавандовый */
@@ -4176,10 +4188,10 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mfield-wrap > .attach-btn-in.voice-hidden,
 .mfield-wrap > .mfield.voice-hidden,
 .mfield-wrap > .emo-btn-in.voice-hidden {
-  opacity: 0; pointer-events: none;
-  width: 0; min-width: 0; padding: 0; margin: 0;
-  overflow: hidden;
-  transition: opacity .15s ease, width .15s ease, min-width .15s ease;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity .18s ease;
 }
 .mfield-wrap > .attach-btn-in:not(.voice-hidden),
 .mfield-wrap > .mfield:not(.voice-hidden),
@@ -4196,6 +4208,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-recording {
   position: absolute;
   inset: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4214,6 +4227,10 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   -webkit-backdrop-filter: blur(20px);
   background: rgba(var(--bg-rgb), .65);
   border-color: rgba(255,255,255, .08);
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  overflow: hidden;
 }
 .mfield-wrap.voice-rec-active .voice-recording {
   background: transparent;
@@ -4227,7 +4244,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
 .voice-rec-timer { font-size: 15px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 42px; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-end; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-start; }
 .voice-rec-bar { width: 3px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .08s; flex: 1; max-width: 4px; min-height: 3px; }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
@@ -4266,6 +4283,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-locked {
   position: absolute;
   inset: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4282,7 +4300,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
 .voice-locked-stop:active { transform: scale(0.95); }
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; }
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-end; }
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; justify-content: flex-start; }
 .voice-locked-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
 .voice-locked-delete:hover { background: rgba(255,69,58,.1); }
 .voice-locked-delete svg { width: 18px; height: 18px; }
@@ -4291,6 +4309,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-preview {
   position: absolute;
   inset: 0;
+  height: 100%;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4419,6 +4438,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   color: #fff !important;
   box-shadow: 0 2px 8px rgba(139,92,246,.3);
 }
+.btn-voice-rec.voice-send-mode .ico-send { opacity: 1 !important; transform: translateY(0) rotate(0deg) !important; }
+.btn-voice-rec.voice-send-mode .ico-mic { opacity: 0 !important; transform: translateY(-6px) rotate(30deg) !important; }
 .btn-voice-rec.voice-send-mode:hover {
   background: var(--y2) !important;
 }

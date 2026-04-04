@@ -147,11 +147,13 @@ window.VoiceMsg = (function () {
     if (!wrap) return;
 
     wrap.classList.add('voice-rec-active');
+    wrap.style.height = '44px';
+    wrap.style.minHeight = '44px';
+    wrap.style.maxHeight = '44px';
+    wrap.style.overflow = 'hidden';
     _hideInputChildren(wrap);
-    // Hide send button during recording (mic icon goes behind)
-    const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.style.visibility = 'hidden';
     // Show hints on mic button
+    const sendBtn = document.getElementById('btn-send');
     if (sendBtn) sendBtn.classList.add('hints-visible', 'recording');
 
     // Remove any existing overlays
@@ -208,6 +210,10 @@ window.VoiceMsg = (function () {
     if (!wrap) return;
 
     wrap.classList.add('voice-rec-active');
+    wrap.style.height = '44px';
+    wrap.style.minHeight = '44px';
+    wrap.style.maxHeight = '44px';
+    wrap.style.overflow = 'hidden';
 
     const overlay = document.createElement('div');
     overlay.className = 'voice-locked';
@@ -277,20 +283,19 @@ window.VoiceMsg = (function () {
   function _transformBtnToSend() {
     const btn = document.getElementById('btn-send');
     if (!btn) return;
-    // Replace inner SVGs with send icon
-    const sendSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
-    // Hide the hint elements and existing SVGs
+    // Hide hint elements
     const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
     hints.forEach(h => h.style.display = 'none');
-    const icoSend = btn.querySelector('.ico-send');
-    const icoMic = btn.querySelector('.ico-mic');
-    if (icoSend) icoSend.style.display = '';
-    if (icoMic) icoMic.style.display = 'none';
+    // Add voice-send-mode class (CSS handles icon visibility)
     btn.classList.add('voice-send-mode');
     btn.classList.remove('recording', 'hints-visible');
-    // Remove old click handler and add new one
+    // CRITICAL: Override onclick to prevent sendText from interfering
+    btn._origOnclick = btn.onclick;
+    btn.onclick = null; // Remove sendText handler
+    // Remove voice recording mousedown/touchstart handlers
     btn.removeEventListener('mousedown', btn._voiceMousedownHandler);
     btn.removeEventListener('touchstart', btn._voiceTouchstartHandler);
+    // Add preview send handler
     btn._previewSendHandler = function(e) {
       e.preventDefault();
       e.stopPropagation();
@@ -305,12 +310,14 @@ window.VoiceMsg = (function () {
     // Restore hint elements
     const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
     hints.forEach(h => h.style.display = '');
-    const icoSend = btn.querySelector('.ico-send');
-    const icoMic = btn.querySelector('.ico-mic');
-    if (icoSend) icoSend.style.display = '';
-    if (icoMic) icoMic.style.display = '';
+    // Remove voice-send-mode
     btn.classList.remove('voice-send-mode', 'recording', 'hints-visible');
-    // Remove preview click handler
+    // CRITICAL: Restore original onclick handler
+    if (btn._origOnclick !== undefined) {
+      btn.onclick = btn._origOnclick;
+      btn._origOnclick = undefined;
+    }
+    // Remove preview send handler
     if (btn._previewSendHandler) {
       btn.removeEventListener('click', btn._previewSendHandler);
       btn._previewSendHandler = null;
@@ -321,6 +328,10 @@ window.VoiceMsg = (function () {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
 
+    wrap.style.height = '44px';
+    wrap.style.minHeight = '44px';
+    wrap.style.maxHeight = '44px';
+    wrap.style.overflow = 'hidden';
     _hideInputChildren(wrap);
 
     _previewBlob = blob;
@@ -521,6 +532,11 @@ window.VoiceMsg = (function () {
 
   function _showInputChildren(wrap) {
     if (!wrap) return;
+    // Restore explicit height when showing input children
+    wrap.style.height = '';
+    wrap.style.minHeight = '';
+    wrap.style.maxHeight = '';
+    wrap.style.overflow = '';
     const attach = wrap.querySelector(':scope > .attach-btn-in');
     const mfield = wrap.querySelector(':scope > .mfield');
     const emo = wrap.querySelector(':scope > .emo-btn-in:not(.attach-btn-in)');
@@ -547,7 +563,13 @@ window.VoiceMsg = (function () {
 
     // Clean up mfield-wrap state
     const wrap = document.querySelector('.mfield-wrap');
-    if (wrap) wrap.classList.remove('voice-rec-active');
+    if (wrap) {
+      wrap.classList.remove('voice-rec-active');
+      wrap.style.height = '';
+      wrap.style.minHeight = '';
+      wrap.style.maxHeight = '';
+      wrap.style.overflow = '';
+    }
     const sendBtn = document.getElementById('btn-send');
     if (sendBtn) {
       sendBtn.style.visibility = '';
@@ -582,36 +604,31 @@ window.VoiceMsg = (function () {
 
   function _startRecVisualization() {
     if (!_analyser) return;
-    const container = _recOverlay || _lockedOverlay;
-    const bars = container?.querySelectorAll('.voice-rec-bar');
-    if (!bars || !bars.length) return;
-
     const bufLen = _analyser.frequencyBinCount;
     const data = new Uint8Array(bufLen);
-    // Progressively reveal bars from right to left as recording continues
-    const totalBars = bars.length;
-    let _lastBarIdx = 0;
 
     function draw() {
       _recAnimFrame = requestAnimationFrame(draw);
       _analyser.getByteFrequencyData(data);
 
-      // Calculate how many bars should be visible based on elapsed time
+      // Read bars fresh each frame (container may change from hold→locked)
+      const container = _recOverlay || _lockedOverlay;
+      const bars = container?.querySelectorAll('.voice-rec-bar');
+      if (!bars || !bars.length) return;
+
+      const totalBars = bars.length;
       const elapsed = (Date.now() - _recStart) / 1000;
       const maxDuration = 300; // 5 minutes max
       const progress = Math.min(1, elapsed / maxDuration);
       const visibleBars = Math.min(totalBars, Math.ceil(progress * totalBars));
       
-      // Map frequency data to the visible portion
       const step = Math.max(1, Math.floor(bufLen / visibleBars));
       for (let i = 0; i < totalBars; i++) {
         if (i >= visibleBars) {
-          // Not yet visible — show minimal height
           bars[i].style.opacity = '0';
           bars[i].style.height = '3px';
         } else {
           bars[i].style.opacity = '1';
-          // Map bar index to frequency data (reverse: rightmost = newest)
           const freqIdx = Math.min((visibleBars - 1 - i) * step, bufLen - 1);
           const val = data[freqIdx] / 255;
           const h = Math.max(3, val * 28);
