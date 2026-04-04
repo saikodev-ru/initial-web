@@ -1,0 +1,4 @@
+config.php
+fcm.json
+*.key
+*.pem
