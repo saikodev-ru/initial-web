@@ -1385,6 +1385,26 @@ if (_chatPadRange) {
 }
 _applyChatPad(_chatPadPx);
 
+/* ── CHAT FONT SIZE ──────────────────────────────── */
+const _chatFontSizeRange = $('chat-font-size-range');
+const _chatFontSizeVal = $('chat-font-size-val');
+const _chatFontSizePx = (() => { try { return parseInt(localStorage.getItem('sg_chat_font_size') || '15', 10); } catch { return 15; } })();
+function _applyChatFontSize(px) {
+  const msgs = document.getElementById('msgs');
+  if (!msgs) return;
+  msgs.style.fontSize = px + 'px';
+  if (_chatFontSizeVal) _chatFontSizeVal.textContent = px + 'px';
+}
+if (_chatFontSizeRange) {
+  _chatFontSizeRange.value = _chatFontSizePx;
+  _chatFontSizeRange.oninput = () => {
+    const val = parseInt(_chatFontSizeRange.value, 10);
+    try { localStorage.setItem('sg_chat_font_size', String(val)); } catch {}
+    _applyChatFontSize(val);
+  };
+}
+_applyChatFontSize(_chatFontSizePx);
+
 /* ── Show install separator when install button is visible ─ */
 const _installObserver = new MutationObserver(() => {
   const pwa = $('btn-install-pwa');

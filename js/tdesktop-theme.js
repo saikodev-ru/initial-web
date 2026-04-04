@@ -389,6 +389,27 @@
       }
     }
 
+    // ── --msg-bg (incoming bubble) if not set ──
+    if (!vars['--msg-bg']) {
+      if (isDark) {
+        vars['--msg-bg'] = lightenHex(bg, 0.12);
+      } else {
+        vars['--msg-bg'] = lightenHex(bg, 0.08);
+      }
+    }
+
+    // ── --msg-me-bg (outgoing bubble) if not set ──
+    if (!vars['--msg-me-bg']) {
+      if (accent && normaliseHex(accent)) {
+        // Use accent with reduced opacity for outgoing
+        vars['--msg-me-bg'] = accent;
+      } else if (isDark) {
+        vars['--msg-me-bg'] = darkenHex(bg, 0.05);
+      } else {
+        vars['--msg-me-bg'] = darkenHex(bg, 0.12);
+      }
+    }
+
     // ── --bg2 if not already set (slightly elevated surface) ──
     if (!vars['--bg2']) {
       vars['--bg2'] = isDark ? lightenHex(bg, 0.06) : darkenHex(bg, 0.04);

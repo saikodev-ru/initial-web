@@ -428,8 +428,10 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
 .ci-prev.typ{color:var(--y);font-style:italic}
 /* Chat list read tick marks */
-.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.5}
+.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.5;margin-right:2px}
 .ci-tick-r{opacity:1}
+.ci-tick svg path:first-child { stroke-opacity: 0.4; }
+.ci-tick-r svg path:first-child { stroke-opacity: 1; }
 .ci-tick svg{display:block}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
@@ -559,8 +561,9 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
   box-shadow:0 0 6px rgba(139,92,246,.6);
 }
 /* RESIZE HANDLE */
-.resize-handle{width:1px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
-.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.25);width:2px}
+.resize-handle{width:1px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s;z-index:10;position:relative}
+.resize-handle::before{content:'';position:absolute;inset:-4px 0;z-index:1}
+.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.25)}
 .resize-handle::after{content:none}
 
 /* CHAT + PARTNER PANEL */
@@ -2013,17 +2016,12 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   position:absolute;
   inset:0;
   top:-40px;
-  background:
-    linear-gradient(
-      to top,
-      var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-      rgba(var(--chat-bg-rgb), .98) 20%,
-      rgba(var(--chat-bg-rgb), .85) 45%,
-      rgba(var(--chat-bg-rgb), .4) 70%,
-      transparent 100%
-    );
+  background: linear-gradient(to top, var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, rgba(var(--chat-bg-rgb), 0) 100%);
   pointer-events:none;
   z-index:-1;
+}
+body[data-theme="light"] .input-zone::before {
+  background: linear-gradient(to top, var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, rgba(var(--chat-bg-rgb), 0) 100%);
 }
 
 /* Selection — фирменный лавандовый */
@@ -4069,7 +4067,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;
 }
 .tdtheme-card {
-  width: 48px; height: 48px; border-radius: 10px; overflow: hidden;
+  width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
   border: 2px solid var(--b2); cursor: pointer;
   position: relative; transition: border-color .15s, transform .12s var(--sp);
 }
@@ -4196,16 +4194,24 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* Recording overlay (hold mode) — morphs into input zone */
 .voice-recording {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; gap: 12px; padding: 0 16px;
-  z-index: 20; border-radius: 22px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  z-index: 2;
+  border-radius: 22px;
   border: 1px solid rgba(255,255,255,.06);
   animation: voiceOverlayIn .22s var(--ease) both;
   transition: transform .15s ease, opacity .15s ease;
 }
 /* When mfield-wrap is in recording mode, keep its backdrop-filter but change appearance */
 .mfield-wrap.voice-rec-active {
-  background: rgba(var(--bg-rgb),.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(var(--bg-rgb), .65);
+  border-color: rgba(255,255,255, .08);
 }
 .mfield-wrap.voice-rec-active .voice-recording {
   background: transparent;
@@ -4256,8 +4262,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── Locked recording mode ── */
 .voice-locked {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
   background: rgba(var(--bg-rgb),.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   z-index: 20; border-radius: 22px;
@@ -4275,8 +4285,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── Preview mode (after recording) — Telegram-style send panel ── */
 .voice-preview {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
   background: rgba(var(--bg-rgb),.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
   z-index: 20; border-radius: 22px;
@@ -4295,6 +4309,109 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
 .voice-preview-send:active { transform: scale(0.95); }
 .voice-preview-send svg { width: 18px; height: 18px; }
+
+/* ── Mic button — enlarged with hints ── */
+.btn-voice-rec {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--y);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform .15s var(--sp), background .15s;
+}
+.btn-voice-rec:hover { background: rgba(139,92,246,.1); }
+.btn-voice-rec:active { transform: scale(0.9); }
+.btn-voice-rec svg { width: 24px; height: 24px; transition: transform .15s var(--sp); }
+.btn-voice-rec.recording svg { color: var(--red); }
+
+/* Visual hint arrows — shown on long press start */
+.btn-voice-rec .rec-hint-lock {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.btn-voice-rec .rec-hint-lock svg {
+  width: 16px;
+  height: 16px;
+  color: var(--t3);
+  animation: hintBounceUp .8s ease infinite;
+}
+.btn-voice-rec .rec-hint-lock span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--t3);
+  letter-spacing: .3px;
+}
+.btn-voice-rec .rec-hint-cancel {
+  position: absolute;
+  left: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.btn-voice-rec .rec-hint-cancel svg {
+  width: 16px;
+  height: 16px;
+  color: var(--red);
+  opacity: .6;
+  animation: hintBounceLeft .8s ease infinite;
+}
+.btn-voice-rec .rec-hint-cancel span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--red);
+  opacity: .6;
+  letter-spacing: .3px;
+}
+.btn-voice-rec.hints-visible .rec-hint-lock,
+.btn-voice-rec.hints-visible .rec-hint-cancel {
+  opacity: 1;
+}
+@keyframes hintBounceUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes hintBounceLeft {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}
+
+/* ── Mic button becomes send button in preview mode ── */
+.btn-voice-rec.voice-send-mode {
+  background: var(--y) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(139,92,246,.3);
+}
+.btn-voice-rec.voice-send-mode:hover {
+  background: var(--y2) !important;
+}
+.btn-voice-rec.voice-send-mode svg {
+  color: #fff;
+}
 
 /* ═══════════════════════════════════════════════════════════════
    VOICE MINI PLAYER — appears below chat-hdr during playback

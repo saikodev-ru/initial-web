@@ -32,6 +32,7 @@ window.VoiceMsg = (function () {
   let _previewAnimFrame = null;
   let _miniPlayer = null;       // mini player DOM element
   let _miniPlayerAnimFrame = null;
+  const _audioCache = new Map(); // url → Audio object
 
   const BAR_COUNT = 44;
   const REC_BAR_COUNT = 36;
@@ -150,6 +151,8 @@ window.VoiceMsg = (function () {
     // Hide send button during recording (mic icon goes behind)
     const sendBtn = document.getElementById('btn-send');
     if (sendBtn) sendBtn.style.visibility = 'hidden';
+    // Show hints on mic button
+    if (sendBtn) sendBtn.classList.add('hints-visible', 'recording');
 
     // Remove any existing overlays
     _removeAllOverlays(true); // silent remove, don't show input children yet
@@ -268,6 +271,52 @@ window.VoiceMsg = (function () {
 
   /* ── Preview mode ─────────────────────────────────────────── */
 
+  // Original mic SVG — used to restore the button after preview
+  const _micSvg = '<svg class="ico-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+
+  function _transformBtnToSend() {
+    const btn = document.getElementById('btn-send');
+    if (!btn) return;
+    // Replace inner SVGs with send icon
+    const sendSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>';
+    // Hide the hint elements and existing SVGs
+    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
+    hints.forEach(h => h.style.display = 'none');
+    const icoSend = btn.querySelector('.ico-send');
+    const icoMic = btn.querySelector('.ico-mic');
+    if (icoSend) icoSend.style.display = '';
+    if (icoMic) icoMic.style.display = 'none';
+    btn.classList.add('voice-send-mode');
+    btn.classList.remove('recording', 'hints-visible');
+    // Remove old click handler and add new one
+    btn.removeEventListener('mousedown', btn._voiceMousedownHandler);
+    btn.removeEventListener('touchstart', btn._voiceTouchstartHandler);
+    btn._previewSendHandler = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      _sendPreview();
+    };
+    btn.addEventListener('click', btn._previewSendHandler);
+  }
+
+  function _restoreBtnFromSend() {
+    const btn = document.getElementById('btn-send');
+    if (!btn) return;
+    // Restore hint elements
+    const hints = btn.querySelectorAll('.rec-hint-lock, .rec-hint-cancel');
+    hints.forEach(h => h.style.display = '');
+    const icoSend = btn.querySelector('.ico-send');
+    const icoMic = btn.querySelector('.ico-mic');
+    if (icoSend) icoSend.style.display = '';
+    if (icoMic) icoMic.style.display = '';
+    btn.classList.remove('voice-send-mode', 'recording', 'hints-visible');
+    // Remove preview click handler
+    if (btn._previewSendHandler) {
+      btn.removeEventListener('click', btn._previewSendHandler);
+      btn._previewSendHandler = null;
+    }
+  }
+
   function _showPreview(blob, duration, waveform) {
     const wrap = document.querySelector('.mfield-wrap');
     if (!wrap) return;
@@ -294,13 +343,15 @@ window.VoiceMsg = (function () {
       </button>
       <div class="voice-preview-wave" id="voice-preview-wave"></div>
       <span class="voice-preview-dur" id="voice-preview-dur">${formatTimeSec(duration)}</span>
-      <button class="voice-preview-send" id="voice-preview-send" title="Отправить">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-      </button>
     `;
 
     wrap.appendChild(overlay);
     _previewOverlay = overlay;
+
+    // Transform mic button into send button
+    const sendBtn = document.getElementById('btn-send');
+    if (sendBtn) sendBtn.style.visibility = '';
+    _transformBtnToSend();
 
     // Build waveform bars in preview
     const wfWrap = overlay.querySelector('.voice-preview-wave');
@@ -344,13 +395,6 @@ window.VoiceMsg = (function () {
       e.preventDefault();
       e.stopPropagation();
       _dismissPreview();
-    });
-
-    // Send button
-    document.getElementById('voice-preview-send').addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      _sendPreview();
     });
 
     // Audio ended
@@ -433,6 +477,7 @@ window.VoiceMsg = (function () {
     _previewBlob = null;
 
     if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
+    _restoreBtnFromSend();
     _showInputChildren(document.querySelector('.mfield-wrap'));
   }
 
@@ -454,6 +499,7 @@ window.VoiceMsg = (function () {
     _previewBlob = null;
 
     if (_previewOverlay) { _previewOverlay.remove(); _previewOverlay = null; }
+    _restoreBtnFromSend();
     _showInputChildren(document.querySelector('.mfield-wrap'));
 
     // Send voice
@@ -503,7 +549,10 @@ window.VoiceMsg = (function () {
     const wrap = document.querySelector('.mfield-wrap');
     if (wrap) wrap.classList.remove('voice-rec-active');
     const sendBtn = document.getElementById('btn-send');
-    if (sendBtn) sendBtn.style.visibility = '';
+    if (sendBtn) {
+      sendBtn.style.visibility = '';
+      sendBtn.classList.remove('hints-visible', 'recording', 'voice-send-mode');
+    }
 
     if (!silent) _showInputChildren(wrap);
   }
@@ -720,9 +769,24 @@ window.VoiceMsg = (function () {
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
 
-    const audio = new Audio();
-    audio.preload = 'metadata';
-    audio.src = audioUrl;
+    // Check cache for existing Audio object
+    let audio;
+    const cached = _audioCache.get(audioUrl);
+    if (cached) {
+      audio = cached;
+      if (durEl && isFinite(audio.duration)) {
+        durEl.textContent = formatTimeSec(audio.duration);
+      }
+    } else {
+      audio = new Audio();
+      audio.preload = 'metadata';
+      audio.src = audioUrl;
+      audio.addEventListener('loadedmetadata', () => {
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          _audioCache.set(audioUrl, audio);
+        }
+      }, { once: true });
+    }
     let isPlaying = false;
     let animFrame = null;
 
@@ -1275,6 +1339,8 @@ window.VoiceMsg = (function () {
       _pointerStartX = e.clientX;
       _pointerStartY = e.clientY;
       startRecording();
+      // Remove hints after 600ms
+      setTimeout(() => { btn.classList.remove('hints-visible'); }, 600);
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -1287,6 +1353,7 @@ window.VoiceMsg = (function () {
       if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
       if (_recCancelled) return;
       if (_isLocked) return; // locked mode has its own buttons
+      btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
     });
 
@@ -1297,6 +1364,8 @@ window.VoiceMsg = (function () {
       _pointerStartX = e.touches[0].clientX;
       _pointerStartY = e.touches[0].clientY;
       startRecording();
+      // Remove hints after 600ms
+      setTimeout(() => { btn.classList.remove('hints-visible'); }, 600);
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
@@ -1309,6 +1378,7 @@ window.VoiceMsg = (function () {
       if (!_mediaRecorder || _mediaRecorder.state !== 'recording') return;
       if (_recCancelled) return;
       if (_isLocked) return;
+      btn.classList.remove('hints-visible', 'recording');
       _onPointerEnd();
     });
 

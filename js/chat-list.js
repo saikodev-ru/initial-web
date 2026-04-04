@@ -57,7 +57,7 @@ function _renderChatItemContent(el,c){
        prev=(c.last_sender_id==S.user?.id?'Вы: ':'')+fmtPreview(msg.length>80?msg.slice(0,80)+'…':msg);
     }
   }
-  else if(c.last_media_type)prev=c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое':'🖼 Фото';
+  else if(c.last_media_type)prev=c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото';
 
   // Preserve animating pin icon — don't overwrite it mid-animation
   const existingIcon=el.querySelector('.ci-pin-icon');
@@ -90,7 +90,7 @@ function _renderChatItemContent(el,c){
   // ── Read checkmarks for outgoing messages in chat list ──
   const isOutgoing = c.last_sender_id == S.user?.id && !isTyping;
   const isRead = isOutgoing && c.is_read == 1;
-  const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="12" height="8" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
+  const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="14" height="10" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
   el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
@@ -611,7 +611,7 @@ function syncChats(rawChats){
        else if (cm[1] === 'missed') bodyText = (c.last_sender_id == S.user?.id ? 'Отменённый звонок' : 'Пропущенный звонок');
        else bodyText = 'Отклонённый звонок';
     } else if (!bodyText) {
-       bodyText = (c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое':'🖼 Фото')||'Новое сообщение';
+       bodyText = (c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото')||'Новое сообщение';
     }
     showNotif(name,bodyText);
     // Rich notification with avatar

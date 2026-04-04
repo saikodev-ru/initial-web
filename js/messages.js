@@ -1757,6 +1757,8 @@ async function deleteBatch(batchId){
 // Edit state
 let editingMsgId = null;
 function startEdit(m) {
+  // Cannot edit voice messages or call messages
+  if (m.media_type === 'voice' || /^\[call:/.test(m.body || '')) return;
   editingMsgId = m.id;
   mfield.innerHTML='';
   mfield.appendChild(emojiToFrag(m.body||'',true));
@@ -2183,7 +2185,7 @@ mfield.onkeydown=e=>{
       const msgs = S.msgs[S.chatId] || [];
       for(let i = msgs.length - 1; i >= 0; i--){
         const m = msgs[i];
-            if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted){
+            if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted && m.media_type !== 'voice' && !/^\[call:/.test(m.body)){
           startEdit(m);
           break;
         }
@@ -2215,7 +2217,7 @@ document.addEventListener('keydown',function(e){
     const msgs = S.msgs[S.chatId] || [];
     for(let i = msgs.length - 1; i >= 0; i--){
       const m = msgs[i];
-      if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted){
+      if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted && m.media_type !== 'voice' && !/^\[call:/.test(m.body)){
         startEdit(m);
         break;
       }
