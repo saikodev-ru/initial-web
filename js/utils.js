@@ -40,7 +40,7 @@ const QUICK_RXNS=ALL_RXNS; // kept for compatibility
 const API='https://initial.su/api';
 function getMediaUrl(key) {
   if (!key) return '';
-  if (key.startsWith('http') || key.startsWith('data:')) return key;
+  if (key.startsWith('http') || key.startsWith('data:') || key.startsWith('blob:')) return key;
   const token = localStorage.getItem('sg_token') || (typeof S !== 'undefined' ? S.token : '');
   let url = API + '/get_media?key=' + encodeURIComponent(key);
   if (token) url += '&token=' + encodeURIComponent(token);

@@ -941,7 +941,7 @@ function makeMsgEl(m,newSender=true){
   const aviEl=document.createElement('div');aviEl.className='mavi'+(isMe?' ghost':'');if(!isMe)aviEl.innerHTML=aviHtml(m.nickname,m.avatar_url);
   const bub=document.createElement('div');bub.className='mbub';
 
-  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim()),mediaOnly=hasMedia&&!hasText&&m.media_type!=='document';
+  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim())&&m.media_type!=='voice',mediaOnly=hasMedia&&!hasText&&m.media_type!=='document'&&m.media_type!=='voice';
   const mediaCaption=hasMedia&&hasText;
   const rxns=sortRxns(S.rxns[m.id]||(Array.isArray(m.reactions)?m.reactions:[]));const hasRxns=rxns.length>0;
 
@@ -1030,10 +1030,17 @@ function makeMsgEl(m,newSender=true){
         <div class="voice-waveform">
           <div class="voice-wf-bars"></div>
         </div>
-        <span class="voice-time">${durStr}</span>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
+
+      // Time + duration below waveform (Telegram-style)
+      const voiceMeta=document.createElement('div');
+      voiceMeta.className='voice-meta';
+      voiceMeta.innerHTML=`<span class="voice-dur">${durStr}</span>`;
+      voiceMeta.appendChild(makeMeta(m,isMe,sending));
+      body.appendChild(voiceMeta);
+
       setTimeout(()=>{if(window.VoiceMsg){window.VoiceMsg.createPlayer(voiceWrap,audioUrl,dur,wfData);}},0);
     } else if(m.media_type==='document'){
       const ext=(m.media_file_name||'file').split('.').pop().toLowerCase();
@@ -1236,7 +1243,7 @@ function makeMsgEl(m,newSender=true){
       attachLinkPreview(body, m.body);
     }
 
-    if(!hasText){
+    if(!hasText && m.media_type!=='voice'){
 
     if(mediaOnly){
       body.appendChild(makeMeta(m,isMe,sending));
@@ -1257,7 +1264,7 @@ function makeMsgEl(m,newSender=true){
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
         // If touching media, don't interfere
-        if(e.target.closest('.mmedia,.mmedia-video')){_blocked=true;return;}
+        if(e.target.closest('.mmedia,.mmedia-video,.voice-msg')){_blocked=true;return;}
         _blocked=false;
         _moved=false;
         _startX=e.touches[0].clientX;
@@ -1319,7 +1326,7 @@ function makeMsgEl(m,newSender=true){
   row.addEventListener('dblclick', e => {
     if(S.selectMode || !S.quickReply) return;
     // Игнорируем двойной клик по интерактивным элементам внутри пузыря
-    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply')) return;
+    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply') || e.target.closest('.voice-msg')) return;
     
     e.preventDefault();
     row.classList.add('quick-reply-anim');
@@ -1425,7 +1432,7 @@ function makeGridEl(msgs,newSender=true){
   // Quick reply for grids
   row.addEventListener('dblclick', e => {
     if(S.selectMode || !S.quickReply) return;
-    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply')) return;
+    if(e.target.closest('.single-media') || e.target.closest('.vid-wrap') || e.target.closest('.rxn-wrap') || e.target.closest('.msg-link') || e.target.closest('.mention') || e.target.closest('.spoiler') || e.target.closest('.rply') || e.target.closest('.voice-msg')) return;
     
     e.preventDefault();
     row.classList.add('quick-reply-anim');
@@ -1750,6 +1757,8 @@ async function deleteBatch(batchId){
 // Edit state
 let editingMsgId = null;
 function startEdit(m) {
+  // Cannot edit voice messages or call messages
+  if (m.media_type === 'voice' || /^\[call:/.test(m.body || '')) return;
   editingMsgId = m.id;
   mfield.innerHTML='';
   mfield.appendChild(emojiToFrag(m.body||'',true));
@@ -2176,7 +2185,7 @@ mfield.onkeydown=e=>{
       const msgs = S.msgs[S.chatId] || [];
       for(let i = msgs.length - 1; i >= 0; i--){
         const m = msgs[i];
-            if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted){
+            if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted && m.media_type !== 'voice' && !/^\[call:/.test(m.body)){
           startEdit(m);
           break;
         }
@@ -2208,7 +2217,7 @@ document.addEventListener('keydown',function(e){
     const msgs = S.msgs[S.chatId] || [];
     for(let i = msgs.length - 1; i >= 0; i--){
       const m = msgs[i];
-      if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted){
+      if(m.sender_id == S.user?.id && !isTemp(m.id) && m.body && !m.is_deleted && m.media_type !== 'voice' && !/^\[call:/.test(m.body)){
         startEdit(m);
         break;
       }

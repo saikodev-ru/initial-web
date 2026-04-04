@@ -1229,7 +1229,7 @@ const _bgImgStatus = $('bg-image-status');
 function _applyCustomBg(dataUrl) {
   let el = document.getElementById(BG_IMG_EL_ID);
   const layout = document.querySelector('.layout');
-  const blurred = localStorage.getItem('sg_bg_blur') === '1';
+  const blurLevel = parseInt(localStorage.getItem('sg_bg_blur') || '0', 10);
   if (dataUrl) {
     // Show custom bg, hide pattern
     if (!el) {
@@ -1240,16 +1240,61 @@ function _applyCustomBg(dataUrl) {
     }
     el.style.backgroundImage = `url(${dataUrl})`;
     // Apply blur class if enabled
-    el.classList.toggle('blurred', blurred);
+    el.classList.remove('blurred', 'blurred-med', 'blurred-strong');
+    if (blurLevel >= 3) el.classList.add('blurred-strong');
+    else if (blurLevel === 2) el.classList.add('blurred-med');
+    else if (blurLevel === 1) el.classList.add('blurred');
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
+    // Extract dominant color from bottom of image for input zone gradient
+    _extractBgBottomColor(dataUrl);
   } else {
     if (el) el.remove();
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
+    // Reset gradient accent
+    const root = document.documentElement;
+    if (root.style.getPropertyValue('--bg-fade-color')) {
+      root.style.removeProperty('--bg-fade-color');
+    }
   }
+}
+
+/* Extract dominant color from bottom strip of background image for input zone gradient */
+function _extractBgBottomColor(dataUrl) {
+  if (!dataUrl) return;
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      // Sample the bottom 20% of the image
+      const sampleHeight = Math.max(1, Math.round(img.height * 0.2));
+      canvas.width = Math.min(img.width, 200);
+      canvas.height = sampleHeight;
+      ctx.drawImage(img, 0, img.height - sampleHeight, img.width, sampleHeight, 0, 0, canvas.width, sampleHeight);
+      const data = ctx.getImageData(0, 0, canvas.width, sampleHeight).data;
+      // Average color
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+      }
+      if (count > 0) {
+        r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+        // Darken/mute the color for better gradient effect
+        const darken = 0.45;
+        r = Math.round(r * darken);
+        g = Math.round(g * darken);
+        b = Math.round(b * darken);
+        const root = document.documentElement;
+        root.style.setProperty('--bg-fade-color', `rgb(${r}, ${g}, ${b})`);
+      }
+    };
+    img.src = dataUrl;
+  } catch(e) {}
 }
 
 // Restore cached background on load
@@ -1295,18 +1340,86 @@ if (_bgImgRemove) {
   };
 }
 
-/* ── BG BLUR TOGGLE ────────────────────────────────── */
+/* ── BG BLUR TOGGLE (3 levels) ─────────────────────── */
 const _bgBlurEl = $('tog-bg-blur');
-const _bgBlurOn = (() => { try { return localStorage.getItem('sg_bg_blur') === '1'; } catch { return false; } })();
-if (_bgBlurEl) { _bgBlurEl.classList.toggle('on', _bgBlurOn); }
+const _bgBlurLabel = $('blur-level-label');
+const BLUR_LABELS = ['Выкл', 'Слабое', 'Среднее', 'Сильное'];
+let _bgBlurLevel = (() => { try { return parseInt(localStorage.getItem('sg_bg_blur') || '0', 10); } catch { return 0; } })();
+function _updateBlurUI(level) {
+  if (_bgBlurEl) _bgBlurEl.classList.toggle('on', level > 0);
+  if (_bgBlurLabel) _bgBlurLabel.textContent = BLUR_LABELS[level] || 'Выкл';
+}
+_updateBlurUI(_bgBlurLevel);
 if (_bgBlurEl) _bgBlurEl.onclick = () => {
-  const on = !_bgBlurEl.classList.contains('on');
-  _bgBlurEl.classList.toggle('on', on);
-  try { localStorage.setItem('sg_bg_blur', on ? '1' : '0'); } catch { }
+  _bgBlurLevel = (_bgBlurLevel + 1) % 4;
+  try { localStorage.setItem('sg_bg_blur', String(_bgBlurLevel)); } catch { }
+  _updateBlurUI(_bgBlurLevel);
   // Re-apply background to toggle blur
   const cached = localStorage.getItem(BG_IMG_KEY);
   if (cached) _applyCustomBg(cached);
 };
+
+/* ── CHAT PADDING ─────────────────────────────────── */
+const _chatPadRange = $('chat-max-width-range');
+const _chatPadVal = $('chat-max-width-val');
+const _chatPadPx = (() => { try { return parseInt(localStorage.getItem('sg_chat_max_width') || '0', 10); } catch { return 0; } })();
+function _applyChatPad(px) {
+  const msgs = document.getElementById('msgs');
+  if (!msgs) return;
+  const inputZone = document.getElementById('input-zone');
+  if (px > 0) {
+    msgs.style.paddingLeft = px + 'px';
+    msgs.style.paddingRight = px + 'px';
+    msgs.style.maxWidth = '';
+    msgs.style.margin = '';
+    // Also apply padding to input zone
+    if (inputZone) {
+      inputZone.style.paddingLeft = px + 'px';
+      inputZone.style.paddingRight = px + 'px';
+    }
+    if (_chatPadVal) _chatPadVal.textContent = px + 'px';
+  } else {
+    msgs.style.paddingLeft = '';
+    msgs.style.paddingRight = '';
+    msgs.style.maxWidth = '';
+    msgs.style.margin = '';
+    if (inputZone) {
+      inputZone.style.paddingLeft = '';
+      inputZone.style.paddingRight = '';
+    }
+    if (_chatPadVal) _chatPadVal.textContent = 'Авто';
+  }
+}
+if (_chatPadRange) {
+  _chatPadRange.value = _chatPadPx;
+  _chatPadRange.oninput = () => {
+    const val = parseInt(_chatPadRange.value, 10);
+    try { localStorage.setItem('sg_chat_max_width', String(val)); } catch {}
+    _applyChatPad(val);
+  };
+}
+_applyChatPad(_chatPadPx);
+
+/* ── CHAT FONT SIZE ──────────────────────────────── */
+const _chatFontSizeRange = $('chat-font-size-range');
+const _chatFontSizeVal = $('chat-font-size-val');
+const _chatFontSizePx = (() => { try { return parseInt(localStorage.getItem('sg_chat_font_size') || '15', 10); } catch { return 15; } })();
+function _applyChatFontSize(px) {
+  const msgs = document.getElementById('msgs');
+  if (!msgs) return;
+  // Use CSS custom property so .mtxt picks it up
+  msgs.style.setProperty('--chat-font-size', px + 'px');
+  if (_chatFontSizeVal) _chatFontSizeVal.textContent = px + 'px';
+}
+if (_chatFontSizeRange) {
+  _chatFontSizeRange.value = _chatFontSizePx;
+  _chatFontSizeRange.oninput = () => {
+    const val = parseInt(_chatFontSizeRange.value, 10);
+    try { localStorage.setItem('sg_chat_font_size', String(val)); } catch {}
+    _applyChatFontSize(val);
+  };
+}
+_applyChatFontSize(_chatFontSizePx);
 
 /* ── Show install separator when install button is visible ─ */
 const _installObserver = new MutationObserver(() => {

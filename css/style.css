@@ -428,9 +428,11 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
 .ci-prev.typ{color:var(--y);font-style:italic}
 /* Chat list read tick marks */
-.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.5}
+.ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.6;margin-right:2px}
 .ci-tick-r{opacity:1}
-.ci-tick svg{display:block}
+.ci-tick svg path:first-child { stroke-opacity: 0.4; }
+.ci-tick-r svg path:first-child { stroke-opacity: 1; }
+.ci-tick svg{display:block;width:18px;height:11px}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
 .prof-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:14px;padding:8px;margin:-8px;transition:background .15s}
@@ -559,8 +561,9 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
   box-shadow:0 0 6px rgba(139,92,246,.6);
 }
 /* RESIZE HANDLE */
-.resize-handle{width:1px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s,box-shadow .15s;z-index:10;position:relative}
-.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.25);width:2px}
+.resize-handle{width:1px;flex-shrink:0;cursor:col-resize;background:rgba(255,255,255,.1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:background .15s;z-index:10;position:relative}
+.resize-handle::before{content:'';position:absolute;inset:-4px 0;z-index:1}
+.resize-handle:hover,.resize-handle.dragging{background:rgba(255,255,255,.25)}
 .resize-handle::after{content:none}
 
 /* CHAT + PARTNER PANEL */
@@ -587,11 +590,25 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
   transition:background .3s var(--ease);
 }
 .chat-bg-custom.blurred {
-  filter: blur(8px) brightness(0.8);
-  transform: scale(1.05); /* prevent blur edges */
+  filter: blur(8px) brightness(0.75) saturate(1.2);
+  transform: scale(1.06);
 }
 .chat-bg-custom.blurred::after {
-  background: rgba(0,0,0,.2);
+  background: rgba(0,0,0,.22);
+}
+.chat-bg-custom.blurred-med {
+  filter: blur(16px) brightness(0.55) saturate(1.3);
+  transform: scale(1.1);
+}
+.chat-bg-custom.blurred-med::after {
+  background: rgba(0,0,0,.32);
+}
+.chat-bg-custom.blurred-strong {
+  filter: blur(28px) brightness(0.35) saturate(1.4);
+  transform: scale(1.15);
+}
+.chat-bg-custom.blurred-strong::after {
+  background: rgba(0,0,0,.45);
 }
 /* Полное отключение паттерна — убираем псевдоэлемент и GPU-слой */
 .no-pattern .layout::before,
@@ -1508,7 +1525,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 }
 
 /* Text */
-.mtxt{font-size:14.5px;font-weight:400;line-height:1.55;white-space:pre-wrap;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
+.mtxt{font-size:var(--chat-font-size, 14.5px);font-weight:400;line-height:1.55;white-space:pre-wrap;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
 .mtxt strong{font-weight:800}.mtxt em{font-style:italic}.mtxt del{opacity:.6}.mtxt u{text-decoration:underline;text-underline-offset:2px}
 .mtxt code{background:rgba(255,255,255,.15);border-radius:5px;padding:1px 5px;font-family:ui-monospace,'SF Mono','Menlo',monospace;font-size:12.5px}
 .me .mtxt code{background:rgba(255,255,255,.15)}
@@ -1998,18 +2015,49 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   content:'';
   position:absolute;
   inset:0;
-  top:-40px;
-  background:
-    linear-gradient(
-      to top,
-      rgba(var(--chat-bg-rgb), 1) 0%,
-      rgba(var(--chat-bg-rgb), .98) 20%,
-      rgba(var(--chat-bg-rgb), .85) 45%,
-      rgba(var(--chat-bg-rgb), .4) 70%,
-      transparent 100%
-    );
+  top:-80px;
+  background: linear-gradient(to top, 
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
+    rgba(var(--chat-bg-rgb), .96) 4%,
+    rgba(var(--chat-bg-rgb), .91) 8%,
+    rgba(var(--chat-bg-rgb), .85) 13%,
+    rgba(var(--chat-bg-rgb), .78) 18%,
+    rgba(var(--chat-bg-rgb), .70) 24%,
+    rgba(var(--chat-bg-rgb), .62) 30%,
+    rgba(var(--chat-bg-rgb), .54) 36%,
+    rgba(var(--chat-bg-rgb), .46) 42%,
+    rgba(var(--chat-bg-rgb), .38) 48%,
+    rgba(var(--chat-bg-rgb), .30) 55%,
+    rgba(var(--chat-bg-rgb), .22) 62%,
+    rgba(var(--chat-bg-rgb), .16) 69%,
+    rgba(var(--chat-bg-rgb), .10) 76%,
+    rgba(var(--chat-bg-rgb), .05) 84%,
+    rgba(var(--chat-bg-rgb), .02) 92%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
   pointer-events:none;
   z-index:-1;
+}
+body[data-theme="light"] .input-zone::before {
+  background: linear-gradient(to top, 
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%, 
+    rgba(var(--chat-bg-rgb), .96) 4%,
+    rgba(var(--chat-bg-rgb), .91) 8%,
+    rgba(var(--chat-bg-rgb), .85) 13%,
+    rgba(var(--chat-bg-rgb), .78) 18%,
+    rgba(var(--chat-bg-rgb), .70) 24%,
+    rgba(var(--chat-bg-rgb), .62) 30%,
+    rgba(var(--chat-bg-rgb), .54) 36%,
+    rgba(var(--chat-bg-rgb), .46) 42%,
+    rgba(var(--chat-bg-rgb), .38) 48%,
+    rgba(var(--chat-bg-rgb), .30) 55%,
+    rgba(var(--chat-bg-rgb), .22) 62%,
+    rgba(var(--chat-bg-rgb), .16) 69%,
+    rgba(var(--chat-bg-rgb), .10) 76%,
+    rgba(var(--chat-bg-rgb), .05) 84%,
+    rgba(var(--chat-bg-rgb), .02) 92%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
 }
 
 /* Selection — фирменный лавандовый */
@@ -4055,7 +4103,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0;
 }
 .tdtheme-card {
-  width: 48px; height: 48px; border-radius: 10px; overflow: hidden;
+  width: 56px; height: 56px; border-radius: 12px; overflow: hidden;
   border: 2px solid var(--b2); cursor: pointer;
   position: relative; transition: border-color .15s, transform .12s var(--sp);
 }
@@ -4080,64 +4128,405 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   VOICE MESSAGES — Telegram-style
+   VOICE MESSAGE BUBBLE — Telegram-quality compact player
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Voice player in chat messages ── */
-.voice-msg { display: flex; align-items: center; gap: 10px; padding: 4px 2px; min-width: 220px; cursor: pointer; user-select: none; }
-.voice-play-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
-.voice-play-btn:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
-.voice-play-btn:active { transform: scale(0.95); }
-.voice-play-btn svg { width: 16px; height: 16px; margin-left: 2px; }
-.voice-play-btn.playing svg { margin-left: 0; }
-.voice-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
-.voice-wf-bar { width: 2.5px; border-radius: 2px; background: var(--t3); transition: background .1s; flex-shrink: 0; }
-.voice-wf-bar.played { background: var(--y); }
-.voice-wf-bar.active { background: var(--y2); }
-.voice-time { font-size: 11px; color: var(--t3); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
-.voice-body { padding: 2px 0; }
+.voice-msg {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 4px 6px 8px; min-width: 220px;
+  cursor: default; user-select: none;
+}
 
-/* ── Recording overlay (hold mode) ── */
-.voice-recording { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; transition: transform .15s ease, opacity .15s ease; }
+/* ── Play button — incoming: accent ── */
+.voice-play-btn {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--y); color: #fff;
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: transform .12s var(--sp), box-shadow .12s;
+}
+.voice-play-btn:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
+.voice-play-btn:active { transform: scale(0.95); }
+.voice-play-btn svg { width: 14px; height: 14px; margin-left: 2px; }
+.voice-play-btn.playing svg { margin-left: 0; }
+
+/* ── Play button — outgoing: dark circle on accent bg ── */
+.mrow.me .voice-play-btn {
+  background: var(--msg-bg); color: var(--t1);
+}
+body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
+.mrow.me .voice-play-btn:hover { box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+
+/* ── Waveform container ── */
+.voice-waveform {
+  flex: 1; display: flex; align-items: center; gap: 2px;
+  height: 28px; min-width: 0; cursor: pointer; overflow: hidden;
+}
+.voice-wf-bars {
+  display: flex; align-items: center; gap: 2px;
+  height: 28px; width: 100%;
+}
+
+/* ── Waveform bars — incoming: gray, played accent ── */
+.voice-wf-bar {
+  width: 2px; border-radius: 1px;
+  background: var(--t3); opacity: .5;
+  transition: background .1s, opacity .1s;
+  flex-shrink: 0;
+  min-height: 3px;
+}
+/* In preview/locked/recording containers, bars should stretch */
+.voice-preview-wave .voice-wf-bar,
+.voice-locked-wave .voice-rec-bar,
+.voice-rec-wave .voice-rec-bar {
+  flex: 1 1 0;
+  max-width: 5px;
+}
+.voice-wf-bar.played { background: var(--y); opacity: 1; }
+.voice-wf-bar.active { background: var(--y); opacity: .75; }
+
+/* ── Waveform bars — outgoing: white on accent ── */
+.mrow.me .voice-wf-bar { background: rgba(255,255,255,.5); }
+.mrow.me .voice-wf-bar.played { background: #fff; opacity: 1; }
+.mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.85); }
+
+/* ── Duration text — right of waveform ── */
+.voice-dur {
+  font-size: 11px; color: var(--t3); white-space: nowrap;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.mrow.me .voice-dur { color: rgba(255,255,255,.7); }
+
+/* ── Voice bubble body ── */
+.voice-body { padding: 4px 2px 2px; }
+
+/* ── Meta (duration + time + ticks) below waveform, right-aligned ── */
+.voice-meta {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 4px; margin-top: 1px;
+}
+.voice-meta .mtime { font-size: 11px; color: var(--t3); }
+.mrow.me .voice-meta .mtime { color: rgba(255,255,255,.7); }
+.mrow.me .voice-meta .tick { color: rgba(255,255,255,.55); }
+.mrow.me .voice-meta .tick.r { color: rgba(255,255,255,.85); }
+
+/* ═══════════════════════════════════════════════════════════════
+   RECORDING / PREVIEW — Input zone overlay (Telegram-style morph)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Children inside mfield-wrap hidden during recording */
+.mfield-wrap > .attach-btn-in.voice-hidden,
+.mfield-wrap > .mfield.voice-hidden,
+.mfield-wrap > .emo-btn-in.voice-hidden {
+  display: none;
+}
+.mfield-wrap > .attach-btn-in:not(.voice-hidden),
+.mfield-wrap > .mfield:not(.voice-hidden),
+.mfield-wrap > .emo-btn-in:not(.voice-hidden) {
+  transition: opacity .15s ease;
+}
+
+/* Send button stays above overlays (z-index only — position:relative already declared) */
+.send-btn {
+  z-index: 25;
+}
+
+/* Recording overlay (hold mode) — morphs into input zone */
+.voice-recording {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 52px 0 10px;
+  z-index: 2;
+  border-radius: 22px;
+  animation: voiceOverlayIn .18s var(--ease) both;
+  overflow: hidden;
+}
+/* When mfield-wrap is in recording mode, keep its backdrop-filter but change appearance */
+.mfield-wrap.voice-rec-active {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(var(--bg-rgb), .65);
+  border-color: rgba(255,255,255, .08);
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
+  overflow: hidden;
+}
+.mfield-wrap.voice-rec-active .voice-recording {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+@keyframes voiceOverlayIn {
+  from { opacity: 0; transform: scale(.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
-.voice-rec-timer { font-size: 15px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 42px; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
-.voice-rec-bar { width: 3px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .08s; }
+.voice-rec-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 38px; flex-shrink: 0; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
+.voice-rec-bar { width: 2.5px; flex: 1 1 0; max-width: 5px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .06s linear; min-height: 3px; }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
 
-/* ── Swipe indicators ── */
-.voice-swipe-hint { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .15s; pointer-events: none; }
-.voice-swipe-hint.show { opacity: 1; }
-.voice-swipe-hint svg { width: 18px; height: 18px; }
-.voice-lock-hint { position: absolute; left: 50%; top: -28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--t3); font-size: 10px; opacity: 0; transition: opacity .15s; pointer-events: none; }
-.voice-lock-hint.show { opacity: 1; }
-.voice-lock-hint svg { width: 16px; height: 16px; }
+/* ── Directional hints (Telegram-style arrows) ── */
+.voice-lock-arrow {
+  position: absolute; left: 50%; bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  color: var(--t2); font-size: 10px; font-weight: 500;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.voice-lock-arrow.show { opacity: 1; }
+.voice-lock-arrow svg { margin-bottom: -1px; }
+.voice-cancel-arrow {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%) translateX(calc(100% + 6px));
+  display: flex; flex-direction: row; align-items: center; gap: 3px;
+  color: var(--red); font-size: 10px; font-weight: 500;
+  opacity: 0; transition: opacity .15s; pointer-events: none;
+  background: rgba(var(--bg-rgb),.92); backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 4px 10px; border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.voice-cancel-arrow.show { opacity: 1; }
+.voice-cancel-arrow svg { margin-left: 2px; }
 
 /* ── Locked recording mode ── */
-.voice-locked { position: absolute; inset: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; }
-.voice-locked-stop { width: 36px; height: 36px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-locked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 52px 0 10px;
+  z-index: 2; border-radius: 22px;
+  animation: voiceOverlayIn .18s var(--ease) both;
+  overflow: hidden;
+}
+.voice-locked-stop { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
 .voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
 .voice-locked-stop:active { transform: scale(0.95); }
-.voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; }
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
-.voice-locked-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
+.voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
+.voice-locked-delete { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
 .voice-locked-delete:hover { background: rgba(255,69,58,.1); }
 .voice-locked-delete svg { width: 18px; height: 18px; }
 
-/* ── Preview mode (after recording) ── */
-.voice-preview { position: absolute; inset: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; }
-.voice-preview-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
-.voice-preview-delete:hover { background: rgba(255,69,58,.1); }
-.voice-preview-delete svg { width: 18px; height: 18px; }
-.voice-preview-play { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
-.voice-preview-play:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
+/* ── Preview mode (after recording) — Telegram-style send panel ── */
+.voice-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 52px 0 10px;
+  z-index: 2; border-radius: 22px;
+  animation: voiceOverlayIn .18s var(--ease) both;
+  overflow: hidden;
+}
+.voice-preview-delete { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: var(--t3); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s, color .12s; }
+.voice-preview-delete:hover { background: rgba(255,69,58,.08); color: var(--red); }
+.voice-preview-delete svg { width: 20px; height: 20px; }
+.voice-preview-play { width: 34px; height: 34px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-preview-play:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
 .voice-preview-play:active { transform: scale(0.95); }
-.voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
-.voice-preview-dur { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; white-space: nowrap; }
+.voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
+.voice-preview-dur { font-size: 12px; color: var(--t3); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; white-space: nowrap; flex-shrink: 0; }
 .voice-preview-send { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
-.voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
+.voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
 .voice-preview-send:active { transform: scale(0.95); }
 .voice-preview-send svg { width: 18px; height: 18px; }
+
+/* ── Mic button — enlarged with hints ── */
+.btn-voice-rec {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: var(--y);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  transition: transform .15s var(--sp), background .15s, box-shadow .15s;
+  box-shadow: none;
+}
+/* When there's text in the input, restore the send button appearance */
+.btn-voice-rec.has-text {
+  background: var(--y) !important;
+  color: #fff;
+}
+.btn-voice-rec.has-text .ico-send { opacity: 1; transform: translateY(0) rotate(0deg); }
+.btn-voice-rec.has-text .ico-mic { opacity: 0; transform: translateY(-6px) rotate(30deg); }
+.btn-voice-rec:hover { background: var(--y2); transform: scale(1.08); }
+.btn-voice-rec:active { transform: scale(0.9); }
+.btn-voice-rec svg { width: 20px; height: 20px; transition: transform .15s var(--sp); }
+.btn-voice-rec.recording svg { color: var(--red); }
+
+/* Visual hint arrows — shown on long press start */
+.btn-voice-rec .rec-hint-lock {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.btn-voice-rec .rec-hint-lock svg {
+  width: 16px;
+  height: 16px;
+  color: var(--t3);
+  animation: hintBounceUp .8s ease infinite;
+}
+.btn-voice-rec .rec-hint-lock span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--t3);
+  letter-spacing: .3px;
+}
+.btn-voice-rec .rec-hint-cancel {
+  position: absolute;
+  left: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+  white-space: nowrap;
+}
+.btn-voice-rec .rec-hint-cancel svg {
+  width: 16px;
+  height: 16px;
+  color: var(--red);
+  opacity: .6;
+  animation: hintBounceLeft .8s ease infinite;
+}
+.btn-voice-rec .rec-hint-cancel span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--red);
+  opacity: .6;
+  letter-spacing: .3px;
+}
+.btn-voice-rec.hints-visible .rec-hint-lock,
+.btn-voice-rec.hints-visible .rec-hint-cancel {
+  opacity: 1;
+}
+@keyframes hintBounceUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes hintBounceLeft {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-3px); }
+}
+
+/* ── Mic button becomes send button in preview mode ── */
+.btn-voice-rec.voice-send-mode {
+  background: var(--y) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(139,92,246,.3);
+}
+.btn-voice-rec.voice-send-mode .ico-send { opacity: 1 !important; transform: translateY(0) rotate(0deg) !important; }
+.btn-voice-rec.voice-send-mode .ico-mic { opacity: 0 !important; transform: translateY(-6px) rotate(30deg) !important; }
+.btn-voice-rec.voice-send-mode:hover {
+  background: var(--y2) !important;
+  transform: scale(1.08) !important;
+}
+.btn-voice-rec.voice-send-mode svg {
+  color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VOICE MINI PLAYER — appears below chat-hdr during playback
+   ═══════════════════════════════════════════════════════════════ */
+.voice-mini-player {
+  position: relative;
+  z-index: 14;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 12px;
+  background: rgba(var(--bg-rgb),.92);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--b);
+  max-height: 0; opacity: 0; overflow: hidden;
+  padding-top: 0; padding-bottom: 0;
+  transition: max-height .25s var(--ease), opacity .25s var(--ease), padding .25s var(--ease);
+  pointer-events: none;
+}
+.voice-mini-player.visible {
+  max-height: 48px; opacity: 1;
+  padding: 6px 12px;
+  pointer-events: auto;
+}
+.voice-mini-player .vmp-avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--solid2); flex-shrink: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900; color: var(--t2);
+}
+.voice-mini-player .vmp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.voice-mini-player .vmp-info { flex: 0 0 auto; min-width: 0; max-width: 120px; }
+.voice-mini-player .vmp-name {
+  font-size: 12px; font-weight: 600; color: var(--t1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.voice-mini-player .vmp-wave {
+  display: flex; align-items: center; gap: 1.5px;
+  height: 16px; min-width: 0; cursor: pointer; flex: 1; overflow: hidden;
+}
+.voice-mini-player .vmp-wf-bar {
+  width: 2px; border-radius: 1px;
+  background: var(--t3); opacity: .4;
+  transition: background .1s, opacity .1s;
+  flex-shrink: 0; min-height: 2px;
+}
+.voice-mini-player .vmp-wf-bar.played { background: var(--y); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.active { background: var(--y); opacity: .75; }
+.voice-mini-player .vmp-time {
+  font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
+  white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
+}
+.voice-mini-player .vmp-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--t2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: color .12s, background .12s;
+}
+.voice-mini-player .vmp-btn:hover { color: var(--y); background: var(--s1); }
+.voice-mini-player .vmp-btn svg { width: 16px; height: 16px; }
+.voice-mini-player .vmp-close {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: transparent; border: none;
+  color: var(--t3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: color .12s, background .12s;
+}
+.voice-mini-player .vmp-close:hover { color: var(--t1); background: var(--s1); }
+.voice-mini-player .vmp-close svg { width: 14px; height: 14px; }
