@@ -891,26 +891,13 @@ window.VoiceMsg = (function () {
     appendMsg(S.chatId, tmp);
     scrollBot();
 
-    // Encrypt before upload
-    var encryptedFile;
-    var enc;
-    try {
-      enc = await encryptBlob(blob);
-      encryptedFile = new File([enc.encrypted], 'voice.enc', { type: 'application/octet-stream' });
-    } catch (e) {
-      encryptedFile = blob;
-      enc = { keyHex: '', ivHex: '' };
-    }
-    var encKeyHex = enc.keyHex;
-    var encIvHex = enc.ivHex;
-
+    // Upload voice directly (HTTPS protects in transit, no client-side encryption)
     var fd = new FormData();
-    fd.append('voice', encryptedFile, 'voice.enc');
+    fd.append('voice', blob, 'voice.webm');
     fd.append('to_signal_id', toSid);
     if (replyId) fd.append('reply_to', String(replyId));
     fd.append('voice_duration', String(duration));
     fd.append('voice_waveform', JSON.stringify(waveform));
-    fd.append('voice_meta', JSON.stringify({ ek: encKeyHex, ei: encIvHex }));
 
     let res;
     try {
