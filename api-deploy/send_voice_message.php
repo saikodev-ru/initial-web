@@ -60,6 +60,132 @@ if ($voiceDuration <= 0) {
     $voiceDuration = get_audio_duration($tmpPath, $size);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SERVER-SIDE AUDIO COMPRESSION + NOISE REDUCTION (FFmpeg)
+   
+   Pipeline:
+   1. Convert to opus/ogg at 24kbps (speech-optimized)
+   2. Highpass 200Hz — removes rumble, HVAC, wind noise
+   3. Lowpass 3400Hz — removes hiss, focuses on speech band
+   4. Noise reduction (afftdn) — removes steady background noise
+   5. Loudness normalize -20 LUFS — consistent volume
+   6. Mono 16kHz — optimal for voice messages
+   
+   Result: ~5-10x smaller files, clean speech, cache-friendly
+   ══════════════════════════════════════════════════════════════ */
+$originalSize = $size;
+$compressed = false;
+
+if (function_exists('exec')) {
+    $ffprobe = @exec('which ffprobe 2>/dev/null');
+    $ffmpeg  = @exec('which ffmpeg 2>/dev/null');
+
+    if (!empty($ffmpeg) && !empty($ffprobe) && $size > 8000) {
+        $outPath = $tmpPath . '.ogg';
+        $outSize = 0;
+
+        // Get original duration for logging
+        $origDur = 0;
+        $probeCmd = escapeshellcmd($ffprobe)
+            . ' -v quiet -print_format json -show_format '
+            . escapeshellarg($tmpPath) . ' 2>/dev/null';
+        $probeJson = @json_decode(@shell_exec($probeCmd) ?: '', true);
+        if (isset($probeJson['format']['duration'])) {
+            $origDur = (float) $probeJson['format']['duration'];
+        }
+
+        // Detect if afftdn filter is available (FFmpeg 4.4+)
+        $hasAfftdn = false;
+        $filterCheck = @shell_exec(
+            escapeshellcmd($ffmpeg) . ' -filters 2>/dev/null | grep afftdn'
+        );
+        if (!empty($filterCheck)) {
+            $hasAfftdn = true;
+        }
+
+        // Build filter chain
+        $filters = [];
+        $filters[] = 'highpass=f=200';           // Remove low-frequency rumble
+        $filters[] = 'lowpass=f=3400';            // Remove high-frequency hiss
+
+        if ($hasAfftdn) {
+            // FFT denoiser — removes steady-state noise (AC, fan, etc.)
+            // nr=12: noise reduction strength (higher = more aggressive)
+            // nf=-25: noise floor in dB
+            $filters[] = 'afftdn=nf=-25:tn=1';
+        }
+
+        $filterChain = implode(',', $filters);
+
+        // FFmpeg command:
+        // -i input
+        // -af filter_chain
+        // -af loudnorm (separate for proper EBU R128 loudness normalization)
+        // -c:a libopus (opus codec)
+        // -b:a 24k (24kbps — excellent speech quality, very compact)
+        // -ar 16000 (16kHz sample rate — speech optimized)
+        // -ac 1 (mono)
+        // -application voip (opus VOIP mode — optimized for speech)
+        $cmd = escapeshellcmd($ffmpeg)
+            . ' -y -i ' . escapeshellarg($tmpPath)
+            . ' -af "' . $filterChain . ',loudnorm=I=-20:TP=-1.5:LRA=11:print_format=json" -ar 16000 -ac 1'
+            . ' -c:a libopus -b:a 24k -application voip'
+            . ' ' . escapeshellarg($outPath)
+            . ' 2>/dev/null';
+
+        @exec($cmd, $output, $returnCode);
+
+        if ($returnCode === 0 && file_exists($outPath) && filesize($outPath) > 0) {
+            $outSize = (int) filesize($outPath);
+
+            // Use compressed version if it's meaningfully smaller
+            if ($outSize > 0 && $outSize < $originalSize * 0.95) {
+                // Replace original with compressed
+                @unlink($tmpPath);
+                @rename($outPath, $tmpPath);
+
+                // Update format detection
+                $ext  = 'ogg';
+                $mime = 'audio/ogg';
+                $size = $outSize;
+                $compressed = true;
+
+                // Re-detect duration from compressed file (more accurate)
+                $compDurCmd = escapeshellcmd($ffprobe)
+                    . ' -v quiet -print_format json -show_format '
+                    . escapeshellarg($tmpPath) . ' 2>/dev/null';
+                $compDurJson = @json_decode(@shell_exec($compDurCmd) ?: '', true);
+                if (isset($compDurJson['format']['duration'])) {
+                    $voiceDuration = (int) ceil((float) $compDurJson['format']['duration']);
+                }
+            } else {
+                // Compression didn't help — keep original
+                @unlink($outPath);
+            }
+        } else {
+            // FFmpeg failed — keep original
+            if (file_exists($outPath)) @unlink($outPath);
+        }
+
+        // Log compression results
+        $ratio = $compressed && $originalSize > 0
+            ? round((1 - $outSize / $originalSize) * 100, 1)
+            : 0;
+        @file_put_contents(
+            ($vLog ?? __DIR__ . '/voice.log'),
+            ($vTs ?? '[' . date('Y-m-d H:i:s') . '] ')
+            . "VOICE COMPRESS: "
+            . ($compressed ? "OK" : "SKIPPED")
+            . " | orig={$originalSize}B"
+            . ($compressed ? " comp={$outSize}B saved={$ratio}%" : "")
+            . " | dur={$origDur}s"
+            . ($hasAfftdn ? " afftdn=YES" : " afftdn=NO")
+            . "\n",
+            FILE_APPEND
+        );
+    }
+}
+
 /* ── Upload to S3 (медиа в S3) ──────────────────────────────── */
 $s3Path = make_voice_s3_path($myId, $ext);
 @file_put_contents($vLog, $vTs . "S3 uploading: tmpPath=" . $tmpPath . " exists=" . (file_exists($tmpPath) ? 'yes' : 'no')
