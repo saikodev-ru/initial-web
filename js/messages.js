@@ -1027,10 +1027,10 @@ function makeMsgEl(m,newSender=true){
       try{if(m.voice_waveform)wfData=JSON.parse(m.voice_waveform);}catch(e){}
       voiceWrap.innerHTML=`
         <button class="voice-play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
-        <div class="voice-waveform-wrap">
-          <div class="voice-waveform"></div>
+        <div class="voice-waveform">
+          <div class="voice-wf-bars"></div>
         </div>
-        <span class="voice-dur">${durStr}</span>
+        <span class="voice-time">${durStr}</span>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');

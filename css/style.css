@@ -4080,170 +4080,64 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   VOICE MESSAGES
+   VOICE MESSAGES — Telegram-style
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Voice message player in chat ── */
-.voice-msg {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 2px;
-  min-width: 200px;
-  cursor: pointer;
-  user-select: none;
-}
-.voice-body {
-  /* ensure bubble doesn't collapse */
-}
-.voice-play-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--y);
-  color: #fff;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: transform .15s ease, opacity .15s ease;
-}
-.voice-play-btn:hover { transform: scale(1.08); }
+/* ── Voice player in chat messages ── */
+.voice-msg { display: flex; align-items: center; gap: 10px; padding: 4px 2px; min-width: 220px; cursor: pointer; user-select: none; }
+.voice-play-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-play-btn:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
 .voice-play-btn:active { transform: scale(0.95); }
-.voice-play-btn svg {
-  width: 16px;
-  height: 16px;
-  margin-left: 2px; /* visual center for play triangle */
-}
-.voice-play-btn.playing svg {
-  margin-left: 0;
-}
-.voice-waveform-wrap {
-  flex: 1;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  position: relative;
-}
-.voice-waveform {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 100%;
-  width: 100%;
-}
-.voice-waveform .voice-bar {
-  flex: 1;
-  max-width: 3px;
-  min-width: 1.5px;
-  border-radius: 99px;
-  background: var(--t3);
-  transition: background .1s ease;
-  height: 40%;
-  min-height: 3px;
-}
-.voice-waveform .voice-bar.played {
-  background: var(--y);
-}
-.voice-waveform .voice-bar.active {
-  height: 80%;
-}
-.voice-dur {
-  font-size: 11.5px;
-  color: var(--t3);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-  min-width: 36px;
-  text-align: right;
-}
-.voice-time {
-  font-variant-numeric: tabular-nums;
-}
+.voice-play-btn svg { width: 16px; height: 16px; margin-left: 2px; }
+.voice-play-btn.playing svg { margin-left: 0; }
+.voice-waveform { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
+.voice-wf-bar { width: 2.5px; border-radius: 2px; background: var(--t3); transition: background .1s; flex-shrink: 0; }
+.voice-wf-bar.played { background: var(--y); }
+.voice-wf-bar.active { background: var(--y2); }
+.voice-time { font-size: 11px; color: var(--t3); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.voice-body { padding: 2px 0; }
 
-/* ── Recording overlay ── */
-.voice-recording {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  top: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  gap: 10px;
-  background: var(--bg2, var(--solid2));
-  z-index: 10;
-  border-radius: 12px;
-  transition: transform .15s ease, opacity .15s ease;
-}
-.voice-rec-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ef4444;
-  flex-shrink: 0;
-  animation: voicePulse 1s ease-in-out infinite;
-}
-@keyframes voicePulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
-}
-.voice-rec-timer {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--t1);
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-.voice-rec-waveform {
-  flex: 1;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  gap: 1.5px;
-  overflow: hidden;
-}
-.voice-rec-bar {
-  width: 2px;
-  border-radius: 99px;
-  background: var(--y);
-  transition: height .05s ease;
-  min-height: 2px;
-}
-.voice-rec-cancel {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--t3);
-  font-size: 12px;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: opacity .15s;
-}
-.voice-rec-cancel:hover { opacity: 0.7; }
-.voice-rec-cancel svg {
-  width: 18px;
-  height: 18px;
-}
+/* ── Recording overlay (hold mode) ── */
+.voice-recording { position: absolute; inset: 0; display: flex; align-items: center; gap: 12px; padding: 0 12px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; transition: transform .15s ease, opacity .15s ease; }
+.voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
+@keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
+.voice-rec-timer { font-size: 15px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 42px; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
+.voice-rec-bar { width: 3px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .08s; }
+.voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
+.voice-rec-cancel.show { opacity: 1; }
+.voice-rec-cancel svg { width: 18px; height: 18px; }
 
-/* ── Swipe to cancel indicator ── */
-.voice-rec-overlay {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 12px;
-  opacity: 0;
-  transition: opacity .15s;
-  pointer-events: none;
-}
-.voice-rec-overlay.active {
-  opacity: 1;
-}
+/* ── Swipe indicators ── */
+.voice-swipe-hint { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 12px; font-weight: 500; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.voice-swipe-hint.show { opacity: 1; }
+.voice-swipe-hint svg { width: 18px; height: 18px; }
+.voice-lock-hint { position: absolute; left: 50%; top: -28px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--t3); font-size: 10px; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.voice-lock-hint.show { opacity: 1; }
+.voice-lock-hint svg { width: 16px; height: 16px; }
+
+/* ── Locked recording mode ── */
+.voice-locked { position: absolute; inset: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; }
+.voice-locked-stop { width: 36px; height: 36px; border-radius: 50%; background: var(--red); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-locked-stop:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(255,69,58,.4); }
+.voice-locked-stop:active { transform: scale(0.95); }
+.voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; }
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; overflow: hidden; }
+.voice-locked-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
+.voice-locked-delete:hover { background: rgba(255,69,58,.1); }
+.voice-locked-delete svg { width: 18px; height: 18px; }
+
+/* ── Preview mode (after recording) ── */
+.voice-preview { position: absolute; inset: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; background: rgba(var(--bg-rgb),.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 20; border-radius: 12px; }
+.voice-preview-delete { width: 36px; height: 36px; border-radius: 50%; background: transparent; border: none; color: var(--red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s; }
+.voice-preview-delete:hover { background: rgba(255,69,58,.1); }
+.voice-preview-delete svg { width: 18px; height: 18px; }
+.voice-preview-play { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-preview-play:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
+.voice-preview-play:active { transform: scale(0.95); }
+.voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 2px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
+.voice-preview-dur { font-size: 11px; color: var(--t3); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; white-space: nowrap; }
+.voice-preview-send { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
+.voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 0 12px rgba(139,92,246,.4); }
+.voice-preview-send:active { transform: scale(0.95); }
+.voice-preview-send svg { width: 18px; height: 18px; }
