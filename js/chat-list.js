@@ -90,9 +90,9 @@ function _renderChatItemContent(el,c){
   // ── Read checkmarks for outgoing messages in chat list ──
   const isOutgoing = c.last_sender_id == S.user?.id && !isTyping;
   const isRead = isOutgoing && c.is_read == 1;
-  const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="10" height="7" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
+  const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="12" height="8" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
-  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div>${ciTickHtml}</div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
+  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
   // Restore saved animating icon
   if(iconAnimating&&existingIcon){const ts=el.querySelector('.ci-ts');const wrap=ts?.parentElement;if(wrap)wrap.insertBefore(existingIcon,ts);}
@@ -795,7 +795,7 @@ function renderSearchIdle(){
     aviEl.innerHTML=`<svg viewBox="0 0 24 24" fill="none" width="20" height="20"><path d="M19 21l-7-3-7 3V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z" fill="rgba(255,255,255,.95)" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-linejoin="round"/></svg>`;
     el.appendChild(aviEl);
     el.insertAdjacentHTML('beforeend',`<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">Избранное</div><div style="font-size:12px;color:var(--t2)">Ваши заметки</div></div>`);
-    el.onclick=()=>{exitSearch();};
+    el.onclick=()=>{openChat(savedChat);};
     c.appendChild(el);
   }
 
@@ -818,7 +818,10 @@ function makeSbItem(u,isRecent=false){
     el.appendChild(del);
   }
   wtn(el);
-  el.onclick=()=>{saveRecentUser(u);exitSearch();};
+  el.onclick=()=>{
+    saveRecentUser(u);
+    openProfileModal({...u,chat_id:u.chat_id||0,partner_id:u.id,partner_name:u.nickname,partner_signal_id:u.signal_id,partner_avatar:u.avatar_url,partner_bio:u.bio,is_verified:u.is_verified,is_team_signal:u.is_team_signal},false);
+  };
   return el;
 }
 
@@ -881,7 +884,13 @@ $('sb-q').oninput=()=>{
       }
       el.innerHTML=`${avHtml}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">${esc(dispName)}</div><div style="font-size:12px;color:var(--t2)">${sub}</div></div>`;
       wtn(el);
-      el.onclick=()=>{exitSearch();};
+      el.onclick=()=>{
+        if(isSavedMsgs(ch)||isSystemChat(ch)){exitSearch();openChat(ch);}
+        else if(ch.partner_id){
+          saveRecentUser({signal_id:ch.partner_signal_id,nickname:ch.partner_name,avatar_url:ch.partner_avatar,id:ch.partner_id});
+          openProfileModal({chat_id:ch.chat_id,partner_id:ch.partner_id,partner_name:ch.partner_name,partner_signal_id:ch.partner_signal_id,partner_avatar:ch.partner_avatar,partner_bio:ch.partner_bio,is_verified:ch.is_verified,is_team_signal:ch.is_team_signal},false);
+        } else {exitSearch();openChat(ch);}
+      };
       c.appendChild(el);
     });
   }
@@ -905,10 +914,9 @@ $('sb-q').oninput=()=>{
     if(!filtered.length){const lbl=$('lbl-users');if(lbl)lbl.remove();return;}
     filtered.forEach(u=>{
       const el=makeSbItem(u,false);
-      // Open profile modal on click instead of just exiting search
+      // Open profile modal on click without canceling search
       el.onclick=()=>{
         saveRecentUser(u);
-        if(sbSearchActive) sbSearchActive=false, $('sidebar').classList.remove('searching');
         openProfileModal({...u,chat_id:u.chat_id||0,partner_id:u.id,partner_name:u.nickname,partner_signal_id:u.signal_id,partner_avatar:u.avatar_url,partner_bio:u.bio,is_verified:u.is_verified,is_team_signal:u.is_team_signal},false);
       };
       c.appendChild(el);
@@ -1034,7 +1042,6 @@ function toggleSidebar(force){
   if(p)p.setAttribute('d',sbCollapsed?'M13 5l7 7-7 7M6 5l7 7-7 7':'M11 19l-7-7 7-7M18 19l-7-7 7-7');
 }
 $('btn-collapse-sb').onclick=()=>toggleSidebar();
-$('btn-sb-close').onclick=()=>exitSearch();
 $('btn-sb-expand').onclick=()=>toggleSidebar(false);
 
 /* ══ UNIFY INPUT WRAP ════════════════════════════════════════ */
