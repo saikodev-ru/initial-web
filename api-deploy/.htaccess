@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Отключаем MultiViews, чтобы Apache не делал самовольных 301 редиректов,
+    # которые "теряют" заголовок Authorization.
+    Options -MultiViews
+
+    # Принудительно передаем заголовок авторизации в PHP-скрипт.
+    # Это критически важно для многих хостингов.
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Внутренне (незаметно для браузера) перенаправляем /endpoint на /endpoint.php
+    RewriteCond %{REQUEST_FILENAME}.php -f
+    RewriteRule ^(.*)$ $1.php [L]
+</IfModule>

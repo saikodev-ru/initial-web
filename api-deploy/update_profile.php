@@ -1,0 +1,47 @@
+<?php
+// POST /api/update_profile.php
+// Header: Authorization: Bearer <token>
+// Body: { "nickname": "Иван", "signal_id": "ivan_42", "avatar_url": "https://...", "bio": "..." }
+declare(strict_types=1);
+require_once __DIR__ . '/helpers.php';
+
+set_cors_headers();
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
+
+$me   = auth_user();
+$data = input();
+
+$nickname  = trim($data['nickname']  ?? '');
+$signalId  = trim($data['signal_id'] ?? '');
+$avatarUrl = trim($data['avatar_url'] ?? '');
+$bio       = trim(mb_substr($data['bio'] ?? '', 0, 150));
+if (mb_strlen($nickname) < 2 || mb_strlen($nickname) > 64) {
+    json_err('invalid_nickname', 'Имя: от 2 до 64 символов');
+}
+if (!preg_match('/^[a-z0-9_]{3,50}$/', $signalId)) {
+    json_err('invalid_signal_id', 'Signal ID: 3–50 символов, только a-z, 0-9, _');
+}
+
+// ── Проверка уникальности Signal ID ──────────────────────────
+$stmt = db()->prepare(
+    'SELECT id FROM users WHERE signal_id = ? AND id != ? LIMIT 1'
+);
+$stmt->execute([$signalId, $me['id']]);
+if ($stmt->fetch()) json_err('signal_id_taken', 'Этот Signal ID уже занят');
+
+// ── Обновление ───────────────────────────────────────────────
+$stmt = db()->prepare(
+    'UPDATE users SET nickname = ?, signal_id = ?, avatar_url = ?, bio = ? WHERE id = ?'
+);
+$stmt->execute([$nickname, $signalId, $avatarUrl ?: null, $bio, $me['id']]);
+
+json_ok([
+    'user' => [
+        'id'         => $me['id'],
+        'email'      => $me['email'],
+        'nickname'   => $nickname,
+        'signal_id'  => $signalId,
+        'avatar_url' => $avatarUrl ?: null,
+        'bio'        => $bio,              // ← тоже стоит вернуть
+    ]
+]);
