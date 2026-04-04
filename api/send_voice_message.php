@@ -22,8 +22,8 @@
 //  Response: { "ok": true, "message_id": int, "chat_id": int }
 // ═══════════════════════════════════════════════════════════════
 declare(strict_types=1);
-require_once __DIR__ . '/../upload/helpers.php';
-require_once __DIR__ . '/../upload/s3_helper.php';
+require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/s3_helper.php';
 
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
