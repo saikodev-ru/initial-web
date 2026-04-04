@@ -1,10 +1,16 @@
 /* ══ APP — Медиа · SSE · Polling · Просмотрщик · Профиль · Boot ══ */
 
 /* ══ WELCOME SCREEN TYPING ANIMATION ═══════════════════════ */
-(function initWelcomeTyping() {
+let _welcTypeTimer = null;
+function startWelcomeTyping() {
   const titleEl = $('welc-title');
   const subEl = $('welc-sub');
   if (!titleEl || !subEl) return;
+  // Cancel previous animation if any
+  clearTimeout(_welcTypeTimer);
+  titleEl.innerHTML = '';
+  subEl.textContent = '';
+
   const emojis = ['💬','👋','✨','🎯','🚀','💡','🌟','🎨','🔮','💎'];
   const emoji = emojis[Math.floor(Math.random() * emojis.length)];
   const fullTitle = 'Кому бы написать сегодня?';
@@ -12,28 +18,23 @@
   let ti = 0;
   const titleCursor = document.createElement('span');
   titleCursor.className = 'welc-cursor';
+  titleCursor.style.display = '';
   function typeTitle() {
     if (ti <= fullTitle.length) {
       titleEl.textContent = fullTitle.slice(0, ti);
       titleEl.appendChild(titleCursor);
       ti++;
-      setTimeout(typeTitle, 55 + Math.random() * 40);
+      _welcTypeTimer = setTimeout(typeTitle, 55 + Math.random() * 40);
     } else {
-      // Remove cursor after a pause
-      setTimeout(() => { titleCursor.style.display = 'none'; }, 1800);
-    }
-  }
-  // Show sub text after title finishes
-  const subObserver = new MutationObserver(() => {
-    if (titleEl.textContent === fullTitle) {
-      subObserver.disconnect();
+      _welcTypeTimer = setTimeout(() => { titleCursor.style.display = 'none'; }, 1800);
       setTimeout(() => { subEl.textContent = fullSub; }, 300);
     }
-  });
-  subObserver.observe(titleEl, { childList: true, characterData: true, subtree: true });
+  }
   // Start typing after short delay
-  setTimeout(typeTitle, 600);
-})();
+  _welcTypeTimer = setTimeout(typeTitle, 400);
+}
+// Run on initial load
+startWelcomeTyping();
 
 /* ══ MEDIA PREVIEW SEND ══════════════════════════════════════ */
 /* ── Performance / low-end device detection ─────────────────── */
@@ -1235,19 +1236,15 @@ $('tog-sound').onclick = () => { S.notif.sound = !S.notif.sound; saveNotif(); sy
 $('tog-anon').onclick = () => { S.notif.anon = !S.notif.anon; saveNotif(); syncNotifUI(); };
 
 function syncEnterUI() {
-  const es = S.enterSend;
-  $('tog-enter-send').classList.toggle('on', es);
-  $('tog-ctrl-enter-send').classList.toggle('on', !es);
+  // Single toggle: ON = Ctrl+Enter sends (enterSend=false), OFF = Enter sends (enterSend=true)
+  $('tog-ctrl-enter-send').classList.toggle('on', !S.enterSend);
   if($('tog-quick-reply')) $('tog-quick-reply').classList.toggle('on', S.quickReply);
 }
 function saveEnterSend() {
   localStorage.setItem('sg_enter_send', S.enterSend ? 'true' : 'false');
 }
-$('tog-enter-send').onclick = () => {
-  S.enterSend = true; saveEnterSend(); syncEnterUI();
-};
 $('tog-ctrl-enter-send').onclick = () => {
-  S.enterSend = false; saveEnterSend(); syncEnterUI();
+  S.enterSend = !S.enterSend; saveEnterSend(); syncEnterUI();
 };
 $('tog-quick-reply').onclick = () => {
   S.quickReply = !S.quickReply;
@@ -1623,27 +1620,36 @@ if (_btnCreateChat) {
 
 /* ══ NAV RAIL ═══════════════════════════════════════════════ */
 document.getElementById('btn-nav-settings')?.addEventListener('click', () => openProfile());
+const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
+    // Fade nav-rail briefly during transition
+    if (navRail) {
+      navRail.classList.add('fading');
+      setTimeout(() => navRail.classList.remove('fading'), 300);
+    }
     // Hide all nav panels
     document.querySelectorAll('.nav-panel').forEach(p => {
       p.style.transform = 'translateX(100%)';
       p.style.opacity = '0';
       p.style.pointerEvents = 'none';
     });
+    // Exit search if active
+    if (typeof exitSearch === 'function' && typeof sbSearchActive !== 'undefined' && sbSearchActive) exitSearch();
     // Show/hide chat-list and search-results based on active nav
     const chatList = document.getElementById('chat-list');
     const searchResults = document.getElementById('sb-search-results');
     if (nav === 'chats') {
-      chatList.style.transform = 'translateX(0)';
-      chatList.style.opacity = '1';
-      chatList.style.pointerEvents = 'auto';
-      searchResults.style.transform = 'translateX(100%)';
-      searchResults.style.opacity = '0';
-      searchResults.style.pointerEvents = 'none';
+      // Clear inline styles so CSS can control
+      chatList.style.transform = '';
+      chatList.style.opacity = '';
+      chatList.style.pointerEvents = '';
+      searchResults.style.transform = '';
+      searchResults.style.opacity = '';
+      searchResults.style.pointerEvents = '';
     } else {
       chatList.style.transform = 'translateX(-100%)';
       chatList.style.opacity = '0';
