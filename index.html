@@ -358,23 +358,37 @@ if (window._swSupported) {
 
 <div id="scr-app" class="screen hidden">
   <div class="layout">
+    <!-- Left navigation rail -->
+    <nav class="nav-rail" id="nav-rail">
+      <div class="nav-rail-items">
+        <button class="nav-rail-btn active" data-nav="chats" title="Чаты">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </button>
+        <button class="nav-rail-btn" data-nav="feed" title="Лента">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button class="nav-rail-btn" data-nav="servers" title="Серверы">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="nav-rail-bottom">
+        <button class="nav-rail-btn" id="btn-nav-settings" title="Настройки">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </nav>
     <aside class="sidebar" id="sidebar">
       <div class="sb-head" id="sb-head">
-        <!-- ── Expanded header ── -->
+        <!-- ── Search bar (always visible) ── -->
         <div class="sb-expanded-only">
-          <div class="sb-top">
-            <div class="sb-logo"><span class="sb-title" id="sb-title">Сообщения</span></div>
-            <div class="sb-acts">
-              <button class="ico-btn btn-collapse-sb" id="btn-collapse-sb" title="Свернуть"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7"/></svg></button>
-              <button class="ico-btn btn-sb-close" id="btn-sb-close" title="Закрыть поиск"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
-            </div>
-          </div>
           <div class="sb-search-row" id="sb-search-row">
-            <div class="srch" style="flex:1">
-              <div class="srch-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div>
+            <div class="srch-new" style="flex:1">
+              <div class="srch-new-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div>
               <input type="text" id="sb-q" placeholder="Поиск…" autocomplete="off">
+              <button class="srch-new-btn" id="btn-create-chat" title="Создать">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 4v16m8-8H4"/></svg>
+              </button>
             </div>
-
           </div>
         </div>
         <!-- ── Collapsed header ── -->
@@ -543,7 +557,7 @@ if (window._swSupported) {
             <div class="st-sub-title">Настройки чатов</div>
           </div>
           <div class="sb-prof-body">
-            <div class="sb-prof-section-title" style="padding:0 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Тема оформления</div>
+            <div class="sb-prof-section-title" style="padding:0 0 4px">Тема оформления</div>
             <div class="tg-theme-grid" id="tg-theme-grid">
               <button class="tg-theme-card" data-theme="dark" id="theme-dark">
                 <div class="tg-theme-preview tp-dark"><div class="tp-bubble me"></div><div class="tp-bubble"></div></div>
@@ -559,7 +573,7 @@ if (window._swSupported) {
               </button>
             </div>
 
-            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Ввод</div>
+            <div class="sb-prof-section-title" style="padding:16px 0 4px">Ввод</div>
             <div class="sb-prof-section">
               <div class="sb-notif-row"><div><div class="sb-notif-label">Enter отправляет</div><div class="sb-notif-sub">Shift+Enter — перенос строки</div></div><button class="toggle" id="tog-enter-send"></button></div>
               <div class="sb-prof-divider"></div>
@@ -568,7 +582,7 @@ if (window._swSupported) {
               <div class="sb-notif-row"><div><div class="sb-notif-label">Быстрые ответы</div><div class="sb-notif-sub">Ответ двойным кликом по сообщению</div></div><button class="toggle" id="tog-quick-reply"></button></div>
             </div>
 
-            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Внешний вид</div>
+            <div class="sb-prof-section-title" style="padding:16px 0 4px">Внешний вид</div>
             <div class="sb-prof-section">
               <div class="sb-notif-row"><div><div class="sb-notif-label">Скрыть узор на фоне</div><div class="sb-notif-sub">Отключить фоновый паттерн чата</div></div><button class="toggle" id="tog-bg-pattern"></button></div>
               <div class="sb-prof-divider"></div>
@@ -584,10 +598,12 @@ if (window._swSupported) {
               </div>
               <input type="file" id="bg-image-input" accept="image/*" style="display:none">
               <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Размытие фона</div><div class="sb-notif-sub">Небольшой blur + затемнение</div></div><button class="toggle" id="tog-bg-blur"></button></div>
+              <div class="sb-prof-divider"></div>
               <div class="sb-notif-row"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
             </div>
 
-            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Шапка чата</div>
+            <div class="sb-prof-section-title" style="padding:16px 0 4px">Шапка чата</div>
             <div class="sb-prof-section">
               <div class="sb-notif-row">
                 <div>
@@ -670,7 +686,7 @@ if (window._swSupported) {
             <div class="st-sub-title">Для разработчиков</div>
           </div>
           <div class="sb-prof-body">
-            <div class="sb-prof-section-title" style="padding:8px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Кэш и Service Worker</div>
+            <div class="sb-prof-section-title" style="padding:8px 0 4px">Кэш и Service Worker</div>
             <div class="sb-prof-section" style="padding:0">
               <button class="tg-row" id="btn-force-reset">
                 <div class="tg-row-ic" style="background:#ff3b30"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg></div>
@@ -680,7 +696,7 @@ if (window._swSupported) {
                 </div>
               </button>
             </div>
-            <div class="sb-prof-section-title" style="padding:16px 0 4px;font-size:12px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Диагностика</div>
+            <div class="sb-prof-section-title" style="padding:16px 0 4px">Диагностика</div>
             <div class="sb-prof-section" style="padding:0">
               <button class="tg-row" id="btn-dev-info">
                 <div class="tg-row-ic" style="background:#5856d6"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div>
@@ -1098,6 +1114,65 @@ if (window._swSupported) {
 
     <!-- Hidden video for PiP -->
     <video id="call-pip-video" style="display:none" muted playsinline></video>
+  </div>
+</div>
+
+<!-- CREATE MODAL -->
+<div class="overlay" id="modal-create">
+  <div class="modal create-modal">
+    <div class="cm-header">
+      <div class="cm-title">Новый чат</div>
+      <button class="modal-x" data-close="modal-create"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="cm-tabs">
+      <button class="cm-tab active" data-tab="cm-tab-user">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Чат</span>
+      </button>
+      <button class="cm-tab" data-tab="cm-tab-group">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Группа</span>
+      </button>
+      <button class="cm-tab" data-tab="cm-tab-channel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Канал</span>
+      </button>
+      <button class="cm-tab" data-tab="cm-tab-server">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        <span>Сервер</span>
+      </button>
+    </div>
+    <div class="cm-body">
+      <!-- User search tab (default) -->
+      <div class="cm-tab-content active" id="cm-tab-user">
+        <div class="srch" style="width:100%"><div class="srch-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div><input type="text" id="user-q" placeholder="Имя или @signal_id…" style="width:100%"></div>
+        <div class="user-list" id="user-res"><div class="empty-st" style="padding:28px 0"><div class="e-ico">🔍</div><p>Введите имя или Signal ID</p></div></div>
+      </div>
+      <!-- Group tab -->
+      <div class="cm-tab-content" id="cm-tab-group">
+        <div class="cm-empty-state">
+          <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="cm-empty-title">Скоро</div>
+          <div class="cm-empty-sub">Создание групповых чатов будет доступно в ближайшем обновлении</div>
+        </div>
+      </div>
+      <!-- Channel tab -->
+      <div class="cm-tab-content" id="cm-tab-channel">
+        <div class="cm-empty-state">
+          <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <div class="cm-empty-title">Скоро</div>
+          <div class="cm-empty-sub">Создание каналов будет доступно в ближайшем обновлении</div>
+        </div>
+      </div>
+      <!-- Server tab -->
+      <div class="cm-tab-content" id="cm-tab-server">
+        <div class="cm-empty-state">
+          <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+          <div class="cm-empty-title">Скоро</div>
+          <div class="cm-empty-sub">Создание серверов будет доступно в ближайшем обновлении</div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
