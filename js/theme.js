@@ -11,7 +11,7 @@ const THEMES = {
     '--y': '#8b5cf6', '--y2': '#a78bfa', '--ybg': 'rgba(139,92,246,.13)', '--yb': 'rgba(139,92,246,.36)',
     '--t1': '#efefef', '--t2': 'rgba(239,239,239,.55)', '--t3': 'rgba(239,239,239,.25)',
     '--blur-op': '1',
-    '--msg-me-bg': 'linear-gradient(to bottom, #5B3B87, #374165)',
+    '--msg-me-bg': 'var(--y)',
     '--chat-btn-bg': 'transparent', '--chat-btn-b': 'transparent'
   },
   light: {
@@ -26,7 +26,7 @@ const THEMES = {
     '--y': '#3390ec', '--y2': '#4ea4f5', '--ybg': 'rgba(51,144,236,.12)', '--yb': 'rgba(51,144,236,.36)',
     '--t1': '#000000', '--t2': 'rgba(0,0,0,.55)', '--t3': 'rgba(0,0,0,.35)',
     '--blur-op': '0.3',
-    '--msg-me-bg': 'linear-gradient(to bottom, #4ea4f5, #3390ec)',
+    '--msg-me-bg': 'var(--y)',
     '--chat-btn-bg': 'rgba(255,255,255,0.75)', '--chat-btn-b': 'rgba(0,0,0,0.12)'
   },
   amoled: {
@@ -41,7 +41,7 @@ const THEMES = {
     '--y': '#888888', '--y2': '#aaaaaa', '--ybg': 'rgba(255,255,255,.1)', '--yb': 'rgba(255,255,255,.25)',
     '--t1': '#ffffff', '--t2': 'rgba(255,255,255,.6)', '--t3': 'rgba(255,255,255,.35)',
     '--blur-op': '1',
-    '--msg-me-bg': 'linear-gradient(to bottom, #aaaaaa, #888888)',
+    '--msg-me-bg': 'var(--y)',
     '--chat-btn-bg': 'transparent', '--chat-btn-b': 'transparent'
   }
 };

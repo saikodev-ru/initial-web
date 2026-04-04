@@ -459,6 +459,16 @@ async function fetchMsgs(chatId,init=false){
             else txt = '📞 Отклонённый звонок';
           }
           showNotif(m.nickname||'Initial',txt);
+          // Rich notification with avatar (if available)
+          if (typeof showRichNotif === 'function') {
+            showRichNotif({
+              senderName: m.nickname || 'Initial',
+              senderAvatar: m.avatar_url || null,
+              body: m.body || txt,
+              chatId: chatId,
+              onClick: function() { if (S.chatId !== chatId) { var c = S.chats.find(function(ch){ return ch.chat_id === chatId; }); if (c) openChat(c); } }
+            });
+          }
         }
       }
     });
@@ -931,7 +941,7 @@ function makeMsgEl(m,newSender=true){
   const aviEl=document.createElement('div');aviEl.className='mavi'+(isMe?' ghost':'');if(!isMe)aviEl.innerHTML=aviHtml(m.nickname,m.avatar_url);
   const bub=document.createElement('div');bub.className='mbub';
 
-  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim()),mediaOnly=hasMedia&&!hasText;
+  const hasMedia=!!(m.media_url&&m.media_type),hasText=!!(m.body&&m.body.trim()),mediaOnly=hasMedia&&!hasText&&m.media_type!=='document';
   const mediaCaption=hasMedia&&hasText;
   const rxns=sortRxns(S.rxns[m.id]||(Array.isArray(m.reactions)?m.reactions:[]));const hasRxns=rxns.length>0;
 
@@ -1007,7 +1017,41 @@ function makeMsgEl(m,newSender=true){
     };
   } else {
     if(hasMedia){
-    if(m.media_type==='image'){
+    if(m.media_type==='document'){
+      const ext=(m.media_file_name||'file').split('.').pop().toLowerCase();
+      const fileName=m.media_file_name||'Файл';
+      const fileSize=m.media_file_size?fmtFileSize(m.media_file_size):'';
+      const docUrl=m.media_url;
+
+      const card=document.createElement('a');
+      card.className='doc-card';
+      card.href=docUrl;
+      card.target='_blank';
+      card.rel='noopener noreferrer';
+      card.download=fileName;
+
+      const icoWrap=document.createElement('div');
+      icoWrap.className='doc-card-icon doc-card-icon-'+ext;
+      icoWrap.innerHTML=getDocIcon(ext)||'';
+
+      const info=document.createElement('div');
+      info.className='doc-card-info';
+
+      const nameEl=document.createElement('div');
+      nameEl.className='doc-card-name';
+      nameEl.textContent=fileName;
+      nameEl.title=fileName;
+
+      const sizeEl=document.createElement('div');
+      sizeEl.className='doc-card-size';
+      sizeEl.textContent=fileSize;
+
+      info.appendChild(nameEl);
+      info.appendChild(sizeEl);
+      card.appendChild(icoWrap);
+      card.appendChild(info);
+      body.appendChild(card);
+    } else if(m.media_type==='image'){
       const wrap=document.createElement('div');wrap.className='single-media'+(m.media_spoiler?' media-spoiler':'');
       const img=document.createElement('img');img.loading='lazy';
       const ov=document.createElement('div');ov.className='media-overlay';
@@ -1073,7 +1117,7 @@ function makeMsgEl(m,newSender=true){
         wrap.onclick=()=>openChatViewer(m.id);
       }
       body.appendChild(wrap);
-    } else {
+    } else if(m.media_type==='video'){
       // Telegram-style inline video: thumbnail + play button, opens viewer on click
       const wrap=document.createElement('div');wrap.className='vid-wrap';
       const vid=document.createElement('video');
