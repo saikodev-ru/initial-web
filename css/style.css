@@ -429,10 +429,70 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci-meta{flex:1;min-width:0}.ci-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .ci-name{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ci-ts{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
-.ci-prev{font-size:12.5px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.ci-prev{display:flex;align-items:center;gap:5px;min-width:0;max-width:100%}
 /* Отключаем кликабельность ссылок и тегов в превью списка чатов */
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
-.ci-prev.typ{color:var(--y);font-style:italic}
+
+/* ── Ghost Bubble (mini message preview) ── */
+.ghost-bubble{
+  flex:1;min-width:0;
+  font-size:12.5px;
+  line-height:1.45;
+  color:var(--t2);
+  background:var(--msg-bg);
+  border:1px solid var(--b);
+  border-radius:4px 14px 14px 14px;
+  padding:4px 10px 5px;
+  overflow:hidden;
+  word-break:break-word;
+  /* 3-line clamp via -webkit-box */
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  /* Fallback for non-webkit: max-height for ~3 lines */
+  max-height:calc(12.5px * 1.45 * 3 + 9px);
+}
+/* Outgoing ghost bubble: accent color, right-tail */
+.ghost-bubble.ghost-out{
+  background:var(--y);
+  border:none;
+  color:#fff;
+  border-radius:14px 4px 14px 14px;
+}
+.ghost-bubble.ghost-out .msg-link,
+.ghost-bubble.ghost-out .mention{color:rgba(255,255,255,.8)}
+/* Typing indicator inside ghost bubble */
+.ghost-bubble.ghost-typing{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  padding:5px 12px;
+  color:var(--y);
+  -webkit-line-clamp:unset;
+  max-height:none;
+  flex:none;
+}
+.ghost-bubble.ghost-typing .dots span{
+  width:5px;height:5px;border-radius:50%;background:var(--y);
+  animation:dt 1.2s infinite;
+}
+.ghost-bubble.ghost-typing .dots span:nth-child(2){animation-delay:.2s}
+.ghost-bubble.ghost-typing .dots span:nth-child(3){animation-delay:.4s}
+/* Call / Media inside ghost bubble: single line */
+.ghost-bubble.ghost-call,
+.ghost-bubble.ghost-media{
+  -webkit-line-clamp:1;
+  max-height:calc(12.5px * 1.45 + 9px);
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.ghost-bubble.ghost-media{font-style:italic;opacity:.85}
+/* Ghost bubble inline formatting */
+.ghost-bubble code{background:rgba(255,255,255,.1);border-radius:3px;padding:0 3px;font-size:11.5px}
+.ghost-bubble.ghost-out code{background:rgba(255,255,255,.15)}
+.ghost-bubble strong{font-weight:700}
+.ghost-bubble em{font-style:italic}
+.ghost-bubble del{opacity:.6}
 /* Chat list read tick marks */
 .ci-tick{display:inline-flex;align-items:center;flex-shrink:0;opacity:.6;margin-right:2px}
 .ci-tick-r{opacity:1}
