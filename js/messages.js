@@ -1031,18 +1031,16 @@ function makeMsgEl(m,newSender=true){
           <div class="voice-wf-bars"></div>
           <div class="voice-wf-bottom">
             <button class="voice-speed-btn" title="Скорость воспроизведения">1×</button>
+            <span class="voice-wf-time"></span>
           </div>
         </div>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
 
-      // Time + duration below waveform (Telegram-style)
-      const voiceMeta=document.createElement('div');
-      voiceMeta.className='voice-meta';
-      voiceMeta.innerHTML=`<span class="voice-dur">${durStr}</span>`;
-      voiceMeta.appendChild(makeMeta(m,isMe,sending));
-      body.appendChild(voiceMeta);
+      // Time — right-aligned on the same row as speed button
+      const voiceTimeEl = voiceWrap.querySelector('.voice-wf-time');
+      if (voiceTimeEl) voiceTimeEl.appendChild(makeMeta(m,isMe,sending));
 
       setTimeout(()=>{if(window.VoiceMsg){window.VoiceMsg.createPlayer(voiceWrap,audioUrl,dur,wfData);}},0);
     } else if(m.media_type==='document'){

@@ -276,6 +276,7 @@ window.VoiceMsg = (function () {
     state.preview.isPreviewMode = false;
     state.locked.isLocked = false;
     _restoreBtnFromSend();
+    _restoreBtnFromLocked();
 
     cleanupInputPanel();
 
@@ -346,11 +347,50 @@ window.VoiceMsg = (function () {
     const wrap = getWrap();
     if (!wrap) return;
 
-    // Transform mic button into STOP icon
+    // ── Transform mic button into SEND icon + create floating STOP button ──
     const sendBtn = getSendBtn();
     if (sendBtn) {
-      sendBtn.classList.remove('hints-visible');
-      sendBtn.classList.add('recording', 'locked-stop-mode');
+      sendBtn.classList.remove('hints-visible', 'recording', 'locked-stop-mode');
+      sendBtn.classList.add('voice-send-mode');
+      // Hide mic, show send icon
+      const icoMic = sendBtn.querySelector('.ico-mic');
+      const icoSend = sendBtn.querySelector('.ico-send');
+      const icoStop = sendBtn.querySelector('.ico-stop');
+      if (icoMic) icoMic.style.cssText = 'opacity:0;transform:translateY(-6px) rotate(30deg);position:absolute';
+      if (icoSend) icoSend.style.cssText = 'opacity:1;transform:translateY(0) rotate(0deg)';
+      if (icoStop) icoStop.style.display = 'none';
+
+      // Create floating STOP button above send button
+      let stopFloat = sendBtn.querySelector('.voice-stop-float');
+      if (!stopFloat) {
+        stopFloat = document.createElement('button');
+        stopFloat.className = 'voice-stop-float';
+        stopFloat.title = 'Остановить запись';
+        stopFloat.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><rect x="4" y="4" width="16" height="16" rx="3"/></svg>';
+        sendBtn.appendChild(stopFloat);
+      }
+      stopFloat.style.display = 'flex';
+
+      // Stop button: stops recording → shows preview
+      const stopHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        _onLockedStop();
+      };
+      sendBtn._stopFloatHandler = stopHandler;
+      stopFloat.addEventListener('click', stopHandler, true);
+
+      // Send button click: send voice directly (no preview)
+      const sendHandler = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        _onLockedSend();
+        return false;
+      };
+      sendBtn._lockedSendHandler = sendHandler;
+      sendBtn.addEventListener('click', sendHandler, true);
     }
 
     // Reset wrap transforms (in case user was mid-swipe)
@@ -410,13 +450,13 @@ window.VoiceMsg = (function () {
       });
     }
 
-    // Delete button: cancel recording
+    // Delete button: animated cancel
     const delBtn = $('#voice-locked-delete');
     if (delBtn) {
       delBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        cancelRecording();
+        _animatedCancelRecording();
       });
     }
 
@@ -459,6 +499,81 @@ window.VoiceMsg = (function () {
       if (!state.locked.swiping || !state.overlays.locked) return;
       resetLockedSwipe();
     }, { signal: ac.signal });
+  }
+
+  /** Send directly from locked mode (no preview) */
+  async function _onLockedSend() {
+    if (!state.locked.isLocked) return;
+    state.recorder.isPaused = false;
+    const result = await stopRecording();
+    if (!result) { _removeAllOverlays(); return; }
+
+    // Animated cancel of overlay + send
+    const overlay = state.overlays.locked;
+    if (overlay) {
+      overlay.classList.add('voice-locked-sending');
+    }
+    const sendBtn = getSendBtn();
+    if (sendBtn) {
+      sendBtn.classList.add('voice-send-fly');
+      setTimeout(() => sendBtn.classList.remove('voice-send-fly'), SEND_BTN_ANIM_MS);
+    }
+
+    sendVoice(result.blob, result.duration, result.waveform);
+
+    setTimeout(() => {
+      _removeVoiceOverlays();
+      _restoreBtnFromLocked();
+      cleanupInputPanel();
+    }, SEND_ANIM_DELAY);
+  }
+
+  /** Restore button from locked send mode */
+  function _restoreBtnFromLocked() {
+    const btn = getSendBtn();
+    if (!btn) return;
+
+    // Remove send mode
+    btn.classList.remove('voice-send-mode');
+
+    // Restore mic icon
+    const icoMic = btn.querySelector('.ico-mic');
+    const icoSend = btn.querySelector('.ico-send');
+    const icoStop = btn.querySelector('.ico-stop');
+    if (icoMic) icoMic.style.cssText = '';
+    if (icoSend) icoSend.style.cssText = '';
+    if (icoStop) icoStop.style.display = 'none';
+
+    // Remove stop float
+    const stopFloat = btn.querySelector('.voice-stop-float');
+    if (stopFloat) {
+      if (btn._stopFloatHandler) stopFloat.removeEventListener('click', btn._stopFloatHandler, true);
+      stopFloat.remove();
+      btn._stopFloatHandler = null;
+    }
+
+    // Remove send handler
+    if (btn._lockedSendHandler) {
+      btn.removeEventListener('click', btn._lockedSendHandler, true);
+      btn._lockedSendHandler = null;
+    }
+  }
+
+  /** Animated cancel — plays swipe-delete animation then transitions back to input */
+  function _animatedCancelRecording() {
+    const overlay = state.overlays.locked || state.overlays.rec || state.overlays.preview;
+    if (!overlay) { cancelRecording(); return; }
+
+    // Play swipe-delete animation
+    overlay.classList.add('voice-anim-cancel');
+
+    const db = overlay.querySelector('.voice-locked-delete') || overlay.querySelector('.voice-preview-delete');
+    if (db) db.classList.add('trash-open');
+
+    // Wait for animation, then clean up
+    setTimeout(() => {
+      cancelRecording();
+    }, 280);
   }
 
   /* ── Locked swipe helpers (shared by mouse & touch) ── */
@@ -526,9 +641,6 @@ window.VoiceMsg = (function () {
         if (pauseIcon) pauseIcon.style.display = 'none';
         if (micIcon) micIcon.style.display = '';
         pauseBtn.title = 'Продолжить';
-
-        const sendBtn = getSendBtn();
-        if (sendBtn) sendBtn.classList.add('locked-stop-mode');
       }
     } else {
       // Resume recording — fix timer leak: clearInterval before creating new
@@ -613,11 +725,11 @@ window.VoiceMsg = (function () {
       if (!state.preview.playing) _togglePreviewPlay();
     });
 
-    // Delete button
+    // Delete button — animated cancel
     $('#voice-preview-delete').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      _dismissPreview();
+      _animatedCancelRecording();
     });
 
     // Audio ended
@@ -1249,8 +1361,7 @@ window.VoiceMsg = (function () {
 
     const playBtn = container.querySelector('.voice-play-btn');
     const wfWrap = container.querySelector('.voice-wf-bars');
-    const metaEl = container.closest('.mbody')?.querySelector('.voice-meta') || container.parentElement?.querySelector('.voice-meta');
-    const durEl = metaEl ? metaEl.querySelector('.voice-dur') : null;
+    const timeEl = container.querySelector('.voice-wf-time');
     if (!playBtn || !wfWrap) return;
 
     if (!waveform || waveform.length === 0) {
@@ -1284,9 +1395,6 @@ window.VoiceMsg = (function () {
     const cached = audioCache.get(audioUrl);
     if (cached) {
       audio = cached;
-      if (durEl && isFinite(audio.duration)) {
-        durEl.textContent = formatTimeSec(audio.duration);
-      }
     } else {
       audio = new Audio();
       audio.preload = 'metadata';
@@ -1321,7 +1429,6 @@ window.VoiceMsg = (function () {
         bar.classList.toggle('active', i === playedIdx);
       });
       const timeStr = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
-      if (durEl) durEl.textContent = timeStr;
       _updateMiniPlayer(audio, waveform, timeStr);
     }
 
@@ -1338,9 +1445,7 @@ window.VoiceMsg = (function () {
     }
 
     audio.addEventListener('loadedmetadata', () => {
-      if (isFinite(audio.duration) && audio.duration > 0 && durEl) {
-        durEl.textContent = formatTimeSec(audio.duration);
-      }
+      // Duration metadata loaded — no separate dur display needed
     }, { once: true });
 
     audio.addEventListener('ended', () => {
@@ -1349,7 +1454,6 @@ window.VoiceMsg = (function () {
       playBtn.classList.remove('playing');
       stopAnim();
       bars.forEach(b => { b.classList.remove('played', 'active'); });
-      if (durEl) durEl.textContent = formatTimeSec(audio.duration || duration);
       if (state.playback.audio === audio) { state.playback.audio = null; state.playback.btn = null; state.playback.container = null; }
       _hideMiniPlayer();
       // Reset speed to 1× on end
@@ -1358,7 +1462,7 @@ window.VoiceMsg = (function () {
     });
 
     audio.addEventListener('error', () => {
-      if (durEl) durEl.textContent = formatTimeSec(duration);
+      // Error handled silently
     });
 
     function toggle() {
@@ -1371,11 +1475,6 @@ window.VoiceMsg = (function () {
         }
         if (state.playback.container) {
           state.playback.container.querySelectorAll('.voice-wf-bar').forEach(b => b.classList.remove('played', 'active'));
-          const otherDur = state.playback.container.querySelector('.voice-dur');
-          const otherAudio = voiceAudioMap.get(state.playback.container);
-          if (otherDur && otherAudio && isFinite(otherAudio.duration)) {
-            otherDur.textContent = formatTimeSec(otherAudio.duration);
-          }
         }
       }
 
@@ -1422,9 +1521,6 @@ window.VoiceMsg = (function () {
       if (!isPlaying) toggle();
     });
 
-    if (duration > 0 && durEl) {
-      durEl.textContent = formatTimeSec(duration);
-    }
   }
 
   /* ── Auto-play next voice message ─────────────────────────── */
@@ -1750,6 +1846,12 @@ window.VoiceMsg = (function () {
     const playBtn = row.querySelector('.voice-play-btn');
     if (!playBtn) return;
 
+    // Hide play SVG, show ring overlay (media-style — no % label)
+    const origHtml = playBtn.innerHTML;
+    playBtn.innerHTML = '';
+    playBtn.classList.add('voice-uploading');
+    playBtn._uploadOrigHtml = origHtml;
+
     const ring = document.createElement('div');
     ring.className = 'voice-upload-ring';
     ring.id = 'upload-ring-' + tempId;
@@ -1757,16 +1859,17 @@ window.VoiceMsg = (function () {
     const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS, 'svg');
     svg.setAttribute('viewBox', '0 0 36 36');
-    svg.classList.add('progress-ring-svg');
+    svg.classList.add('voice-upload-ring-svg');
 
     const bg = document.createElementNS(svgNS, 'circle');
     bg.setAttribute('cx', '18');
     bg.setAttribute('cy', '18');
     bg.setAttribute('r', '15.5');
     bg.setAttribute('fill', 'none');
-    bg.setAttribute('stroke', 'rgba(255,255,255,0.2)');
+    bg.setAttribute('stroke', 'rgba(255,255,255,0.22)');
     bg.setAttribute('stroke-width', '2.5');
 
+    const circumference = 2 * Math.PI * 15.5;
     const fg = document.createElementNS(svgNS, 'circle');
     fg.setAttribute('cx', '18');
     fg.setAttribute('cy', '18');
@@ -1775,25 +1878,19 @@ window.VoiceMsg = (function () {
     fg.setAttribute('stroke', '#fff');
     fg.setAttribute('stroke-width', '2.5');
     fg.setAttribute('stroke-linecap', 'round');
-    fg.setAttribute('stroke-dasharray', String(2 * Math.PI * 15.5));
-    fg.setAttribute('stroke-dashoffset', String(2 * Math.PI * 15.5));
+    fg.setAttribute('stroke-dasharray', String(circumference));
+    fg.setAttribute('stroke-dashoffset', String(circumference));
     fg.setAttribute('transform', 'rotate(-90 18 18)');
-    fg.style.transition = 'stroke-dashoffset 0.15s ease';
-    fg.classList.add('progress-ring-fg');
-
-    const pct = document.createElement('div');
-    pct.className = 'upload-ring-pct';
-    pct.textContent = '0%';
+    fg.style.transition = 'stroke-dashoffset 0.18s linear';
+    fg.classList.add('voice-upload-ring-fg');
 
     svg.appendChild(bg);
     svg.appendChild(fg);
     ring.appendChild(svg);
-    ring.appendChild(pct);
     playBtn.appendChild(ring);
 
     playBtn._uploadRing = ring;
     playBtn._uploadFg = fg;
-    playBtn._uploadPct = pct;
     playBtn._uploadBlob = blob;
     playBtn._uploadDone = false;
   }
@@ -1807,10 +1904,6 @@ window.VoiceMsg = (function () {
     const circumference = 2 * Math.PI * 15.5;
     const offset = circumference * (1 - percent / 100);
     playBtn._uploadFg.setAttribute('stroke-dashoffset', String(offset));
-
-    if (playBtn._uploadPct) {
-      playBtn._uploadPct.textContent = Math.round(percent) + '%';
-    }
   }
 
   function _removeUploadProgress(tempId) {
@@ -1820,9 +1913,14 @@ window.VoiceMsg = (function () {
     if (!playBtn) return;
     const ring = playBtn.querySelector('.voice-upload-ring');
     if (ring) ring.remove();
+    playBtn.classList.remove('voice-uploading');
+    // Restore original play SVG
+    if (playBtn._uploadOrigHtml) {
+      playBtn.innerHTML = playBtn._uploadOrigHtml;
+      playBtn._uploadOrigHtml = null;
+    }
     playBtn._uploadRing = null;
     playBtn._uploadFg = null;
-    playBtn._uploadPct = null;
     playBtn._uploadDone = true;
   }
 
@@ -1906,13 +2004,8 @@ window.VoiceMsg = (function () {
 
     // ── Mouse (desktop) ──
     btn.addEventListener('mousedown', (e) => {
-      // If in locked mode, the mic button acts as STOP
-      if (state.locked.isLocked) {
-        e.preventDefault();
-        e.stopPropagation();
-        _onLockedStop();
-        return;
-      }
+      // In locked mode, clicks are handled by _lockedSendHandler / _stopFloatHandler
+      if (state.locked.isLocked) return;
       if (!isMicMode()) return;
       e.preventDefault();
       e.stopPropagation();
@@ -1937,13 +2030,8 @@ window.VoiceMsg = (function () {
 
     // ── Touch (mobile) ──
     btn.addEventListener('touchstart', (e) => {
-      // If in locked mode, the mic button acts as STOP
-      if (state.locked.isLocked) {
-        e.preventDefault();
-        e.stopPropagation();
-        _onLockedStop();
-        return;
-      }
+      // In locked mode, clicks are handled by _lockedSendHandler / _stopFloatHandler
+      if (state.locked.isLocked) return;
       if (!isMicMode()) return;
       e.preventDefault();
       e.stopPropagation();

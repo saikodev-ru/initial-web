@@ -4174,9 +4174,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   height: 28px; width: 100%;
 }
 
-/* ── Bottom row: speed button ── */
+/* ── Bottom row: speed button + time (right-aligned) ── */
 .voice-wf-bottom {
-  display: flex; align-items: center;
+  display: flex; align-items: center; justify-content: space-between;
   height: 16px; padding-left: 1px;
 }
 .voice-speed-btn {
@@ -4217,25 +4217,18 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mrow.me .voice-wf-bar.played { background: rgba(255,255,255,.72); opacity: 1; }
 .mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.55); }
 
-/* ── Duration text — right of waveform ── */
-.voice-dur {
-  font-size: 11px; color: var(--t3); white-space: nowrap;
-  font-variant-numeric: tabular-nums; line-height: 1;
-}
-.mrow.me .voice-dur { color: rgba(255,255,255,.7); }
-
 /* ── Voice bubble body ── */
 .voice-body { padding: 4px 2px 2px; }
 
-/* ── Meta (duration + time + ticks) below waveform, right-aligned ── */
-.voice-meta {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 4px; margin-top: 1px;
+/* ── Time — right-aligned on same row as speed button ── */
+.voice-wf-time {
+  display: flex; align-items: center; gap: 3px;
+  margin-left: auto; white-space: nowrap; flex-shrink: 0;
 }
-.voice-meta .mtime { font-size: 11px; color: var(--t3); }
-.mrow.me .voice-meta .mtime { color: rgba(255,255,255,.7); }
-.mrow.me .voice-meta .tick { color: rgba(255,255,255,.55); }
-.mrow.me .voice-meta .tick.r { color: rgba(255,255,255,.85); }
+.voice-wf-time .mtime { font-size: 11px; color: var(--t3); }
+.mrow.me .voice-wf-time .mtime { color: rgba(255,255,255,.7); }
+.mrow.me .voice-wf-time .tick { color: rgba(255,255,255,.55); }
+.mrow.me .voice-wf-time .tick.r { color: rgba(255,255,255,.85); }
 
 /* ═══════════════════════════════════════════════════════════════
    RECORDING / PREVIEW — Input zone overlay (Telegram-style morph)
@@ -4467,6 +4460,80 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   color: #fff;
 }
 
+/* ── Floating STOP button above send button (locked mode) ── */
+.voice-stop-float {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--y);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 12px rgba(139,92,246,.3);
+  z-index: 26;
+  animation: voiceStopPopIn .2s var(--sp) both;
+  transition: transform .12s var(--sp), box-shadow .12s;
+}
+.voice-stop-float:hover {
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: 0 4px 16px rgba(139,92,246,.4);
+}
+.voice-stop-float:active {
+  transform: translateX(-50%) scale(0.92);
+}
+@keyframes voiceStopPopIn {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(6px); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* ── Animated cancel — swipe-delete style animation on click ── */
+.voice-anim-cancel {
+  animation: voiceAnimCancel .28s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voiceAnimCancel {
+  0% { opacity: 1; transform: translateX(0) scale(1); }
+  40% { opacity: .7; transform: translateX(-60px) scale(0.96); }
+  100% { opacity: 0; transform: translateX(-100px) scale(0.88); }
+}
+
+/* ── Locked panel send animation ── */
+.voice-locked-sending {
+  animation: voiceLockedSendAway .2s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voiceLockedSendAway {
+  0% { opacity: 1; transform: scale(1) translateX(0); }
+  50% { opacity: .6; transform: scale(.95) translateX(6px); }
+  100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
+}
+
+/* ── Upload ring: media-style (replaces play button content) ── */
+.voice-upload-ring {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.voice-upload-ring-svg {
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+}
+.voice-upload-ring-fg {
+  fill: none; stroke: #fff; stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.voice-play-btn.voice-uploading {
+  pointer-events: none;
+}
+.mrow.me .voice-play-btn.voice-uploading .voice-upload-ring-fg { stroke: var(--t1); }
+.mrow.me .voice-play-btn.voice-uploading .voice-upload-ring-bg { stroke: rgba(0,0,0,.12); }
+
 /* ═══════════════════════════════════════════════════════════════
    VOICE MINI PLAYER — appears below chat-hdr during playback
    ═══════════════════════════════════════════════════════════════ */
@@ -4623,6 +4690,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   overflow: visible;
   transition: box-shadow .35s var(--ease), backdrop-filter .2s, background .2s, border-color .2s,
               height .2s var(--ease), min-height .2s var(--ease), max-height .2s var(--ease);
+  border-radius: 0 22px 22px 0;
+  margin-right: -8px;
 }
 
 /* ── 5. Lock arrow bounce animation when shown ── */
@@ -4726,36 +4795,4 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .btn-voice-rec.locked-stop-mode:hover {
   background: #e04040 !important;
   transform: scale(1.08);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   UPLOAD PROGRESS RING — Circular progress on voice play button
-   ═══════════════════════════════════════════════════════════════ */
-.voice-upload-ring {
-  position: absolute;
-  inset: -4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 2;
-}
-.voice-upload-ring .progress-ring-svg {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.voice-upload-ring .progress-ring-fg {
-  transition: stroke-dashoffset .15s ease;
-}
-.voice-upload-ring .upload-ring-pct {
-  font-size: 7px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.4);
-  position: relative;
-  z-index: 1;
-  line-height: 1;
 }
