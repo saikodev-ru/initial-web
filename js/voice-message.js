@@ -150,8 +150,8 @@ window.VoiceMsg = (function () {
     _swipeCancelActive = false;
     _swipeLockActive = false;
     _lockedSwiping = false;
-    _recOverlay = null;   // Will be cleaned up by _removeAllOverlays
-    _lockedOverlay = null;
+    // Do NOT null out _recOverlay/_lockedOverlay here — _removeVoiceOverlays()
+    // needs these references to properly remove the DOM elements.
     if (_mediaRecorder && _mediaRecorder.state === 'recording') {
       _stopRecVisualization();
       clearInterval(_recTimer);
@@ -1874,7 +1874,7 @@ window.VoiceMsg = (function () {
   function _apiWithProgress(endpoint, method, body, tempId) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open(method, '/api-deploy/' + endpoint + '.php', true);
+      xhr.open(method, 'https://initial.su/api/' + endpoint, true);
       xhr.setRequestHeader('Authorization', 'Bearer ' + (S.token || ''));
 
       // Phase 1: upload progress (client → server)

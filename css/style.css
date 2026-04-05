@@ -2173,7 +2173,7 @@ body[data-theme="light"] .input-zone::before {
 .fctx-btn:active{transform:scale(.97)}
 .fctx-btn:disabled{opacity:.35;cursor:default}
 .fctx-btn:disabled:hover{background:transparent}
-.mfield-wrap{flex:1;position:relative;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px}
+.mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px}
 .mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:14.5px;font-weight:400;padding:11px 42px 11px 42px;outline:none;min-height:44px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
 .mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);pointer-events:none}
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
