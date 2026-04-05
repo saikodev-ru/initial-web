@@ -2335,6 +2335,8 @@ function hideSBBtn(){
     _scrollRaf=requestAnimationFrame(()=>{
       _scrollRaf=0;
       if(nearBot())hideSBBtn();
+      // Pre-cache voice messages visible in viewport
+      if(window.VoiceMsg&&window.VoiceMsg.precacheVoiceMessages)window.VoiceMsg.precacheVoiceMessages();
       clearTimeout(area._scrollSaveTimer);
       area._scrollSaveTimer=setTimeout(()=>{if(S.chatId)saveScrollPos(S.chatId);},200);
     });

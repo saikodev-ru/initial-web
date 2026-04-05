@@ -4158,6 +4158,14 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 }
 .voice-play-btn:hover { transform: scale(1.08); background: rgba(var(--bg-rgb),.7); box-shadow: 0 2px 12px rgba(0,0,0,.3); }
 .voice-play-btn:active { transform: scale(0.95); }
+/* Buffering indicator — pulsing overlay while streaming */
+.voice-play-btn.buffering::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid transparent; border-top-color: var(--y);
+  animation: voiceBufSpin .8s linear infinite;
+}
+@keyframes voiceBufSpin { to { transform: rotate(360deg); } }
+.voice-play-btn.buffering svg { opacity: .4; }
 .voice-play-btn svg { width: 14px; height: 14px; margin-left: 2px; }
 .voice-play-btn.playing svg { margin-left: 0; }
 
@@ -4207,12 +4215,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   flex-shrink: 0;
   min-height: 3px;
 }
-/* In preview/locked/recording containers, bars should stretch */
-.voice-preview-wave .voice-wf-bar,
+/* In recording/locked containers, bars stretch to fill available width */
 .voice-locked-wave .voice-rec-bar,
 .voice-rec-wave .voice-rec-bar {
   flex: 1 1 0;
-  max-width: 5px;
+  /* No max-width — bars adapt to panel width */
+  transition: height .04s ease, opacity .04s ease;
 }
 .voice-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
 .voice-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }

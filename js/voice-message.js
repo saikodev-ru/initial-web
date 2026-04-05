@@ -29,6 +29,9 @@ window.VoiceMsg = (function () {
   const SEND_ANIM_DELAY = 220;
   const SEND_BTN_ANIM_MS = 400;
   const TIMER_INTERVAL = 200;
+  const STT_CACHE_PREFIX = 'vstt_';
+  const STT_CACHE_MAX = 200;
+  const STT_CACHE_TTL = 30 * 24 * 3600 * 1000; // 30 дней
 
   const PLAY_SVG_SM = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>';
   const PAUSE_SVG_SM = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
@@ -1366,9 +1369,11 @@ window.VoiceMsg = (function () {
       audio = cached;
     } else {
       audio = new Audio();
-      audio.preload = 'metadata';
+      audio.preload = 'auto';       // Start downloading immediately (pre-cache)
+      audio.crossOrigin = 'anonymous';
       audio.src = audioUrl;
-      audio.addEventListener('loadedmetadata', () => {
+      audio.addEventListener('canplaythrough', () => {
+        // Fully buffered — cache the element
         if (isFinite(audio.duration) && audio.duration > 0) {
           cacheAudio(audioUrl, audio);
         }
@@ -1376,6 +1381,7 @@ window.VoiceMsg = (function () {
     }
     let isPlaying = false;
     let animFrame = null;
+    let isBuffering = false;
 
     const mrow = container.closest('.mrow');
     let senderName = '';
@@ -1446,6 +1452,22 @@ window.VoiceMsg = (function () {
       // Error handled silently
     });
 
+    // Streaming: show buffering indicator when data is not ready
+    audio.addEventListener('waiting', () => {
+      if (isPlaying) {
+        isBuffering = true;
+        playBtn.classList.add('buffering');
+      }
+    });
+    audio.addEventListener('playing', () => {
+      isBuffering = false;
+      playBtn.classList.remove('buffering');
+    });
+    audio.addEventListener('canplay', () => {
+      isBuffering = false;
+      playBtn.classList.remove('buffering');
+    });
+
     function toggle() {
       if (state.playback.audio && state.playback.audio !== audio && !state.playback.audio.paused) {
         state.playback.audio.pause();
@@ -1505,6 +1527,8 @@ window.VoiceMsg = (function () {
     // STT (Speech-to-Text) transcription button
     const sttBtn = container.querySelector('.voice-stt-btn');
     if (sttBtn) {
+      // Restore cached transcription from localStorage
+      restoreSttCache(container, audioUrl);
       sttBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -2068,13 +2092,102 @@ window.VoiceMsg = (function () {
   }
 
   /* ══════════════════════════════════════════════════════════════
-     SPEECH-TO-TEXT (STT) TRANSCRIPTION
+     SPEECH-TO-TEXT (STT) TRANSCRIPTION — localStorage cache
      ══════════════════════════════════════════════════════════════ */
+
+  /** Extract S3 key from any URL format for cache key */
+  function _sttCacheKey(audioUrl) {
+    try {
+      if (audioUrl.includes('key=')) {
+        const u = new URL(audioUrl);
+        return u.searchParams.get('key') || audioUrl;
+      }
+      if (audioUrl.startsWith('http')) {
+        return new URL(audioUrl).pathname.replace(/^\//, '');
+      }
+      return audioUrl;
+    } catch { return audioUrl; }
+  }
+
+  /** Get cached transcription from localStorage */
+  function _getSttCache(audioUrl) {
+    try {
+      const key = STT_CACHE_PREFIX + _sttCacheKey(audioUrl);
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.ts > STT_CACHE_TTL) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return entry.text;
+    } catch { return null; }
+  }
+
+  /** Save transcription to localStorage */
+  function _setSttCache(audioUrl, text) {
+    try {
+      const key = STT_CACHE_PREFIX + _sttCacheKey(audioUrl);
+      localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }));
+      _pruneSttCache();
+    } catch (e) {
+      // localStorage full — prune and retry once
+      try { _pruneSttCache(true); localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() })); } catch {}
+    }
+  }
+
+  /** Remove old entries if over limit */
+  function _pruneSttCache(aggressive) {
+    try {
+      const entries = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(STT_CACHE_PREFIX)) entries.push(k);
+      }
+      if (entries.length <= STT_CACHE_MAX) return;
+      entries.sort((a, b) => {
+        const ta = JSON.parse(localStorage.getItem(a) || '{}').ts || 0;
+        const tb = JSON.parse(localStorage.getItem(b) || '{}').ts || 0;
+        return ta - tb;
+      });
+      const toRemove = aggressive ? entries.length - Math.floor(STT_CACHE_MAX / 2) : entries.length - STT_CACHE_MAX;
+      for (let i = 0; i < toRemove; i++) localStorage.removeItem(entries[i]);
+    } catch {}
+  }
+
+  /** Restore cached transcription when voice bubble renders */
+  function restoreSttCache(container, audioUrl) {
+    const cached = _getSttCache(audioUrl);
+    if (!cached) return;
+    const sttBtn = container.querySelector('.voice-stt-btn');
+    const resultEl = container.querySelector('.voice-stt-result');
+    if (!sttBtn || !resultEl) return;
+    resultEl.textContent = cached;
+    resultEl.style.display = 'block';
+    resultEl.classList.add('stt-visible');
+    sttBtn.classList.add('stt-done');
+    sttBtn.title = 'Скрыть расшифровку';
+    sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
+  }
 
   async function _transcribeVoice(container, audioUrl) {
     const sttBtn = container.querySelector('.voice-stt-btn');
     const resultEl = container.querySelector('.voice-stt-result');
     if (!sttBtn) return;
+
+    // Check localStorage cache first
+    const cached = _getSttCache(audioUrl);
+    if (cached) {
+      if (resultEl) {
+        resultEl.textContent = cached;
+        resultEl.style.display = 'block';
+        resultEl.classList.add('stt-visible');
+      }
+      sttBtn.classList.add('stt-done');
+      sttBtn.title = 'Скрыть расшифровку';
+      sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
+      return;
+    }
 
     // Show loading state
     sttBtn.classList.add('stt-loading');
@@ -2101,6 +2214,8 @@ window.VoiceMsg = (function () {
           resultEl.style.display = 'block';
           resultEl.classList.add('stt-visible');
         }
+        // Cache in localStorage
+        _setSttCache(audioUrl, data.text);
         // Change button to "done" state
         sttBtn.classList.remove('stt-loading');
         sttBtn.classList.add('stt-done');
@@ -2125,6 +2240,59 @@ window.VoiceMsg = (function () {
   }
 
   /* ══════════════════════════════════════════════════════════════
+     PRE-CACHE — download visible voice messages in background
+     ══════════════════════════════════════════════════════════════ */
+
+  /** Pre-cache voice audio for visible messages (call on scroll, chat open) */
+  function precacheVoiceMessages() {
+    const msgs = $('#msgs');
+    if (!msgs) return;
+    const voiceMsgs = msgs.querySelectorAll('.voice-msg');
+    if (!voiceMsgs.length) return;
+
+    for (const vMsg of voiceMsgs) {
+      // Already cached — skip
+      const existing = voiceAudioMap.get(vMsg);
+      if (existing) continue;
+
+      // Check if in viewport (with margin)
+      const rect = vMsg.getBoundingClientRect();
+      const inView = rect.top < window.innerHeight + 500 && rect.bottom > -500;
+      if (!inView) continue;
+
+      // Get audio URL from data attribute
+      const row = vMsg.closest('.mrow');
+      if (!row) continue;
+      const dataId = row.dataset.id;
+      if (!dataId || !S.chatId || !S.msgs || !S.msgs[S.chatId]) continue;
+
+      const msgData = S.msgs[S.chatId].find(m => String(m.id) === dataId);
+      if (!msgData || !msgData.media_url) continue;
+
+      const audioUrl = msgData.media_url;
+      if (audioCache.get(audioUrl)) continue;
+
+      // Preload audio in background (no UI changes)
+      const a = new Audio();
+      a.preload = 'auto';
+      a.preload = 'metadata'; // Just load metadata first to save bandwidth
+      a.src = audioUrl;
+      a.addEventListener('loadedmetadata', () => {
+        // Upgrade to full preload after metadata
+        a.preload = 'auto';
+        if (isFinite(a.duration) && a.duration > 0) {
+          cacheAudio(audioUrl, a);
+        }
+      }, { once: true });
+      a.addEventListener('canplaythrough', () => {
+        cacheAudio(audioUrl, a);
+      }, { once: true });
+      // Cleanup on error
+      a.addEventListener('error', () => { a.src = ''; }, { once: true });
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════════
      PUBLIC API
      ══════════════════════════════════════════════════════════════ */
 
@@ -2139,5 +2307,7 @@ window.VoiceMsg = (function () {
     init,
     formatTimeSec,
     clearAudioCache,
+    precacheVoiceMessages,
+    restoreSttCache,
   };
 })();
