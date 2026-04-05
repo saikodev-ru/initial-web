@@ -19,7 +19,12 @@
 //    wget https://alphacephei.com/vosk/models/vosk-model-ru-small-0.22.zip
 //    unzip vosk-model-ru-small-0.22.zip
 //    pip3 install vosk
-//    # ffmpeg уже должен быть установлен
+//
+//    # Статический ffmpeg (без root):
+//    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+//    tar xf ffmpeg-release-amd64-static.tar.xz
+//    cp ffmpeg-*-static/ffmpeg . && chmod +x ffmpeg
+//    rm -rf ffmpeg-*-static ffmpeg-release-amd64-static.tar.xz
 //
 //  Config (config.php):
 //    define('VOSK_MODEL_PATH', __DIR__ . '/vosk-model-ru-small');  // опционально

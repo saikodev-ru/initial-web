@@ -15,12 +15,20 @@
 #
 #  Dependencies:
 #    pip install vosk
-#    ffmpeg must be available in PATH
+#    ffmpeg (static binary — no root needed, see below)
 #
 #  Setup:
 #    wget https://alphacephei.com/vosk/models/vosk-model-ru-small-0.22.zip
 #    unzip vosk-model-ru-small-0.22.zip
 #    # move to api-deploy/vosk-model-ru-small/
+#
+#    # Static ffmpeg (no root needed):
+#    cd api-deploy/
+#    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+#    tar xf ffmpeg-release-amd64-static.tar.xz
+#    cp ffmpeg-*-static/ffmpeg .   # → api-deploy/ffmpeg
+#    chmod +x ffmpeg
+#    rm -rf ffmpeg-*-static ffmpeg-release-amd64-static.tar.xz
 # ═══════════════════════════════════════════════════════════════
 
 import sys
@@ -28,6 +36,27 @@ import os
 import json
 import subprocess
 import wave
+
+def _find_ffmpeg():
+    """Find ffmpeg binary: env var > local ./ffmpeg > system PATH."""
+    # 1) Explicit env var
+    env_bin = os.environ.get('FFMPEG_BIN')
+    if env_bin and os.path.isfile(env_bin) and os.access(env_bin, os.X_OK):
+        return env_bin
+
+    # 2) Static binary next to this script (no root needed)
+    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ffmpeg')
+    if os.path.isfile(local) and os.access(local, os.X_OK):
+        return local
+
+    # 3) Try system PATH
+    for cmd in ('ffmpeg', '/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg',
+                '/opt/ffmpeg/ffmpeg'):
+        if os.path.isfile(cmd):
+            return cmd
+
+    return None
+
 
 def main():
     if len(sys.argv) < 2:
@@ -50,11 +79,17 @@ def main():
         print(json.dumps({"ok": False, "error": f"Vosk model not found at {model_path}"}, ensure_ascii=False))
         sys.exit(1)
 
+    # Find ffmpeg binary
+    ffmpeg_bin = _find_ffmpeg()
+    if not ffmpeg_bin:
+        print(json.dumps({"ok": False, "error": "ffmpeg not found — download static binary: wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz"}, ensure_ascii=False))
+        sys.exit(1)
+
     # Convert to WAV mono 16kHz using ffmpeg (Vosk requirement)
     wav_file = audio_file + '.stt.wav'
     try:
         subprocess.run([
-            'ffmpeg', '-y', '-i', audio_file,
+            ffmpeg_bin, '-y', '-i', audio_file,
             '-ar', '16000',       # 16kHz sample rate (Vosk optimal)
             '-ac', '1',           # mono
             '-sample_fmt', 's16', # 16-bit PCM
@@ -71,7 +106,7 @@ def main():
         sys.exit(1)
     except FileNotFoundError:
         _cleanup(wav_file)
-        print(json.dumps({"ok": False, "error": "ffmpeg not found — install ffmpeg on server"}, ensure_ascii=False))
+        print(json.dumps({"ok": False, "error": "ffmpeg binary disappeared during execution"}, ensure_ascii=False))
         sys.exit(1)
 
     if not os.path.isfile(wav_file):
