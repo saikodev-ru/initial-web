@@ -4870,11 +4870,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   border-radius: 18px;
   background: var(--y);
   color: #fff;
-  box-shadow: 0 4px 20px rgba(139,92,246,.3), 0 0 0 1px rgba(139,92,246,.15);
-  transition: transform .35s cubic-bezier(.22,1,.36,1),
-              opacity .35s cubic-bezier(.22,1,.36,1),
-              border-radius .3s ease;
-  will-change: transform, opacity;
+  box-shadow: 0 4px 24px rgba(139,92,246,.35), 0 0 0 1px rgba(139,92,246,.15);
+  will-change: transform, opacity, left, top;
 }
 
 /* Text message fly clone */
