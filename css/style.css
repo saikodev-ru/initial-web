@@ -4209,6 +4209,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   flex: 1 1 0;
   max-width: 5px;
 }
+.voice-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
 .voice-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 
 /* ── Waveform bars — outgoing: white on accent bg, played blends with bubble ── */
@@ -4509,8 +4510,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   transition: background .1s, opacity .1s;
   flex-shrink: 0; min-height: 2px;
 }
-.voice-mini-player .vmp-wf-bar.played { background: var(--voice-accent-medium); opacity: 1; }
-.voice-mini-player .vmp-wf-bar.active { background: var(--voice-accent); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 .voice-mini-player .vmp-time {
   font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
   white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
@@ -4643,12 +4644,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   opacity: .7; transition: height .06s linear; min-height: 3px;
 }
 
-/* ── 8. Preview waveform played state — accent color with glow ── */
-.voice-wf-bar.played {
-  background: var(--y) !important;
-  opacity: 1 !important;
-  box-shadow: 0 0 4px rgba(139,92,246,.3);
-}
+/* ── 8. (played state handled above with light accent) ── */
 
 /* ── 9. No pulse on pause button (replaced old stop pulse) ── */
 
