@@ -4925,18 +4925,26 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   100% { transform: scale(1); box-shadow: none; }
 }
 
-/* ── Send animation clone (FLIP: button → message) ── */
+/* ── Send animation clone — pixel-perfect match to real .mbody ── */
 .send-anim-clone{
+  /* Matches .mbody for non-me messages */
   background:var(--msg-bg);
   border:1px solid var(--b);
-  border-radius:18px;
-  box-shadow:0 8px 32px rgba(0,0,0,.4), 0 0 0 1.5px rgba(139,92,246,.12);
-  /* Subtle inner glow that fades in during flight */
-  background-image: radial-gradient(ellipse at center, rgba(139,92,246,.06) 0%, transparent 70%);
+  color:var(--t1);
+  padding:6px 12px 7px;
+  font-size:15px;
+  line-height:1.5;
+  font-family:var(--font);
+  word-break:break-word;
 }
 .send-anim-clone-me{
-  background: linear-gradient(135deg, var(--y) 0%, #7c3aed 100%);
+  /* Matches .me .mbody exactly — solid bg, no gradient, no shadow */
+  background:var(--y);
   border:none;
-  border-radius:18px;
-  box-shadow:0 8px 32px rgba(139,92,246,.35), 0 0 0 2px rgba(139,92,246,.15), inset 0 1px 0 rgba(255,255,255,.12);
+  color:#fff;
+  padding:6px 12px 7px;
+  font-size:15px;
+  line-height:1.5;
+  font-family:var(--font);
+  word-break:break-word;
 }
