@@ -4218,11 +4218,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 }
 /* In recording/locked containers, bars stretch to fill available width */
 .voice-locked-wave .voice-rec-bar,
-.voice-rec-wave .voice-rec-bar {
-  flex: 1 1 0;
-  /* No max-width — bars adapt to panel width */
-  transition: height .04s ease, opacity .04s ease;
-}
+.voice-rec-bar { width: 2.5px; flex: 1 1 0; border-radius: 2px; background: var(--y); opacity: .7; transition: height .06s linear; min-height: 3px; max-width: none; }
 .voice-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
 .voice-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 
