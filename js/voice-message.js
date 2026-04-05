@@ -150,8 +150,8 @@ window.VoiceMsg = (function () {
     _swipeCancelActive = false;
     _swipeLockActive = false;
     _lockedSwiping = false;
-    _recOverlay = null;   // Will be cleaned up by _removeAllOverlays
-    _lockedOverlay = null;
+    // Do NOT null out _recOverlay/_lockedOverlay here — _removeVoiceOverlays()
+    // needs these references to properly remove the DOM elements.
     if (_mediaRecorder && _mediaRecorder.state === 'recording') {
       _stopRecVisualization();
       clearInterval(_recTimer);
@@ -825,6 +825,27 @@ window.VoiceMsg = (function () {
     _stopPreviewAnim();
     _previewBlob = null;
 
+    // Play send animation — shrink + slide right + fade
+    const overlay = _previewOverlay;
+    if (overlay) {
+      overlay.classList.add('voice-preview-sending');
+
+      // Animate the send button: pulse + fly-up effect
+      const sendBtn = document.getElementById('btn-send');
+      if (sendBtn) {
+        sendBtn.classList.add('voice-send-fly');
+        setTimeout(() => sendBtn.classList.remove('voice-send-fly'), 400);
+      }
+    }
+
+    // Send voice immediately (optimistic UI appears right away)
+    sendVoice(blob, duration, waveform);
+
+    // Wait for send animation to finish, then clean up
+    if (overlay) {
+      await new Promise(resolve => setTimeout(resolve, 220));
+    }
+
     // Remove preview overlay and restore button
     _removeVoiceOverlays();
     _restoreBtnFromSend();
@@ -839,9 +860,6 @@ window.VoiceMsg = (function () {
     }
     _showMfieldChildren();
     if (typeof updateSendBtn === 'function') updateSendBtn();
-
-    // Send voice
-    sendVoice(blob, duration, waveform);
   }
 
   /* ── Timer helpers ──────────────────────────────────────── */
@@ -1874,7 +1892,7 @@ window.VoiceMsg = (function () {
   function _apiWithProgress(endpoint, method, body, tempId) {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open(method, '/api-deploy/' + endpoint + '.php', true);
+      xhr.open(method, 'https://initial.su/api/' + endpoint, true);
       xhr.setRequestHeader('Authorization', 'Bearer ' + (S.token || ''));
 
       // Phase 1: upload progress (client → server)

@@ -2173,7 +2173,7 @@ body[data-theme="light"] .input-zone::before {
 .fctx-btn:active{transform:scale(.97)}
 .fctx-btn:disabled{opacity:.35;cursor:default}
 .fctx-btn:disabled:hover{background:transparent}
-.mfield-wrap{flex:1;position:relative;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px}
+.mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px}
 .mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:14.5px;font-weight:400;padding:11px 42px 11px 42px;outline:none;min-height:44px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
 .mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);pointer-events:none}
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
@@ -4188,11 +4188,11 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mrow.me .voice-speed-btn:hover { color: rgba(255,255,255,.9); background: rgba(255,255,255,.12); }
 .mrow.me .voice-speed-btn.active { color: #fff; }
 
-/* ── Waveform bars — incoming: gray, played accent ── */
+/* ── Waveform bars — incoming: gray, played light accent ── */
 .voice-wf-bar {
   width: 2px; border-radius: 2px;
   background: var(--t3); opacity: .45;
-  transition: background .1s, opacity .1s, height .06s;
+  transition: background .15s, opacity .15s, height .06s;
   flex-shrink: 0;
   min-height: 3px;
 }
@@ -4203,13 +4203,13 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   flex: 1 1 0;
   max-width: 5px;
 }
-.voice-wf-bar.played { background: var(--y); opacity: 1; }
-.voice-wf-bar.active { background: var(--y); opacity: .75; }
+.voice-wf-bar.played { background: rgba(139,92,246,.3); opacity: 1; }
+.voice-wf-bar.active { background: rgba(139,92,246,.45); opacity: 1; }
 
-/* ── Waveform bars — outgoing: white on accent ── */
-.mrow.me .voice-wf-bar { background: rgba(255,255,255,.5); }
-.mrow.me .voice-wf-bar.played { background: #fff; opacity: 1; }
-.mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.85); }
+/* ── Waveform bars — outgoing: white on accent bg, played blends with bubble ── */
+.mrow.me .voice-wf-bar { background: rgba(255,255,255,.45); }
+.mrow.me .voice-wf-bar.played { background: rgba(255,255,255,.72); opacity: 1; }
+.mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.55); }
 
 /* ── Duration text — right of waveform ── */
 .voice-dur {
@@ -4558,8 +4558,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   transition: background .1s, opacity .1s;
   flex-shrink: 0; min-height: 2px;
 }
-.voice-mini-player .vmp-wf-bar.played { background: var(--y); opacity: 1; }
-.voice-mini-player .vmp-wf-bar.active { background: var(--y); opacity: .75; }
+.voice-mini-player .vmp-wf-bar.played { background: rgba(139,92,246,.4); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.active { background: rgba(139,92,246,.55); opacity: 1; }
 .voice-mini-player .vmp-time {
   font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
   white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
@@ -4615,6 +4615,28 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 @keyframes voicePreviewPopIn {
   0%   { opacity: 0; transform: scale(.92) translateY(4px); }
   100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── 3b. Preview send animation — shrink + slide + fade to simulate "message sent" ── */
+.voice-preview-sending {
+  animation: voicePreviewSendAway .2s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voicePreviewSendAway {
+  0%   { opacity: 1; transform: scale(1) translateX(0); }
+  50%  { opacity: .6; transform: scale(.95) translateX(6px); }
+  100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
+}
+
+/* ── 3c. Send button fly-up pulse when voice is sent ── */
+.btn-voice-rec.voice-send-fly {
+  animation: voiceSendBtnFly .4s var(--sp) both;
+}
+@keyframes voiceSendBtnFly {
+  0%   { transform: scale(1); }
+  20%  { transform: scale(1.2); box-shadow: 0 0 0 4px rgba(139,92,246,.25); }
+  50%  { transform: scale(.9) translateY(-6px); opacity: .7; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 /* ── 4. Recording glow effect — subtle red glow around input wrap ── */
