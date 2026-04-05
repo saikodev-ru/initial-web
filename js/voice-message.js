@@ -424,10 +424,6 @@ window.VoiceMsg = (function () {
       </button>
       <span class="voice-locked-timer" id="voice-locked-timer">${_formatElapsed()}</span>
       <div class="voice-locked-wave" id="voice-locked-wave-container"></div>
-      <button class="voice-locked-pause" id="voice-locked-pause" title="Пауза">
-        <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
-        <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:none"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-      </button>
     `;
 
     state.overlays.locked = overlay;
@@ -446,16 +442,6 @@ window.VoiceMsg = (function () {
       const timerEl = $('#voice-locked-timer');
       if (timerEl) timerEl.textContent = _formatElapsed();
     }, TIMER_INTERVAL);
-
-    // Pause button: toggle pause/resume
-    const pauseBtn = $('#voice-locked-pause');
-    if (pauseBtn) {
-      pauseBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        _toggleLockedPause();
-      });
-    }
 
     // Delete button: animated cancel
     const delBtn = $('#voice-locked-delete');
@@ -635,43 +621,6 @@ window.VoiceMsg = (function () {
     }
   }
 
-  function _toggleLockedPause() {
-    if (!state.recorder.mediaRecorder) return;
-
-    const pauseBtn = $('#voice-locked-pause');
-    if (!pauseBtn) return;
-
-    const pauseIcon = pauseBtn.querySelector('.pause-icon');
-    const micIcon = pauseBtn.querySelector('.mic-icon');
-
-    if (!state.recorder.isPaused) {
-      // Pause recording
-      if (state.recorder.mediaRecorder.state === 'recording') {
-        state.recorder.mediaRecorder.pause();
-        state.recorder.isPaused = true;
-        _stopRecVisualization();
-        clearInterval(state.locked.timer);
-        if (pauseIcon) pauseIcon.style.display = 'none';
-        if (micIcon) micIcon.style.display = '';
-        pauseBtn.title = 'Продолжить';
-      }
-    } else {
-      // Resume recording — fix timer leak: clearInterval before creating new
-      if (state.recorder.mediaRecorder.state === 'paused') {
-        state.recorder.mediaRecorder.resume();
-        state.recorder.isPaused = false;
-        _startRecVisualization();
-        clearInterval(state.locked.timer);
-        state.locked.timer = setInterval(() => {
-          const timerEl = $('#voice-locked-timer');
-          if (timerEl) timerEl.textContent = _formatElapsed();
-        }, TIMER_INTERVAL);
-        if (pauseIcon) pauseIcon.style.display = '';
-        if (micIcon) micIcon.style.display = 'none';
-        pauseBtn.title = 'Пауза';
-      }
-    }
-  }
 
   /* ── Preview mode ─────────────────────────────────────────── */
 
@@ -1553,6 +1502,15 @@ window.VoiceMsg = (function () {
       if (!isPlaying) toggle();
     });
 
+    // STT (Speech-to-Text) transcription button
+    const sttBtn = container.querySelector('.voice-stt-btn');
+    if (sttBtn) {
+      sttBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _transcribeVoice(container, audioUrl);
+      });
+    }
   }
 
   /* ── Auto-play next voice message ─────────────────────────── */
@@ -1670,17 +1628,17 @@ window.VoiceMsg = (function () {
 
     $('#vmp-play').addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (state.playback.audio) {
-        if (state.playback.audio.paused) {
-          state.playback.audio.play().catch(() => {});
-          if (state.playback.btn) { state.playback.btn.innerHTML = PAUSE_SVG; state.playback.btn.classList.add('playing'); }
-          $('#vmp-play').innerHTML = PAUSE_SVG;
-        } else {
-          state.playback.audio.pause();
-          if (state.playback.btn) { state.playback.btn.innerHTML = PLAY_SVG; state.playback.btn.classList.remove('playing'); }
-          $('#vmp-play').innerHTML = PLAY_SVG;
-        }
-      }
+      // Delegate to the bubble's play button toggle() — keeps closure isPlaying in sync
+      if (state.playback.btn) state.playback.btn.click();
+    });
+
+    // Seek via mini-player waveform
+    $('#vmp-wave').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!state.playback.audio || !state.playback.audio.duration || !isFinite(state.playback.audio.duration)) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      state.playback.audio.currentTime = pct * state.playback.audio.duration;
     });
 
     $('#vmp-prev').addEventListener('click', (e) => {
@@ -1695,8 +1653,10 @@ window.VoiceMsg = (function () {
 
     $('#vmp-close').addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (state.playback.audio && !state.playback.audio.paused) state.playback.audio.pause();
-      if (state.playback.btn) { state.playback.btn.innerHTML = PLAY_SVG; state.playback.btn.classList.remove('playing'); }
+      // Delegate to the bubble's play button to properly stop + sync state
+      if (state.playback.btn && state.playback.audio && !state.playback.audio.paused) {
+        state.playback.btn.click();
+      }
       _hideMiniPlayer();
     });
   }
@@ -1788,21 +1748,27 @@ window.VoiceMsg = (function () {
     _showUploadProgress(tid, blob);
 
     // ── Step 4: Client-side compression in background (non-blocking) ──
-    // Compression happens AFTER the message is already visible in chat
-    try {
-      const compressedBlob = await compressAudio(blob);
-      if (compressedBlob !== blob) {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        try {
-          const buf = await compressedBlob.arrayBuffer();
-          const audio = await audioCtx.decodeAudioData(buf);
-          waveform = generateWaveformFromBuffer(audio);
-          audioCtx.close();
-        } catch(e) { audioCtx.close(); }
-        blob = compressedBlob;
+    // Skip compression for short recordings (already small) — speeds up sending
+    const SKIP_COMPRESS_BELOW = 15; // seconds
+    if (duration >= SKIP_COMPRESS_BELOW) {
+      try {
+        const compressedBlob = await compressAudio(blob);
+        if (compressedBlob !== blob) {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          try {
+            const buf = await compressedBlob.arrayBuffer();
+            const audio = await audioCtx.decodeAudioData(buf);
+            waveform = generateWaveformFromBuffer(audio);
+            audioCtx.close();
+          } catch(e) { audioCtx.close(); }
+          blob = compressedBlob;
+        }
+      } catch (e) {
+        console.warn('[VoiceMsg] Compression skipped:', e);
       }
-    } catch (e) {
-      console.warn('[VoiceMsg] Compression skipped:', e);
+    } else {
+      // Short messages: show quick ring progress to avoid "stuck at 0%" feel
+      _updateUploadProgress(tid, 30);
     }
 
     // ── Step 5: Upload compressed audio to server ──
@@ -1893,22 +1859,24 @@ window.VoiceMsg = (function () {
     svg.setAttribute('viewBox', '0 0 36 36');
     svg.classList.add('voice-upload-ring-svg');
 
+    // Background track (unified with media upload ring)
     const bg = document.createElementNS(svgNS, 'circle');
     bg.setAttribute('cx', '18');
     bg.setAttribute('cy', '18');
-    bg.setAttribute('r', '15.5');
+    bg.setAttribute('r', '14.14');
     bg.setAttribute('fill', 'none');
     bg.setAttribute('stroke', 'rgba(255,255,255,0.22)');
-    bg.setAttribute('stroke-width', '2.5');
+    bg.setAttribute('stroke-width', '3');
+    bg.classList.add('voice-upload-ring-bg');
 
-    const circumference = 2 * Math.PI * 15.5;
+    const circumference = 2 * Math.PI * 14.14;
     const fg = document.createElementNS(svgNS, 'circle');
     fg.setAttribute('cx', '18');
     fg.setAttribute('cy', '18');
-    fg.setAttribute('r', '15.5');
+    fg.setAttribute('r', '14.14');
     fg.setAttribute('fill', 'none');
     fg.setAttribute('stroke', '#fff');
-    fg.setAttribute('stroke-width', '2.5');
+    fg.setAttribute('stroke-width', '3');
     fg.setAttribute('stroke-linecap', 'round');
     fg.setAttribute('stroke-dasharray', String(circumference));
     fg.setAttribute('stroke-dashoffset', String(circumference));
@@ -1933,7 +1901,7 @@ window.VoiceMsg = (function () {
     const playBtn = row.querySelector('.voice-play-btn');
     if (!playBtn || !playBtn._uploadFg) return;
 
-    const circumference = 2 * Math.PI * 15.5;
+    const circumference = 2 * Math.PI * 14.14;
     const offset = circumference * (1 - percent / 100);
     playBtn._uploadFg.setAttribute('stroke-dashoffset', String(offset));
   }
@@ -2097,6 +2065,63 @@ window.VoiceMsg = (function () {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     SPEECH-TO-TEXT (STT) TRANSCRIPTION
+     ══════════════════════════════════════════════════════════════ */
+
+  async function _transcribeVoice(container, audioUrl) {
+    const sttBtn = container.querySelector('.voice-stt-btn');
+    const resultEl = container.querySelector('.voice-stt-result');
+    if (!sttBtn) return;
+
+    // Show loading state
+    sttBtn.classList.add('stt-loading');
+    sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
+
+    try {
+      const res = await fetch(API_BASE + 'transcribe_voice', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + (S.token || ''),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ audio_url: audioUrl }),
+      });
+
+      if (!res.ok) throw new Error('STT request failed');
+
+      const data = await res.json();
+
+      if (data.ok && data.text) {
+        // Show transcription result
+        if (resultEl) {
+          resultEl.textContent = data.text;
+          resultEl.style.display = 'block';
+          resultEl.classList.add('stt-visible');
+        }
+        // Change button to "done" state
+        sttBtn.classList.remove('stt-loading');
+        sttBtn.classList.add('stt-done');
+        sttBtn.title = 'Скрыть расшифровку';
+        sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
+      } else {
+        toast(data.message || 'Не удалось расшифровать', 'err');
+        _resetSttButton(sttBtn);
+      }
+    } catch (e) {
+      console.warn('[VoiceMsg] STT failed:', e);
+      toast('Ошибка расшифровки', 'err');
+      _resetSttButton(sttBtn);
+    }
+  }
+
+  function _resetSttButton(btn) {
+    if (!btn) return;
+    btn.classList.remove('stt-loading', 'stt-done');
+    btn.title = 'Расшифровать';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   }
 
   /* ══════════════════════════════════════════════════════════════

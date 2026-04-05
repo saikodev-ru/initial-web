@@ -1031,9 +1031,13 @@ function makeMsgEl(m,newSender=true){
           <div class="voice-wf-bars"></div>
           <div class="voice-wf-bottom">
             <button class="voice-speed-btn" title="Скорость воспроизведения">1×</button>
+            <button class="voice-stt-btn" title="Расшифровать">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
             <span class="voice-wf-time"></span>
           </div>
         </div>
+        <div class="voice-stt-result" style="display:none"></div>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
