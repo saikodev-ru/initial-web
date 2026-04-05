@@ -690,76 +690,99 @@ function renderMsgs(chatId){
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
-/* ══ SEND ANIMATION — FLIP from button to message ══ */
+/* ══ SEND ANIMATION — smooth morph from button to message ══ */
 
 /**
- * Beautiful send animation: a clone of the send button morphs into the message bubble.
- * Uses FLIP technique: record send-btn rect, then message rect, animate the delta.
- * Works for text, voice, and media messages.
+ * Smooth send animation with 3 phases:
+ *   1. Burst — send button pulses, clone spawns at button center
+ *   2. Flight — clone flies to message position, growing & morphing
+ *   3. Land — clone fades, real message scales in seamlessly
  */
 function animateSend(tempId) {
-  const sendBtn = document.getElementById('btn-send');
-  const row = document.querySelector('.mrow[data-id="' + tempId + '"]');
-  const bubble = row ? row.querySelector('.mbody') : null;
+  var sendBtn = document.getElementById('btn-send');
+  var row = document.querySelector('.mrow[data-id="' + tempId + '"]');
+  var bubble = row ? row.querySelector('.mbody') : null;
 
   if (!sendBtn || !row || !bubble) return;
 
-  // 1. FIRST — record positions before any visual change
-  const btnRect = sendBtn.getBoundingClientRect();
-  const bubRect = bubble.getBoundingClientRect();
+  var isMe = row.classList.contains('me');
+  var btnR = sendBtn.getBoundingClientRect();
+  var bubR = bubble.getBoundingClientRect();
 
-  // 2. Create a floating clone styled like the message bubble
-  const clone = document.createElement('div');
-  clone.className = 'send-anim-clone';
-  const isMe = row.classList.contains('me');
-  if (isMe) {
-    clone.classList.add('send-anim-clone-me');
-  }
+  // Centers
+  var btnCx = btnR.left + btnR.width / 2;
+  var btnCy = btnR.top + btnR.height / 2;
+  var bubCx = bubR.left + bubR.width / 2;
+  var bubCy = bubR.top + bubR.height / 2;
 
-  // Size/position at the send button's location
-  const dx = btnRect.left + btnRect.width / 2 - (bubRect.left + bubRect.width / 2);
-  const dy = btnRect.top + btnRect.height / 2 - (bubRect.top + bubRect.height / 2);
-  const sx = btnRect.width / bubRect.width;
-  const sy = btnRect.height / bubRect.height;
-  const s = Math.max(sx, sy);
+  // Clone positioned at bubble's final size/location (will be transformed from button)
+  var clone = document.createElement('div');
+  clone.className = 'send-anim-clone' + (isMe ? ' send-anim-clone-me' : '');
 
   clone.style.cssText =
     'position:fixed;z-index:9999;pointer-events:none;' +
-    'border-radius:18px;' +
-    'width:' + bubRect.width + 'px;' +
-    'height:' + bubRect.height + 'px;' +
-    'left:' + bubRect.left + 'px;' +
-    'top:' + bubRect.top + 'px;' +
-    'transform:translate(' + dx + 'px,' + dy + 'px) scale(' + s + ');' +
-    'opacity:0.85;' +
-    'transition:transform .38s cubic-bezier(.22,1.2,.36,1), opacity .38s ease-out;';
+    'width:' + bubR.width + 'px;' +
+    'height:' + bubR.height + 'px;' +
+    'left:' + bubR.left + 'px;' +
+    'top:' + bubR.top + 'px;' +
+    'will-change:transform,opacity;' +
+    'transform-origin:center center;' +
+    // Start: small circle at button center
+    'transform:translate(' + (btnCx - bubCx) + 'px,' + (btnCy - bubCy) + 'px) scale(' + (btnR.width / bubR.width) + ');' +
+    'opacity:0.9;';
 
   document.body.appendChild(clone);
 
-  // 3. INVERT — force sync layout, then animate to final position
-  clone.getBoundingClientRect(); // sync reflow
-  clone.style.transform = 'translate(0,0) scale(1)';
-  clone.style.opacity = '0';
+  // Force layout, then animate to final position (translate 0,0 scale 1)
+  clone.getBoundingClientRect();
 
-  // 4. Pulse the send button
+  // Phase 1+2: Flight (clone morphs from button to message)
+  var flight = clone.animate([
+    {
+      transform: 'translate(' + (btnCx - bubCx) + 'px,' + (btnCy - bubCy) + 'px) scale(' + (btnR.width / bubR.width) + ')',
+      opacity: 0.92
+    },
+    // Midpoint: slight overshoot for liveliness
+    {
+      transform: 'translate(0px, -4px) scale(1.03)',
+      opacity: 0.95,
+      offset: 0.7
+    },
+    // Land: settle to exact position
+    {
+      transform: 'translate(0,0) scale(1)',
+      opacity: 0
+    }
+  ], {
+    duration: 420,
+    easing: 'cubic-bezier(.22,1.1,.36,1)',
+    fill: 'forwards'
+  });
+
+  // Pulse the send button
   sendBtn.classList.add('send-pulse');
-  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 400);
+  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 420);
 
-  // 5. Hide the real message during animation, then reveal with pop
+  // Hide real message during flight
   bubble.style.opacity = '0';
+  bubble.style.transform = 'scale(0.82)';
   bubble.style.transition = 'none';
 
-  // 6. Cleanup after animation
-  setTimeout(function() {
+  // Phase 3: Land — reveal real message with smooth scale-in
+  flight.onfinish = function() {
     clone.remove();
-    bubble.style.opacity = '';
-    bubble.style.transition = '';
-    // Small pop-in on the message
-    row.classList.remove('msg-anim-in');
-    void row.offsetWidth;
-    row.classList.add('msg-anim-in');
-    setTimeout(function() { row.classList.remove('msg-anim-in'); }, 350);
-  }, 380);
+
+    bubble.style.transition = 'opacity .22s ease-out, transform .28s cubic-bezier(.34,1.2,.64,1)';
+    bubble.style.opacity = '1';
+    bubble.style.transform = 'scale(1)';
+
+    // Cleanup inline styles after transition
+    setTimeout(function() {
+      bubble.style.transition = '';
+      bubble.style.transform = '';
+      bubble.style.opacity = '';
+    }, 300);
+  };
 }
 
 function appendMsg(chatId,m){
