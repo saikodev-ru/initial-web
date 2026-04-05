@@ -43,32 +43,21 @@ function _chatKey(c){
 
 function _renderChatItemContent(el,c){
   const isTyping=+c.partner_is_typing;
-  const isOutgoing = c.last_sender_id == S.user?.id && !isTyping;
-  let ghostClass='ghost-bubble';
-  let ghostInner='';
-  if(isTyping){
-    ghostClass+=' ghost-typing';
-    ghostInner=`<div class="dots"><span></span><span></span><span></span></div>`;
-  } else if(c.last_message){
+  let prev='';
+  if(isTyping)prev=`<div class="dots"><span></span><span></span><span></span></div>`;
+  else if(c.last_message){
     const msg=hideSpoilerText(c.last_message);
     const callMatch = msg.match(/^\[call:(missed|declined|ended)(?::(\d+))?\]$/);
     if (callMatch) {
        const type = callMatch[1];
-       ghostInner = type === 'ended'
-         ? (isOutgoing ? 'Исходящий звонок' : 'Входящий звонок')
-         : type === 'missed'
-           ? (isOutgoing ? 'Отменённый звонок' : 'Пропущенный звонок')
-           : 'Отклонённый звонок';
-       ghostClass+=' ghost-call';
+       if (type === 'ended') prev = (c.last_sender_id == S.user?.id ? 'Исходящий звонок' : 'Входящий звонок');
+       else if (type === 'missed') prev = (c.last_sender_id == S.user?.id ? 'Отменённый звонок' : 'Пропущенный звонок');
+       else prev = 'Отклонённый звонок';
     } else {
-       if(isOutgoing)ghostClass+=' ghost-out';
-       ghostInner=fmtPreview(msg.length>120?msg.slice(0,120)+'…':msg);
+       prev=(c.last_sender_id==S.user?.id?'Вы: ':'')+fmtPreview(msg.length>80?msg.slice(0,80)+'…':msg);
     }
-  } else if(c.last_media_type){
-    ghostInner=c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото';
-    if(isOutgoing)ghostClass+=' ghost-out';
-    ghostClass+=' ghost-media';
   }
+  else if(c.last_media_type)prev=c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото';
 
   // Preserve animating pin icon — don't overwrite it mid-animation
   const existingIcon=el.querySelector('.ci-pin-icon');
@@ -99,14 +88,11 @@ function _renderChatItemContent(el,c){
   const showOnlineDot=!isSavedMsgs(c)&&!isSystemChat(c)&&isOnline(c.partner_last_seen);
 
   // ── Read checkmarks for outgoing messages in chat list ──
+  const isOutgoing = c.last_sender_id == S.user?.id && !isTyping;
   const isRead = isOutgoing && c.is_read == 1;
   const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="16" height="11" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
-  const ghostBubbleHtml = ghostInner
-    ? `<div class="${ghostClass}">${ghostInner}</div>`
-    : '';
-
-  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev">${ghostBubbleHtml}${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
+  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
   // Restore saved animating icon
   if(iconAnimating&&existingIcon){const ts=el.querySelector('.ci-ts');const wrap=ts?.parentElement;if(wrap)wrap.insertBefore(existingIcon,ts);}
