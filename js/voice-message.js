@@ -1076,9 +1076,9 @@ window.VoiceMsg = (function () {
         state.overlays.rec.classList.remove('swipe-cancel');
       }
 
-      // Hide hints
+      // Hide hints + reset cancel state
       const sendBtn = getSendBtn();
-      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording', 'cancel-swipe');
 
       state.pointer.swipeCancel = false;
       state.pointer.swipeLock = false;
