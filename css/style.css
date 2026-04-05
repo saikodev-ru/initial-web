@@ -4230,6 +4230,16 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mrow.me .voice-wf-time .tick { color: rgba(255,255,255,.55); }
 .mrow.me .voice-wf-time .tick.r { color: rgba(255,255,255,.85); }
 
+/* Voice duration display (prepended to time element) */
+.voice-wf-time .voice-dur {
+  font-size: 11px; color: var(--t3);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.mrow.me .voice-wf-time .voice-dur {
+  color: rgba(255,255,255,.7);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    RECORDING / PREVIEW — Input zone overlay (Telegram-style morph)
    ═══════════════════════════════════════════════════════════════ */
@@ -4243,7 +4253,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mfield-wrap > .attach-btn-in:not(.voice-hidden),
 .mfield-wrap > .mfield:not(.voice-hidden),
 .mfield-wrap > .emo-btn-in:not(.voice-hidden) {
-  transition: opacity .15s ease;
+  display: '';
+  animation: voiceChildrenFadeIn .25s ease both;
+}
+@keyframes voiceChildrenFadeIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* Send button stays above overlays (z-index only — position:relative already declared) */
@@ -4494,13 +4509,13 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── Animated cancel — swipe-delete style animation on click ── */
 .voice-anim-cancel {
-  animation: voiceAnimCancel .28s var(--sp) both !important;
+  animation: voiceAnimCancel .35s cubic-bezier(.4,0,.2,1) both !important;
   pointer-events: none;
 }
 @keyframes voiceAnimCancel {
   0% { opacity: 1; transform: translateX(0) scale(1); }
-  40% { opacity: .7; transform: translateX(-60px) scale(0.96); }
-  100% { opacity: 0; transform: translateX(-100px) scale(0.88); }
+  35% { opacity: .7; transform: translateX(-60px) scale(.98); }
+  100% { opacity: 0; transform: translateX(-180px) scale(.93); }
 }
 
 /* ── Locked panel send animation ── */
@@ -4691,7 +4706,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   transition: box-shadow .35s var(--ease), backdrop-filter .2s, background .2s, border-color .2s,
               height .2s var(--ease), min-height .2s var(--ease), max-height .2s var(--ease),
               margin-right .25s var(--ease);
-  border-radius: 0 22px 22px 0;
+  border-radius: 22px;
   margin-right: -52px;
 }
 

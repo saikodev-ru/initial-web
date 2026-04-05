@@ -529,9 +529,7 @@ window.VoiceMsg = (function () {
     sendVoice(result.blob, result.duration, result.waveform);
 
     setTimeout(() => {
-      _removeVoiceOverlays();
-      _restoreBtnFromLocked();
-      cleanupInputPanel();
+      _removeAllOverlays();
     }, SEND_ANIM_DELAY);
   }
 
@@ -571,16 +569,24 @@ window.VoiceMsg = (function () {
     const overlay = state.overlays.locked || state.overlays.rec || state.overlays.preview;
     if (!overlay) { cancelRecording(); return; }
 
-    // Play swipe-delete animation
+    // Animate the overlay out
     overlay.classList.add('voice-anim-cancel');
 
     const db = overlay.querySelector('.voice-locked-delete') || overlay.querySelector('.voice-preview-delete');
     if (db) db.classList.add('trash-open');
 
+    // Fade out the wrap as well
+    const wrap = getWrap();
+    if (wrap) {
+      wrap.style.transition = 'opacity .25s ease, transform .25s ease';
+      wrap.style.opacity = '0';
+      wrap.style.transform = 'translateX(-16px)';
+    }
+
     // Wait for animation, then clean up
     setTimeout(() => {
       cancelRecording();
-    }, 280);
+    }, 300);
   }
 
   /* ── Locked swipe helpers (shared by mouse & touch) ── */
@@ -981,7 +987,7 @@ window.VoiceMsg = (function () {
       rms = Math.sqrt(rms / timeData.length);
       const scale = 1 + Math.min(rms * 3, 0.25);
       const micBtn = getSendBtn();
-      if (micBtn && (micBtn.classList.contains('recording') || state.locked.isLocked)) {
+      if (micBtn && micBtn.classList.contains('recording') && !state.locked.isLocked) {
         micBtn.style.transform = `scale(${scale.toFixed(3)})`;
       }
 
@@ -1354,6 +1360,14 @@ window.VoiceMsg = (function () {
   function createPlayer(container, audioUrl, duration, waveform) {
     if (!container || !audioUrl) return;
 
+    // Clean up any existing player on this container (prevents stale ended handlers)
+    const existingAudio = voiceAudioMap.get(container);
+    if (existingAudio) {
+      existingAudio.pause();
+      if (existingAudio._endedHandler) existingAudio.removeEventListener('ended', existingAudio._endedHandler);
+      voiceAudioMap.delete(container);
+    }
+
     const playBtn = container.querySelector('.voice-play-btn');
     const wfWrap = container.querySelector('.voice-wf-bars');
     const timeEl = container.querySelector('.voice-wf-time');
@@ -1369,6 +1383,17 @@ window.VoiceMsg = (function () {
     buildBars(wfWrap, barCount, 'voice-wf-bar', (i) => 3 + waveform[i] * 25);
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
+
+    // Show voice duration in time element (prepended before timestamp meta)
+    if (timeEl) {
+      let durSpan = timeEl.querySelector('.voice-dur');
+      if (!durSpan) {
+        durSpan = document.createElement('span');
+        durSpan.className = 'voice-dur';
+        timeEl.insertBefore(durSpan, timeEl.firstChild);
+      }
+      durSpan.textContent = duration ? formatTimeSec(duration) : '0:00';
+    }
 
     // ── Speed button: 1× → 1.5× → 2× cycle ──
     const speedBtn = container.querySelector('.voice-speed-btn');
@@ -1425,6 +1450,11 @@ window.VoiceMsg = (function () {
       });
       const timeStr = formatTimeSec(audio.currentTime) + ' / ' + formatTimeSec(audio.duration);
       _updateMiniPlayer(audio, waveform, timeStr);
+      // Update duration display in bubble
+      if (timeEl) {
+        const durSpan = timeEl.querySelector('.voice-dur');
+        if (durSpan) durSpan.textContent = timeStr;
+      }
     }
 
     function startAnim() {
@@ -1443,7 +1473,7 @@ window.VoiceMsg = (function () {
       // Duration metadata loaded — no separate dur display needed
     }, { once: true });
 
-    audio.addEventListener('ended', () => {
+    function endedHandler() {
       isPlaying = false;
       playBtn.innerHTML = PLAY_SVG;
       playBtn.classList.remove('playing');
@@ -1453,8 +1483,15 @@ window.VoiceMsg = (function () {
       _hideMiniPlayer();
       // Reset speed to 1× on end
       if (speedBtn) { speedIdx = 0; audio.playbackRate = 1; speedBtn.textContent = '1×'; speedBtn.classList.remove('active'); }
+      // Reset duration display to full duration
+      if (timeEl) {
+        const durSpan = timeEl.querySelector('.voice-dur');
+        if (durSpan && isFinite(audio.duration)) durSpan.textContent = formatTimeSec(audio.duration);
+      }
       _autoPlayNext(container);
-    });
+    }
+    audio.addEventListener('ended', endedHandler);
+    audio._endedHandler = endedHandler;
 
     audio.addEventListener('error', () => {
       // Error handled silently
