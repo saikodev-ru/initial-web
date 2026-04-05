@@ -690,28 +690,76 @@ function renderMsgs(chatId){
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
-/* ══ SEND ANIMATION — pulse button + pop-in message ══ */
+/* ══ SEND ANIMATION — FLIP from button to message ══ */
 
 /**
- * Simple send animation: pulse on the send button + pop-in on the message.
- * No floating clone — just CSS class-based feedback.
+ * Beautiful send animation: a clone of the send button morphs into the message bubble.
+ * Uses FLIP technique: record send-btn rect, then message rect, animate the delta.
+ * Works for text, voice, and media messages.
  */
 function animateSend(tempId) {
-  // Pulse the send button
   const sendBtn = document.getElementById('btn-send');
-  if (sendBtn) {
-    sendBtn.classList.add('send-pulse');
-    setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 400);
+  const row = document.querySelector('.mrow[data-id="' + tempId + '"]');
+  const bubble = row ? row.querySelector('.mbody') : null;
+
+  if (!sendBtn || !row || !bubble) return;
+
+  // 1. FIRST — record positions before any visual change
+  const btnRect = sendBtn.getBoundingClientRect();
+  const bubRect = bubble.getBoundingClientRect();
+
+  // 2. Create a floating clone styled like the message bubble
+  const clone = document.createElement('div');
+  clone.className = 'send-anim-clone';
+  const isMe = row.classList.contains('me');
+  if (isMe) {
+    clone.classList.add('send-anim-clone-me');
   }
 
-  // Pop-in on the message row
-  const row = document.querySelector('.mrow[data-id="' + tempId + '"]');
-  if (row) {
+  // Size/position at the send button's location
+  const dx = btnRect.left + btnRect.width / 2 - (bubRect.left + bubRect.width / 2);
+  const dy = btnRect.top + btnRect.height / 2 - (bubRect.top + bubRect.height / 2);
+  const sx = btnRect.width / bubRect.width;
+  const sy = btnRect.height / bubRect.height;
+  const s = Math.max(sx, sy);
+
+  clone.style.cssText =
+    'position:fixed;z-index:9999;pointer-events:none;' +
+    'border-radius:18px;' +
+    'width:' + bubRect.width + 'px;' +
+    'height:' + bubRect.height + 'px;' +
+    'left:' + bubRect.left + 'px;' +
+    'top:' + bubRect.top + 'px;' +
+    'transform:translate(' + dx + 'px,' + dy + 'px) scale(' + s + ');' +
+    'opacity:0.85;' +
+    'transition:transform .38s cubic-bezier(.22,1.2,.36,1), opacity .38s ease-out;';
+
+  document.body.appendChild(clone);
+
+  // 3. INVERT — force sync layout, then animate to final position
+  clone.getBoundingClientRect(); // sync reflow
+  clone.style.transform = 'translate(0,0) scale(1)';
+  clone.style.opacity = '0';
+
+  // 4. Pulse the send button
+  sendBtn.classList.add('send-pulse');
+  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 400);
+
+  // 5. Hide the real message during animation, then reveal with pop
+  bubble.style.opacity = '0';
+  bubble.style.transition = 'none';
+
+  // 6. Cleanup after animation
+  setTimeout(function() {
+    clone.remove();
+    bubble.style.opacity = '';
+    bubble.style.transition = '';
+    // Small pop-in on the message
     row.classList.remove('msg-anim-in');
-    void row.offsetWidth; // force reflow
-    row.classList.add('fly-land');
-    setTimeout(function() { row.classList.remove('fly-land'); }, 350);
-  }
+    void row.offsetWidth;
+    row.classList.add('msg-anim-in');
+    setTimeout(function() { row.classList.remove('msg-anim-in'); }, 350);
+  }, 380);
 }
 
 function appendMsg(chatId,m){
