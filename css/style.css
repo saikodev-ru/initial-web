@@ -4916,11 +4916,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 
 /* Send button pulse when message flies */
 .send-btn.send-pulse {
-  animation: sendBtnPulse .4s var(--sp) both;
+  animation: sendBtnPulse .42s cubic-bezier(.34,1.4,.64,1) both;
 }
 @keyframes sendBtnPulse {
   0%   { transform: scale(1); }
-  25%  { transform: scale(1.15); box-shadow: 0 0 0 4px rgba(139,92,246,.3), 0 0 16px rgba(139,92,246,.2); }
+  30%  { transform: scale(1.18); box-shadow: 0 0 0 6px rgba(139,92,246,.28), 0 0 20px rgba(139,92,246,.18); }
+  60%  { transform: scale(0.95); }
   100% { transform: scale(1); box-shadow: none; }
 }
 
@@ -4928,10 +4929,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 .send-anim-clone{
   background:var(--msg-bg);
   border:1px solid var(--b);
-  box-shadow:0 8px 32px rgba(0,0,0,.35), 0 0 0 2px rgba(139,92,246,.15);
+  border-radius:18px;
+  box-shadow:0 8px 32px rgba(0,0,0,.4), 0 0 0 1.5px rgba(139,92,246,.12);
+  /* Subtle inner glow that fades in during flight */
+  background-image: radial-gradient(ellipse at center, rgba(139,92,246,.06) 0%, transparent 70%);
 }
 .send-anim-clone-me{
-  background:var(--y);
+  background: linear-gradient(135deg, var(--y) 0%, #7c3aed 100%);
   border:none;
-  box-shadow:0 8px 32px rgba(139,92,246,.3), 0 0 0 2px rgba(139,92,246,.2);
+  border-radius:18px;
+  box-shadow:0 8px 32px rgba(139,92,246,.35), 0 0 0 2px rgba(139,92,246,.15), inset 0 1px 0 rgba(255,255,255,.12);
 }
