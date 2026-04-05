@@ -30,6 +30,12 @@ html,body{height:100%;height:100dvh;overflow:hidden}
   /* ── Status ── */
   --green: #34c759; --red: #ff453a;
 
+  /* ── Voice message palette ── */
+  --voice-accent: rgba(139,92,246,1);
+  --voice-danger: rgba(255,59,48,1);
+  --voice-accent-light: rgba(139,92,246,.3);
+  --voice-accent-medium: rgba(139,92,246,.45);
+
   /* ── Effects ── */
   --bsm: none; --bl: none; --blg: none;
   --sh: 0 8px 32px rgba(0,0,0,.5); --shl: 0 20px 60px rgba(0,0,0,.8);
@@ -2173,7 +2179,7 @@ body[data-theme="light"] .input-zone::before {
 .fctx-btn:active{transform:scale(.97)}
 .fctx-btn:disabled{opacity:.35;cursor:default}
 .fctx-btn:disabled:hover{background:transparent}
-.mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px}
+.mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;transition:margin-right .25s var(--ease),height .2s var(--ease),min-height .2s var(--ease),max-height .2s var(--ease)}
 .mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:14.5px;font-weight:400;padding:11px 42px 11px 42px;outline:none;min-height:44px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
 .mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);pointer-events:none}
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
@@ -2272,8 +2278,9 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 
 .vwr-vid-wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .vwr-vid{max-width:100%;max-height:100%;object-fit:contain;border-radius:12px}
-.vwr-vid-play-btn{position:absolute;width:72px;height:72px;background:rgba(var(--bg-rgb),.5);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:opacity .2s,transform .2s;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%)}
+.vwr-vid-play-btn{position:absolute;width:72px;height:72px;background:rgba(var(--bg-rgb),.5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:2px solid rgba(255,255,255,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;transition:opacity .2s,transform .2s;z-index:2;top:50%;left:50%;transform:translate(-50%,-50%)}
 .vwr-vid-play-btn svg{width:36px;height:36px;margin-left:4px}
+.vwr-vid-wrap:hover .vwr-vid-play-btn{background:rgba(var(--bg-rgb),.65);border-color:rgba(255,255,255,.25)}
 .vwr-vid-controls{position:absolute;bottom:0;left:0;right:0;height:64px;background:linear-gradient(to top,rgba(var(--bg-rgb),.7),transparent);display:flex;align-items:center;gap:12px;padding:0 20px;opacity:0;transition:opacity .3s;z-index:3;border-radius:0 0 12px 12px}
 .vwr-vid-wrap:hover .vwr-vid-controls,.vwr-vid-wrap:not(.playing) .vwr-vid-controls{opacity:1}
 .vwr-vid-cbtn{background:transparent;border:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:4px;opacity:.8;transition:opacity .2s}
@@ -2366,8 +2373,8 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .vid-wrap video{width:100%;display:block;max-height:320px;object-fit:cover;pointer-events:none}
 .vid-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.22);transition:background .15s}
 .vid-wrap:hover .vid-overlay{background:rgba(0,0,0,.36)}
-.vid-play-btn{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;transition:transform .15s var(--sp),background .15s;flex-shrink:0}
-.vid-wrap:hover .vid-play-btn{transform:scale(1.08);background:rgba(0,0,0,.72)}
+.vid-play-btn{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:2px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;transition:transform .15s var(--sp),background .15s;flex-shrink:0}
+.vid-wrap:hover .vid-play-btn{transform:scale(1.08);background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.9)}
 .vid-play-btn svg{width:22px;height:22px;color:#fff;margin-left:3px}
 .vid-duration{position:absolute;bottom:8px;left:10px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.7);letter-spacing:.2px}
 
@@ -4140,15 +4147,26 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 /* ── Play button — incoming: accent ── */
 .voice-play-btn {
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--y); color: #fff;
-  border: none; cursor: pointer;
+  background: rgba(var(--bg-rgb),.55);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #fff;
+  cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; position: relative;
-  transition: transform .12s var(--sp), box-shadow .12s;
+  transition: transform .12s var(--sp), box-shadow .12s, background .12s;
 }
-.voice-play-btn:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
+.voice-play-btn:hover { transform: scale(1.08); background: rgba(var(--bg-rgb),.7); box-shadow: 0 2px 12px rgba(0,0,0,.3); }
 .voice-play-btn:active { transform: scale(0.95); }
-.voice-play-btn svg { width: 15px; height: 15px; margin-left: 2px; }
+/* Buffering indicator — pulsing overlay while streaming */
+.voice-play-btn.buffering::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 50%;
+  border: 2px solid transparent; border-top-color: var(--y);
+  animation: voiceBufSpin .8s linear infinite;
+}
+@keyframes voiceBufSpin { to { transform: rotate(360deg); } }
+.voice-play-btn.buffering svg { opacity: .4; }
+.voice-play-btn svg { width: 14px; height: 14px; margin-left: 2px; }
 .voice-play-btn.playing svg { margin-left: 0; }
 
 /* ── Play button — outgoing: solid on accent bg ── */
@@ -4157,8 +4175,8 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   border-color: rgba(255,255,255,.1);
   backdrop-filter: none;
 }
-body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
-.mrow.me .voice-play-btn:hover { box-shadow: 0 2px 12px rgba(0,0,0,.15); }
+body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255,.85); color: #333; border-color: rgba(0,0,0,.1); }
+.mrow.me .voice-play-btn:hover { background: rgba(255,255,255,.25); box-shadow: 0 2px 12px rgba(0,0,0,.2); }
 
 /* ── Waveform container ── */
 .voice-waveform {
@@ -4170,9 +4188,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   height: 28px; width: 100%;
 }
 
-/* ── Bottom row: speed button ── */
+/* ── Bottom row: speed button + time (right-aligned) ── */
 .voice-wf-bottom {
-  display: flex; align-items: center;
+  display: flex; align-items: center; justify-content: space-between;
   height: 16px; padding-left: 1px;
 }
 .voice-speed-btn {
@@ -4198,39 +4216,43 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   flex: 1 1 0;
   min-height: 3px;
 }
-/* In preview/locked/recording containers, bars should stretch */
-.voice-preview-wave .voice-wf-bar,
+/* In recording/locked containers, bars stretch to fill available width */
 .voice-locked-wave .voice-rec-bar,
 .voice-rec-wave .voice-rec-bar {
   flex: 1 1 0;
+  /* No max-width — bars adapt to panel width */
+  transition: height .04s ease, opacity .04s ease;
 }
-.voice-wf-bar.played { background: rgba(139,92,246,.3); opacity: 1; }
-.voice-wf-bar.active { background: rgba(139,92,246,.45); opacity: 1; }
+.voice-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
+.voice-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 
 /* ── Waveform bars — outgoing: white on accent bg, played blends with bubble ── */
 .mrow.me .voice-wf-bar { background: rgba(255,255,255,.65); }
 .mrow.me .voice-wf-bar.played { background: rgba(255,255,255,.85); opacity: 1; }
 .mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.75); }
 
-/* ── Duration text — right of waveform ── */
-.voice-dur {
-  font-size: 11px; color: var(--t3); white-space: nowrap;
-  font-variant-numeric: tabular-nums; line-height: 1;
-}
-.mrow.me .voice-dur { color: rgba(255,255,255,.7); }
-
 /* ── Voice bubble body ── */
 .voice-body { padding: 4px 2px 2px; }
 
-/* ── Meta (duration + time + ticks) below waveform, right-aligned ── */
-.voice-meta {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 4px; margin-top: 1px;
+/* ── Time — right-aligned on same row as speed button ── */
+.voice-wf-time {
+  display: flex; align-items: center; gap: 3px;
+  margin-left: auto; white-space: nowrap; flex-shrink: 0;
 }
-.voice-meta .mtime { font-size: 11px; color: var(--t3); }
-.mrow.me .voice-meta .mtime { color: rgba(255,255,255,.7); }
-.mrow.me .voice-meta .tick { color: rgba(255,255,255,.55); }
-.mrow.me .voice-meta .tick.r { color: rgba(255,255,255,.85); }
+.voice-wf-time .mtime { font-size: 11px; color: var(--t3); }
+.mrow.me .voice-wf-time .mtime { color: rgba(255,255,255,.7); }
+.mrow.me .voice-wf-time .tick { color: rgba(255,255,255,.55); }
+.mrow.me .voice-wf-time .tick.r { color: rgba(255,255,255,.85); }
+
+/* Voice duration display (prepended to time element) */
+.voice-wf-time .voice-dur {
+  font-size: 11px; color: var(--t3);
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+.mrow.me .voice-wf-time .voice-dur {
+  color: rgba(255,255,255,.7);
+}
 
 /* ═══════════════════════════════════════════════════════════════
    RECORDING / PREVIEW — Input zone overlay (Telegram-style morph)
@@ -4245,7 +4267,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mfield-wrap > .attach-btn-in:not(.voice-hidden),
 .mfield-wrap > .mfield:not(.voice-hidden),
 .mfield-wrap > .emo-btn-in:not(.voice-hidden) {
-  transition: opacity .15s ease;
+  display: '';
+  animation: voiceChildrenFadeIn .25s ease both;
+}
+@keyframes voiceChildrenFadeIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* Send button stays above overlays (z-index only — position:relative already declared) */
@@ -4253,44 +4280,17 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   z-index: 25;
 }
 
-/* Recording overlay (hold mode) — morphs into input zone */
-.voice-recording {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 54px 0 10px;
-  z-index: 2;
-  border-radius: 22px;
-  animation: voiceOverlayIn .18s var(--ease) both;
-  overflow: visible;
-}
-/* When mfield-wrap is in recording mode, keep its backdrop-filter but change appearance */
-.mfield-wrap.voice-rec-active {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: rgba(var(--bg-rgb), .65);
-  border-color: rgba(255,255,255, .08);
-  height: 44px;
-  min-height: 44px;
-  max-height: 44px;
-  overflow: visible;
-}
+/* ── Recording overlay (hold mode) — morphs into input zone ── */
+/* Layout: defined once, animation in ENHANCEMENTS section below */
 .mfield-wrap.voice-rec-active .voice-recording {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-@keyframes voiceOverlayIn {
-  from { opacity: 0; transform: scale(.97); }
-  to   { opacity: 1; transform: scale(1); }
-}
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
 .voice-rec-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 38px; flex-shrink: 0; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
-.voice-rec-bar { width: 2.5px; flex: 1 1 0; border-radius: 2px; background: var(--y); opacity: .7; transition: height .06s linear; min-height: 3px; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; min-width: 0; justify-content: flex-end; position: relative; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
@@ -4306,7 +4306,6 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   padding: 6px 7px; border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,.2);
 }
-.voice-lock-arrow.show { opacity: 1; }
 .voice-cancel-arrow {
   display: flex; align-items: center; gap: 2px;
   color: var(--t3); font-size: 13px; white-space: nowrap;
@@ -4317,22 +4316,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 .voice-cancel-arrow svg { flex-shrink: 0; }
 .voice-cancel-arrow span { font-weight: 500; }
-.voice-cancel-arrow.show { opacity: 0.9; }
 
 /* ── Locked recording mode ── */
-/* Layout: [🗑 DELETE] [timer] [waveform fills space] [⏸ PAUSE] */
-.voice-locked {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 54px 0 8px;
-  z-index: 2; border-radius: 22px;
-  animation: voiceOverlayIn .18s var(--ease) both;
-  overflow: hidden;
-  transition: background .12s ease, transform .12s ease;
-}
+/* Layout: defined in ENHANCEMENTS section below with animation */
 /* Delete button — left side */
 .voice-locked-delete {
   width: 34px; height: 34px; border-radius: 50%;
@@ -4357,19 +4343,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 /* Timer */
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
-/* Waveform — fills remaining space, bars grow right to left */
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
-/* Pause button — right side of locked panel */
-.voice-locked-pause {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: var(--y); color: #fff;
-  border: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  transition: transform .12s var(--sp), box-shadow .12s, background .12s;
-}
-.voice-locked-pause:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
-.voice-locked-pause:active { transform: scale(0.95); }
+/* Waveform — fills remaining space, bars anchored to right edge with fade gradient to left */
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; position: relative; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
+
 /* Swipe-to-delete active state */
 .voice-locked.swipe-delete .voice-locked-delete {
   color: var(--red);
@@ -4381,17 +4357,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 
 /* ── Preview mode (after recording) — Telegram-style send panel ── */
-.voice-preview {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 52px 0 10px;
-  z-index: 2; border-radius: 22px;
-  animation: voiceOverlayIn .18s var(--ease) both;
-  overflow: hidden;
-}
+/* Layout: defined in ENHANCEMENTS section below with animation */
 .voice-preview-delete { width: 34px; height: 34px; border-radius: 50%; background: transparent; border: none; color: var(--t3); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .12s, color .12s; }
 .voice-preview-delete:hover { background: rgba(255,69,58,.08); color: var(--red); }
 .voice-preview-delete svg { width: 20px; height: 20px; }
@@ -4400,10 +4366,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-preview-play:active { transform: scale(0.95); }
 .voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 .voice-preview-dur { font-size: 12px; color: var(--t3); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; white-space: nowrap; flex-shrink: 0; }
-.voice-preview-send { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
-.voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
-.voice-preview-send:active { transform: scale(0.95); }
-.voice-preview-send svg { width: 18px; height: 18px; }
+
 
 /* ── Mic button — enlarged with hints ── */
 .btn-voice-rec {
@@ -4501,19 +4464,171 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 }
 
 /* ── Mic button becomes send button in preview mode ── */
-.btn-voice-rec.voice-send-mode {
-  background: var(--y) !important;
-  color: #fff !important;
-  box-shadow: 0 2px 8px rgba(139,92,246,.3);
-}
-.btn-voice-rec.voice-send-mode .ico-send { opacity: 1 !important; transform: translateY(0) rotate(0deg) !important; }
-.btn-voice-rec.voice-send-mode .ico-mic { opacity: 0 !important; transform: translateY(-6px) rotate(30deg) !important; }
-.btn-voice-rec.voice-send-mode:hover {
-  background: var(--y2) !important;
-  transform: scale(1.08) !important;
-}
-.btn-voice-rec.voice-send-mode svg {
+.btn-voice-rec.btn-voice-rec.voice-send-mode {
+  background: var(--y);
   color: #fff;
+  box-shadow: 0 2px 8px var(--voice-accent-light);
+}
+.btn-voice-rec.btn-voice-rec.voice-send-mode .ico-send { opacity: 1; transform: translateY(0) rotate(0deg); }
+.btn-voice-rec.btn-voice-rec.voice-send-mode .ico-mic { opacity: 0; transform: translateY(-6px) rotate(30deg); }
+.btn-voice-rec.btn-voice-rec.voice-send-mode:hover {
+  background: var(--y2);
+  transform: scale(1.08);
+}
+.btn-voice-rec.btn-voice-rec.voice-send-mode svg {
+  color: #fff;
+}
+
+/* ── Floating STOP button above send button (locked mode) ── */
+.voice-stop-float {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(var(--bg-rgb),.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--t1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  z-index: 26;
+  animation: voiceStopPopIn .2s var(--sp) both;
+  transition: transform .12s var(--sp), box-shadow .12s, background .12s;
+}
+.voice-stop-float:hover {
+  transform: translateX(-50%) scale(1.1);
+  background: rgba(var(--bg-rgb),.95);
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+.voice-stop-float:active {
+  transform: translateX(-50%) scale(0.92);
+}
+@keyframes voiceStopPopIn {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.5) translateY(6px); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* Fix: hovering stop float should NOT trigger parent .btn-voice-rec:hover */
+.btn-voice-rec.voice-send-mode:hover {
+  background: var(--y);
+  transform: scale(1);
+}
+.btn-voice-rec.voice-send-mode:has(.voice-stop-float:hover) {
+  background: var(--y) !important;
+  transform: none !important;
+  box-shadow: 0 2px 8px var(--voice-accent-light) !important;
+}
+
+/* ── Animated cancel — swipe-delete style animation on click ── */
+.voice-anim-cancel {
+  animation: voiceAnimCancel .35s cubic-bezier(.4,0,.2,1) both !important;
+  pointer-events: none;
+}
+@keyframes voiceAnimCancel {
+  0% { opacity: 1; transform: translateX(0) scale(1); }
+  35% { opacity: .7; transform: translateX(-60px) scale(.98); }
+  100% { opacity: 0; transform: translateX(-180px) scale(.93); }
+}
+
+/* ── Locked panel send animation ── */
+.voice-locked-sending {
+  animation: voiceLockedSendAway .2s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voiceLockedSendAway {
+  0% { opacity: 1; transform: scale(1) translateX(0); }
+  50% { opacity: .6; transform: scale(.95) translateX(6px); }
+  100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
+}
+
+/* ── Upload ring: media-style (replaces play button content) ── */
+.voice-upload-ring {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.voice-upload-ring-svg {
+  width: 100%; height: 100%;
+  transform: rotate(-90deg);
+}
+.voice-upload-ring-bg {
+  fill: none;
+  stroke: rgba(255,255,255,.22);
+  stroke-width: 3;
+}
+.voice-upload-ring-fg {
+  fill: none; stroke: #fff; stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 88.82;
+  stroke-dashoffset: 88.82;
+  transition: stroke-dashoffset .18s linear;
+}
+.voice-play-btn.voice-uploading {
+  pointer-events: none;
+}
+.mrow.me .voice-play-btn.voice-uploading .voice-upload-ring-fg { stroke: var(--t1); }
+.mrow.me .voice-play-btn.voice-uploading .voice-upload-ring-bg { stroke: rgba(0,0,0,.12); }
+
+/* ── STT (Speech-to-Text) transcription button ── */
+.voice-stt-btn {
+  background: transparent;
+  border: none;
+  padding: 0 4px;
+  color: var(--t3);
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background .12s;
+  flex-shrink: 0;
+}
+.voice-stt-btn:hover {
+  color: var(--y);
+  background: rgba(139,92,246,.08);
+}
+.voice-stt-btn:active {
+  transform: scale(0.92);
+}
+.voice-stt-btn.stt-loading svg {
+  animation: sttSpin 1s linear infinite;
+}
+@keyframes sttSpin {
+  to { transform: rotate(360deg); }
+}
+.voice-stt-btn.stt-done {
+  color: var(--green);
+}
+.voice-stt-btn.stt-done:hover {
+  color: var(--red);
+}
+.mrow.me .voice-stt-btn { color: rgba(255,255,255,.45); }
+.mrow.me .voice-stt-btn:hover { color: rgba(255,255,255,.85); background: rgba(255,255,255,.1); }
+.mrow.me .voice-stt-btn.stt-done { color: var(--green); }
+.mrow.me .voice-stt-btn.stt-done:hover { color: var(--red); }
+
+/* ── STT result text ── */
+.voice-stt-result {
+  font-size: 13px;
+  color: var(--t2);
+  line-height: 1.5;
+  padding: 6px 4px 2px;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height .3s var(--ease), opacity .3s var(--ease), padding .3s var(--ease);
+}
+.voice-stt-result.stt-visible {
+  max-height: 200px;
+  opacity: 1;
+  padding: 4px 4px 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4559,8 +4674,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   transition: background .1s, opacity .1s;
   flex-shrink: 0; min-height: 2px;
 }
-.voice-mini-player .vmp-wf-bar.played { background: rgba(139,92,246,.4); opacity: 1; }
-.voice-mini-player .vmp-wf-bar.active { background: rgba(139,92,246,.55); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
+.voice-mini-player .vmp-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 .voice-mini-player .vmp-time {
   font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
   white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
@@ -4591,6 +4706,9 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 1. Recording panel morph animation (slide-up + fade + scale) ── */
 .voice-recording {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  gap: 8px; padding: 0 12px 0 10px;
+  z-index: 2; border-radius: 22px;
   animation: voiceRecSlideIn .32s var(--ease) both;
   overflow: visible;
 }
@@ -4602,7 +4720,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 2. Locked panel entry animation (crossfade from recording) ── */
 .voice-locked {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  gap: 6px; padding: 0 8px 0 8px;
+  z-index: 2; border-radius: 22px;
   animation: voiceLockedSlideIn .28s var(--ease) both;
+  overflow: hidden;
+  transition: background .12s ease, transform .12s ease;
 }
 @keyframes voiceLockedSlideIn {
   0%   { opacity: 0; transform: translateX(6px) scale(.98); }
@@ -4611,7 +4734,11 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 3. Preview panel entry animation (expand from center) ── */
 .voice-preview {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  gap: 8px; padding: 0 52px 0 10px;
+  z-index: 2; border-radius: 22px;
   animation: voicePreviewPopIn .3s var(--sp) both;
+  overflow: hidden;
 }
 @keyframes voicePreviewPopIn {
   0%   { opacity: 0; transform: scale(.92) translateY(4px); }
@@ -4629,6 +4756,17 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
 }
 
+/* ── 3b-II. Recording overlay send animation (hold-to-record flow) ── */
+.voice-recording.voice-rec-sending {
+  animation: voiceRecSendAway .2s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voiceRecSendAway {
+  0%   { opacity: 1; transform: scale(1) translateX(0); }
+  50%  { opacity: .6; transform: scale(.95) translateX(6px); }
+  100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
+}
+
 /* ── 3c. Send button fly-up pulse when voice is sent ── */
 .btn-voice-rec.voice-send-fly {
   animation: voiceSendBtnFly .4s var(--sp) both;
@@ -4640,18 +4778,18 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-/* ── 4. Recording glow effect — subtle red glow around input wrap ── */
+/* ── 4. Recording glow effect — subtle glow around input wrap ── */
 .mfield-wrap.voice-rec-active {
-  box-shadow: 0 0 0 1px rgba(255,255,255,.04),
-              0 0 12px rgba(139,92,246,.06);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  background: rgba(var(--bg-rgb), .65); border-color: rgba(255,255,255, .08);
+  height: 44px; min-height: 44px; max-height: 44px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.04), 0 0 12px rgba(139,92,246,.06);
   overflow: visible;
-  transition: box-shadow .35s var(--ease),
-              backdrop-filter .2s,
-              background .2s,
-              border-color .2s,
-              height .2s var(--ease),
-              min-height .2s var(--ease),
-              max-height .2s var(--ease);
+  transition: box-shadow .35s var(--ease), backdrop-filter .2s, background .2s, border-color .2s,
+              height .2s var(--ease), min-height .2s var(--ease), max-height .2s var(--ease),
+              margin-right .25s var(--ease);
+  border-radius: 22px;
+  margin-right: -52px;
 }
 
 /* ── 5. Lock arrow bounce animation when shown ── */
@@ -4679,19 +4817,12 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 7. Recording bar gradient (lavender → teal) ── */
 .voice-rec-bar {
+  width: 2.5px; flex: 1 1 0; max-width: 5px; border-radius: 2px;
   background: linear-gradient(180deg, var(--y) 0%, var(--y3) 100%);
+  opacity: .7; transition: height .06s linear; min-height: 3px;
 }
 
-/* ── 8. Preview waveform played state — accent color with glow ── */
-.voice-wf-bar.played {
-  background: var(--y);
-  opacity: 1;
-  box-shadow: 0 0 4px rgba(139,92,246,.3);
-}
-.mrow.me .voice-wf-bar.played {
-  background: rgba(255,255,255,.85);
-  box-shadow: none;
-}
+/* ── 8. (played state handled above with light accent) ── */
 
 /* ── 9. No pulse on pause button (replaced old stop pulse) ── */
 
@@ -4762,36 +4893,4 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .btn-voice-rec.locked-stop-mode:hover {
   background: #e04040 !important;
   transform: scale(1.08);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   UPLOAD PROGRESS RING — Circular progress on voice play button
-   ═══════════════════════════════════════════════════════════════ */
-.voice-upload-ring {
-  position: absolute;
-  inset: -4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  z-index: 2;
-}
-.voice-upload-ring .progress-ring-svg {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-.voice-upload-ring .progress-ring-fg {
-  transition: stroke-dashoffset .15s ease;
-}
-.voice-upload-ring .upload-ring-pct {
-  font-size: 7px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.4);
-  position: relative;
-  z-index: 1;
-  line-height: 1;
 }

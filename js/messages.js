@@ -1021,7 +1021,7 @@ function makeMsgEl(m,newSender=true){
       const voiceWrap=document.createElement('div');
       voiceWrap.className='voice-msg';
       const dur=m.voice_duration||parseInt(m.body||'0',10)||0;
-      const durStr=`${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}`;
+      const durStr=window.VoiceMsg?window.VoiceMsg.formatTimeSec(dur):`${Math.floor(dur/60)}:${String(dur%60).padStart(2,'0')}`;
       const audioUrl=getMediaUrl(m.media_url);
       let wfData=[];
       try{if(m.voice_waveform)wfData=JSON.parse(m.voice_waveform);}catch(e){}
@@ -1031,18 +1031,20 @@ function makeMsgEl(m,newSender=true){
           <div class="voice-wf-bars"></div>
           <div class="voice-wf-bottom">
             <button class="voice-speed-btn" title="Скорость воспроизведения">1×</button>
+            <button class="voice-stt-btn" title="Расшифровать">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <span class="voice-wf-time"></span>
           </div>
         </div>
+        <div class="voice-stt-result" style="display:none"></div>
       `;
       body.appendChild(voiceWrap);
       body.classList.add('voice-body');
 
-      // Time + duration below waveform (Telegram-style)
-      const voiceMeta=document.createElement('div');
-      voiceMeta.className='voice-meta';
-      voiceMeta.innerHTML=`<span class="voice-dur">${durStr}</span>`;
-      voiceMeta.appendChild(makeMeta(m,isMe,sending));
-      body.appendChild(voiceMeta);
+      // Time — right-aligned on the same row as speed button
+      const voiceTimeEl = voiceWrap.querySelector('.voice-wf-time');
+      if (voiceTimeEl) voiceTimeEl.appendChild(makeMeta(m,isMe,sending));
 
       setTimeout(()=>{if(window.VoiceMsg){window.VoiceMsg.createPlayer(voiceWrap,audioUrl,dur,wfData);}},0);
     } else if(m.media_type==='document'){
@@ -2333,6 +2335,8 @@ function hideSBBtn(){
     _scrollRaf=requestAnimationFrame(()=>{
       _scrollRaf=0;
       if(nearBot())hideSBBtn();
+      // Pre-cache voice messages visible in viewport
+      if(window.VoiceMsg&&window.VoiceMsg.precacheVoiceMessages)window.VoiceMsg.precacheVoiceMessages();
       clearTimeout(area._scrollSaveTimer);
       area._scrollSaveTimer=setTimeout(()=>{if(S.chatId)saveScrollPos(S.chatId);},200);
     });
