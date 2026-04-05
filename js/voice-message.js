@@ -116,7 +116,13 @@ window.VoiceMsg = (function () {
 
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+        },
+      });
     } catch (e) {
       toast('Нет доступа к микрофону', 'err');
       _removeAllOverlays();
