@@ -4984,11 +4984,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   100% { transform: scale(1); box-shadow: none; }
 }
 
-/* Entry animation for the real message (synced with fly) */
-.mrow.fly-land {
-  animation: msgFlyLand .3s cubic-bezier(.34,1.3,.64,1) backwards;
-  animation-delay: .05s;
+/* ── Send animation clone (FLIP: button → message) ── */
+.send-anim-clone{
+  background:var(--msg-bg);
+  border:1px solid var(--b);
+  box-shadow:0 8px 32px rgba(0,0,0,.35), 0 0 0 2px rgba(139,92,246,.15);
 }
-@keyframes msgFlyLand {
-  from { opacity: 0; transform: scale(.92) translateY(8px); }
+.send-anim-clone-me{
+  background:var(--y);
+  border:none;
+  box-shadow:0 8px 32px rgba(139,92,246,.3), 0 0 0 2px rgba(139,92,246,.2);
 }
