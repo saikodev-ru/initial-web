@@ -1768,6 +1768,11 @@ window.VoiceMsg = (function () {
     appendMsg(S.chatId, tmp);
     scrollBot();
 
+    // ── Step 2.5: Fly animation from send button to chat ──
+    if (typeof animateMsgFly === 'function') {
+      animateMsgFly('voice', { duration, waveform }, tid);
+    }
+
     // ── Step 3: Show upload progress ring on play button ──
     _showUploadProgress(tid, blob);
 
