@@ -693,114 +693,140 @@ function renderMsgs(chatId){
 /* ══ MESSAGE FLY ANIMATION — clone flies from send button to chat ══ */
 
 /**
- * Animate a message clone flying from the send button to the target message element.
- * @param {'text'|'voice'} type - Message type
- * @param {object} opts
- * @param {string} [opts.text] - Text content for text messages
- * @param {number} [opts.duration] - Voice duration in seconds
- * @param {number[]} [opts.waveform] - Voice waveform data array
- * @param {string} tempId - Temp message ID to find target element after append
+ * Animate a message clone flying from the send button to the target message bubble.
+ * Uses FLIP: First (btn rect) → Last (target rect) → Invert → Play.
  */
 function animateMsgFly(type, opts, tempId) {
   const sendBtn = document.getElementById('btn-send');
-  const msgsArea = document.getElementById('msgs');
-  if (!sendBtn || !msgsArea) return;
+  if (!sendBtn) return;
 
-  // Create floating clone
+  // ── Build clone content ──
   const clone = document.createElement('div');
   clone.className = 'msg-fly-clone';
 
   if (type === 'text' && opts.text) {
     clone.classList.add('fly-text');
-    // Truncate long text for the clone
-    const maxLen = 120;
-    clone.textContent = opts.text.length > maxLen ? opts.text.slice(0, maxLen) + '…' : opts.text;
+    clone.textContent = opts.text.length > 100 ? opts.text.slice(0, 100) + '…' : opts.text;
   } else if (type === 'voice') {
     clone.classList.add('fly-voice');
-    const dur = opts.duration || 0;
     const wf = opts.waveform || [];
-    const durStr = window.VoiceMsg ? window.VoiceMsg.formatTimeSec(dur) : '0:00';
-
-    clone.innerHTML = `
-      <div class="fly-voice-play">
-        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      </div>
-      <div class="fly-voice-bars">
-        ${wf.slice(0, 28).map(v => `<div class="fly-voice-bar" style="height:${3 + (v || 0.3) * 20}px"></div>`).join('')}
-      </div>
-      <span class="fly-voice-dur">${durStr}</span>
-    `;
+    const durStr = window.VoiceMsg ? window.VoiceMsg.formatTimeSec(opts.duration || 0) : '0:00';
+    clone.innerHTML =
+      '<div class="fly-voice-play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>' +
+      '<div class="fly-voice-bars">' +
+        wf.slice(0, 24).map(function(v) { return '<div class="fly-voice-bar" style="height:' + (3 + (v || 0.3) * 20) + 'px"></div>'; }).join('') +
+      '</div>' +
+      '<span class="fly-voice-dur">' + durStr + '</span>';
   } else {
     return;
   }
 
-  // Position clone at send button
-  const btnRect = sendBtn.getBoundingClientRect();
-  const startX = btnRect.left + btnRect.width / 2;
-  const startY = btnRect.top + btnRect.height / 2;
-
-  clone.style.left = startX + 'px';
-  clone.style.top = startY + 'px';
-  clone.style.transform = 'translate(-50%, -50%) scale(0.3)';
-  clone.style.opacity = '0';
   document.body.appendChild(clone);
 
-  // Pulse on send button
+  // ── Start position: send button center ──
+  const btnRect = sendBtn.getBoundingClientRect();
+  const btnCx = btnRect.left + btnRect.width / 2;
+  const btnCy = btnRect.top + btnRect.height / 2;
+
+  // ── Find target: the bubble inside the new message ──
+  const targetRow = document.querySelector('.mrow[data-id="' + tempId + '"]');
+  const targetBubble = targetRow ? targetRow.querySelector('.mbody') : null;
+
+  // Pulse send button
   sendBtn.classList.add('send-pulse');
-  setTimeout(() => sendBtn.classList.remove('send-pulse'), 400);
+  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 400);
 
-  // Wait for target element to appear in DOM (appendMsg is sync)
-  requestAnimationFrame(() => {
-    const targetEl = document.querySelector(`.mrow[data-id="${tempId}"]`);
+  // Remove default msg-anim-in from the target so it doesn't conflict
+  if (targetRow) {
+    targetRow.classList.remove('msg-anim-in');
+  }
 
-    // Phase 1: Expand from button (pop out)
-    requestAnimationFrame(() => {
-      clone.style.opacity = '1';
-      clone.style.transform = 'translate(-50%, -50%) scale(1)';
+  // ── Phase 1: Pop out from button (next frame to trigger transition) ──
+  clone.style.left = btnCx + 'px';
+  clone.style.top = btnCy + 'px';
+  clone.style.transform = 'translate(-50%, -50%) scale(0.2)';
+  clone.style.opacity = '0';
+  clone.style.transition = 'none';
+
+  requestAnimationFrame(function() {
+    clone.style.transition = 'transform .22s cubic-bezier(.34,1.56,.64,1), opacity .15s ease';
+    clone.style.opacity = '1';
+    clone.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+
+  // ── Phase 2: Fly to target bubble ──
+  setTimeout(function() {
+    var endRect;
+    if (targetBubble) {
+      endRect = targetBubble.getBoundingClientRect();
+    } else if (targetRow) {
+      endRect = targetRow.getBoundingClientRect();
+    } else {
+      clone.remove();
+      return;
+    }
+
+    var endCx = endRect.left + endRect.width / 2;
+    var endCy = endRect.top + endRect.height / 2;
+
+    // Scale clone to roughly match target size
+    var cloneRect = clone.getBoundingClientRect();
+    var fitScale = Math.min(endRect.width / Math.max(1, cloneRect.width), endRect.height / Math.max(1, cloneRect.height));
+    fitScale = Math.min(1, fitScale);
+
+    // Use WAAPI for smooth arc flight
+    var startCx = parseFloat(clone.style.left);
+    var startCy = parseFloat(clone.style.top);
+
+    // Remove CSS transition, use Web Animations API instead
+    clone.style.transition = 'none';
+    clone.style.opacity = '1';
+
+    var flyAnim = clone.animate([
+      {
+        transform: 'translate(-50%, -50%) scale(1)',
+        offset: 0
+      },
+      {
+        transform: 'translate(-50%, calc(-50% - 30px)) scale(' + (fitScale * 0.95) + ')',
+        offset: 0.4
+      },
+      {
+        transform: 'translate(-50%, -50%) scale(' + fitScale + ')',
+        opacity: 0.2,
+        offset: 1
+      }
+    ], {
+      duration: 320,
+      easing: 'cubic-bezier(.22,1,.36,1)',
+      fill: 'forwards'
     });
 
-    // Phase 2: Fly to target after brief pause
-    setTimeout(() => {
-      let targetRect;
-      if (targetEl) {
-        targetRect = targetEl.getBoundingClientRect();
-      } else {
-        // Fallback: fly to bottom-center of msgs area
-        const areaRect = msgsArea.getBoundingClientRect();
-        targetRect = {
-          left: areaRect.right - 160,
-          top: areaRect.bottom - 40,
-          width: 140,
-          height: 40,
-        };
+    // Simultaneously move left/top to target
+    var posAnim = clone.animate([
+      { left: startCx + 'px', top: startCy + 'px', offset: 0 },
+      { left: endCx + 'px', top: endCy + 'px', offset: 1 }
+    ], {
+      duration: 320,
+      easing: 'cubic-bezier(.22,1,.36,1)',
+      fill: 'forwards'
+    });
+
+    // Show target message with land animation when clone arrives
+    setTimeout(function() {
+      if (targetRow) {
+        targetRow.classList.add('fly-land');
+        setTimeout(function() { targetRow.classList.remove('fly-land'); }, 350);
       }
+    }, 200);
 
-      const endX = targetRect.left + targetRect.width / 2;
-      const endY = targetRect.top + targetRect.height / 2;
+    // Cleanup
+    flyAnim.onfinish = function() {
+      clone.remove();
+    };
+    posAnim.onfinish = function() {};
 
-      // Calculate scale difference
-      const cloneRect = clone.getBoundingClientRect();
-      const scaleX = targetRect.width / Math.max(1, cloneRect.width);
-      const scaleY = targetRect.height / Math.max(1, cloneRect.height);
-      const flyScale = Math.min(1, Math.min(scaleX, scaleY) * 0.8);
-
-      clone.style.left = endX + 'px';
-      clone.style.top = endY + 'px';
-      clone.style.transform = `translate(-50%, -50%) scale(${flyScale})`;
-      clone.style.opacity = '0.3';
-
-      // Add land animation to real message
-      if (targetEl) {
-        targetEl.classList.add('fly-land');
-        setTimeout(() => targetEl.classList.remove('fly-land'), 350);
-      }
-
-      // Cleanup clone after transition
-      setTimeout(() => {
-        clone.remove();
-      }, 380);
-    }, 120);
-  });
+  }, 180);
 }
 
 function appendMsg(chatId,m){
