@@ -42,6 +42,18 @@ $voskScript = __DIR__ . '/stt_vosk.py';
 $modelPath  = defined('VOSK_MODEL_PATH') ? VOSK_MODEL_PATH : __DIR__ . '/vosk-model-ru-small';
 $pythonBin  = defined('PYTHON3_BIN')     ? PYTHON3_BIN     : 'python3';
 
+// Validate python binary exists
+if (!file_exists($pythonBin) && !is_executable($pythonBin)) {
+    // Fallback: try 'which' to find python
+    $which = @exec('which python3 2>/dev/null || which python 2>/dev/null');
+    if ($which) $pythonBin = trim($which);
+}
+
+if (!file_exists($pythonBin)) {
+    error_log('STT: Python не найден: ' . $pythonBin);
+    json_err('config_error', 'STT не настроен — Python не найден', 503);
+}
+
 if (!file_exists($voskScript)) {
     error_log('STT: stt_vosk.py не найден по пути ' . $voskScript);
     json_err('config_error', 'STT не настроен — скрипт не найден', 503);
@@ -152,8 +164,10 @@ $wavTmp = $tmpFileWithExt . '.stt.wav';
 if (file_exists($wavTmp)) @unlink($wavTmp);
 
 if ($returnCode !== 0) {
-    error_log("STT: Python exit code {$returnCode}: " . trim($stderr ?: $stdout));
-    json_err('api_error', 'Ошибка транскрипции', 502);
+    $detail = trim($stderr ?: $stdout);
+    error_log("STT: Python exit code {$returnCode}: " . $detail);
+    // Return actual error detail to client for debugging
+    json_err('api_error', "Ошибка транскрипции: " . mb_substr($detail, 0, 200, 'UTF-8'), 502);
 }
 
 $data = json_decode($stdout, true);
