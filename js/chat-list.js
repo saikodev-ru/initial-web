@@ -975,7 +975,7 @@ function goBackToList(){
       S.chatId=null;
       $('active-chat').style.display='';
       $('chat-welcome').style.display='flex';
-      if(typeof startWelcomeTyping==='function')startWelcomeTyping();
+      if(typeof showWelcomeScreen==='function')showWelcomeScreen();
     },300); // matches transition duration
   } else {
     // Desktop: animate close
@@ -990,7 +990,7 @@ function goBackToList(){
       ac.style.opacity = '';
       ac.style.transform = '';
       $('chat-welcome').style.display='flex';
-      if(typeof startWelcomeTyping==='function')startWelcomeTyping();
+      if(typeof showWelcomeScreen==='function')showWelcomeScreen();
     }, 200);
   }
 }

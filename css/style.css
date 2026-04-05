@@ -625,18 +625,10 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .chat-welcome{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 60px;position:relative}
 .chat-welcome::before{content:'';position:absolute;inset:0;background:rgba(var(--chat-bg-rgb),.85);pointer-events:none}
 .chat-welcome>*{position:relative;z-index:1}
-.welc-content{max-width:400px;animation:welcContentIn .7s cubic-bezier(.16,1,.3,1) both}
-@keyframes welcContentIn{0%{opacity:0;transform:translateY(30px) scale(.97);filter:blur(10px)}50%{filter:blur(3px)}100%{opacity:1;transform:none;filter:blur(0)}}
-.chat-welcome h2{font-size:28px;font-weight:900;margin-bottom:10px;color:var(--t1);letter-spacing:-.4px;overflow:hidden;white-space:nowrap;min-width:1ch;text-align:left;animation:welcTitleIn .5s cubic-bezier(.16,1,.3,1) .15s both}
-@keyframes welcTitleIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.chat-welcome h2 .welc-cursor{display:inline-block;min-width:2px;height:.85em;vertical-align:text-bottom;background:var(--t1);animation:cursorBlink .7s step-end infinite;margin-left:2px;border-radius:1px}
-@keyframes cursorBlink{0%,100%{opacity:1}50%{opacity:0}}
-.chat-welcome p{font-size:15px;line-height:1.6;max-width:320px;color:var(--t2);text-align:left;animation:welcSubIn .5s cubic-bezier(.16,1,.3,1) .35s both}
-.chat-welcome p .welc-emoji{display:inline-block;animation:welcEmojiPop .4s cubic-bezier(.34,1.56,.64,1) both}
-.chat-welcome p .welc-emoji:nth-child(1){animation-delay:.5s}
-.chat-welcome p .welc-emoji:nth-child(2){animation-delay:.65s}
-@keyframes welcSubIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-@keyframes welcEmojiPop{0%{opacity:0;transform:scale(0) rotate(-15deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+.welc-content{max-width:400px;opacity:0;transition:opacity .5s ease,transform .5s ease;transform:translateY(12px)}
+.welc-content.visible{opacity:1;transform:none}
+.chat-welcome h2{font-size:28px;font-weight:900;margin-bottom:10px;color:var(--t1);letter-spacing:-.4px;text-align:left}
+.chat-welcome p{font-size:15px;line-height:1.6;max-width:320px;color:var(--t2);text-align:left}
 
 /* CHAT HEADER */
 .chat-hdr{position:sticky;top:0;padding:8px 20px 8px 14px;border-bottom:1px solid var(--b);display:flex;align-items:center;gap:12px;flex-shrink:0;background:rgba(var(--bg-rgb),.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);z-index:15;cursor:default}
@@ -1503,6 +1495,7 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .me .mbub .mbody:not(.media-only):not(.has-media-caption):not(.emo-only){background:var(--y)!important}
 /* Sending state */
 .mbody.sending{opacity:.7}
+.mbody.voice-body.sending{opacity:1!important}
 
 /* Highlight & Quick Reply Animation (no transform/filter to avoid breaking fixed background) */
 @keyframes msgHighlightFlash {

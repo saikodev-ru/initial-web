@@ -1,40 +1,24 @@
 /* ══ APP — Медиа · SSE · Polling · Просмотрщик · Профиль · Boot ══ */
 
-/* ══ WELCOME SCREEN TYPING ANIMATION ═══════════════════════ */
-let _welcTypeTimer = null;
-function startWelcomeTyping() {
+/* ══ WELCOME SCREEN — static text with fade-in ════════════════ */
+function showWelcomeScreen() {
   const titleEl = $('welc-title');
   const subEl = $('welc-sub');
+  const contentEl = document.querySelector('.welc-content');
   if (!titleEl || !subEl) return;
-  // Cancel previous animation if any
-  clearTimeout(_welcTypeTimer);
-  titleEl.innerHTML = '';
-  subEl.textContent = '';
 
-  const emojis = ['💬','👋','✨','🎯','🚀','💡','🌟','🎨','🔮','💎'];
-  const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-  const fullTitle = 'Кому бы написать сегодня?';
-  const fullSub = `Выбери чат или создай новый ${emoji}`;
-  let ti = 0;
-  const titleCursor = document.createElement('span');
-  titleCursor.className = 'welc-cursor';
-  titleCursor.style.display = '';
-  function typeTitle() {
-    if (ti <= fullTitle.length) {
-      titleEl.textContent = fullTitle.slice(0, ti);
-      titleEl.appendChild(titleCursor);
-      ti++;
-      _welcTypeTimer = setTimeout(typeTitle, 55 + Math.random() * 40);
-    } else {
-      _welcTypeTimer = setTimeout(() => { titleCursor.style.display = 'none'; }, 1800);
-      setTimeout(() => { subEl.textContent = fullSub; }, 300);
-    }
+  titleEl.textContent = 'Кому бы написать сегодня?';
+  subEl.innerHTML = 'Выбери чат или создай новый ✨';
+
+  // Trigger fade-in via .visible class
+  if (contentEl) {
+    contentEl.classList.remove('visible');
+    void contentEl.offsetWidth; // force reflow
+    contentEl.classList.add('visible');
   }
-  // Start typing after short delay
-  _welcTypeTimer = setTimeout(typeTitle, 400);
 }
 // Run on initial load
-startWelcomeTyping();
+showWelcomeScreen();
 
 /* ══ MEDIA PREVIEW SEND ══════════════════════════════════════ */
 /* ── Performance / low-end device detection ─────────────────── */
