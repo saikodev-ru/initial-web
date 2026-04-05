@@ -98,6 +98,8 @@ window.VoiceMsg = (function () {
       wrap.style.overflow = '';
       wrap.style.transform = '';
       wrap.style.opacity = '';
+      wrap.style.marginRight = '';
+      wrap.style.borderRadius = '';
     }
     _showMfieldChildren();
     if (typeof updateSendBtn === 'function') updateSendBtn();
@@ -306,11 +308,6 @@ window.VoiceMsg = (function () {
       <div class="voice-rec-dot"></div>
       <span class="voice-rec-timer">0:00</span>
       <div class="voice-rec-wave" id="voice-rec-wave-container"></div>
-      <div class="voice-cancel-arrow" id="voice-cancel-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="15 18 9 12 15 6"/></svg>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="15 18 9 12 15 6"/></svg>
-        <span>Slide to cancel</span>
-      </div>
       <div class="voice-lock-arrow" id="voice-lock-arrow">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -372,17 +369,27 @@ window.VoiceMsg = (function () {
       stopFloat.style.display = 'flex';
 
       // Stop button: stops recording → shows preview
+      // Must use capture on sendBtn (parent) so it fires BEFORE the send handler
       const stopHandler = (e) => {
+        if (!e.target.closest('.voice-stop-float')) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         _onLockedStop();
       };
       sendBtn._stopFloatHandler = stopHandler;
-      stopFloat.addEventListener('click', stopHandler, true);
+      sendBtn.addEventListener('click', stopHandler, true);
+      // Also keep handler on stopFloat itself as fallback (bubble)
+      stopFloat.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        _onLockedStop();
+      });
 
       // Send button click: send voice directly (no preview)
       const sendHandler = (e) => {
+        // Don't intercept clicks on the floating stop button
+        if (e.target.closest('.voice-stop-float')) return;
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
@@ -1017,7 +1024,6 @@ window.VoiceMsg = (function () {
     const dx = state.pointer.startX - clientX;
     const dy = state.pointer.startY - clientY;
 
-    const cancelHint = state.overlays.rec.querySelector('#voice-cancel-arrow');
     const lockHint = state.overlays.rec.querySelector('#voice-lock-arrow');
 
     // Swipe UP → lock
@@ -1046,7 +1052,6 @@ window.VoiceMsg = (function () {
       const cancelProgress = Math.min(1, (dx - CANCEL_THRESHOLD) / (CANCEL_COMPLETE - CANCEL_THRESHOLD));
       if (dx > CANCEL_THRESHOLD && !state.pointer.swipeCancel) {
         state.pointer.swipeCancel = true;
-        if (cancelHint) cancelHint.classList.add('show');
         if (state.overlays.rec) state.overlays.rec.classList.add('swipe-cancel');
       }
       if (state.pointer.swipeCancel) {
@@ -1059,10 +1064,6 @@ window.VoiceMsg = (function () {
         // Red tint intensifies with progress
         if (state.overlays.rec) {
           state.overlays.rec.style.background = `rgba(255,59,48,${p * 0.35})`;
-        }
-        if (cancelHint) {
-          cancelHint.style.opacity = String(Math.min(1, 0.55 + p * 0.45));
-          cancelHint.style.color = p > 0.3 ? `rgba(255,59,48,${Math.min(1, p * 1.2)})` : '';
         }
 
         if (p >= 1) {
@@ -1080,12 +1081,6 @@ window.VoiceMsg = (function () {
         if (state.overlays.rec) {
           state.overlays.rec.style.background = '';
           state.overlays.rec.classList.remove('swipe-cancel');
-        }
-        if (cancelHint) {
-          cancelHint.classList.remove('show');
-          cancelHint.style.opacity = '';
-          cancelHint.style.transform = '';
-          cancelHint.style.color = '';
         }
       }
     }
