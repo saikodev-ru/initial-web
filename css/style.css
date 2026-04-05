@@ -4592,6 +4592,17 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
 }
 
+/* ── 3b-II. Recording overlay send animation (hold-to-record flow) ── */
+.voice-recording.voice-rec-sending {
+  animation: voiceRecSendAway .2s var(--sp) both !important;
+  pointer-events: none;
+}
+@keyframes voiceRecSendAway {
+  0%   { opacity: 1; transform: scale(1) translateX(0); }
+  50%  { opacity: .6; transform: scale(.95) translateX(6px); }
+  100% { opacity: 0; transform: scale(.88) translateX(16px) translateY(-2px); }
+}
+
 /* ── 3c. Send button fly-up pulse when voice is sent ── */
 .btn-voice-rec.voice-send-fly {
   animation: voiceSendBtnFly .4s var(--sp) both;

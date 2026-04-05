@@ -1011,11 +1011,28 @@ window.VoiceMsg = (function () {
       if (state.recorder.mediaRecorder && state.recorder.mediaRecorder.state === 'recording') {
         stopRecording().then(result => {
           if (result) {
-            _removeVoiceOverlays();
-            _restoreBtnFromSend();
-            cleanupInputPanel();
+            // Play send animation on recording overlay — shrink + slide + fade
+            const recOverlay = state.overlays.rec;
+            if (recOverlay) {
+              recOverlay.classList.add('voice-rec-sending');
 
+              // Animate the send button: pulse + fly-up effect
+              const btn = getSendBtn();
+              if (btn) {
+                btn.classList.add('voice-send-fly');
+                setTimeout(() => btn.classList.remove('voice-send-fly'), SEND_BTN_ANIM_MS);
+              }
+            }
+
+            // Send voice immediately (optimistic message appears right away)
             sendVoice(result.blob, result.duration, result.waveform);
+
+            // Wait for send animation to finish, then clean up
+            setTimeout(() => {
+              _removeVoiceOverlays();
+              _restoreBtnFromSend();
+              cleanupInputPanel();
+            }, SEND_ANIM_DELAY);
           } else {
             _removeAllOverlays();
           }
@@ -1611,7 +1628,39 @@ window.VoiceMsg = (function () {
   /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
-    // Client-side compression (silent — no label shown)
+    // ── Step 1: Validate partner and prepare metadata ──
+    if (!S.partner) return;
+    const replyId = replyTo || S.replyTo?.id || null;
+    const toSid = toSignalId || S.partner.partner_signal_id;
+    if (!toSid) return;
+
+    // ── Step 2: Show optimistic message in chat IMMEDIATELY (Telegram-style) ──
+    // Message appears with original blob for instant playback — no waiting for compression
+    const tid = 't' + Date.now();
+    const tmpBlobUrl = URL.createObjectURL(blob);
+    const tmp = {
+      id: tid, sender_id: S.user.id, body: String(duration),
+      sent_at: Math.floor(Date.now() / 1000), is_read: 0, is_edited: 0,
+      nickname: S.user.nickname, avatar_url: S.user.avatar_url, reply_to: replyId,
+      media_url: tmpBlobUrl, media_type: 'voice',
+      voice_duration: duration, voice_waveform: JSON.stringify(waveform),
+      media_file_name: 'voice.webm', reactions: []
+    };
+
+    if (S.replyTo) { S.replyTo = null; hideRbar(); }
+    S.msgs[S.chatId] = S.msgs[S.chatId] || [];
+    S.msgs[S.chatId].push(tmp);
+    S.rxns[tid] = [];
+    S._pendingTids = S._pendingTids || new Map();
+    S._pendingTids.set(tid, '[voice]');
+    appendMsg(S.chatId, tmp);
+    scrollBot();
+
+    // ── Step 3: Show upload progress ring on play button ──
+    _showUploadProgress(tid, blob);
+
+    // ── Step 4: Client-side compression in background (non-blocking) ──
+    // Compression happens AFTER the message is already visible in chat
     try {
       const compressedBlob = await compressAudio(blob);
       if (compressedBlob !== blob) {
@@ -1628,35 +1677,7 @@ window.VoiceMsg = (function () {
       console.warn('[VoiceMsg] Compression skipped:', e);
     }
 
-    if (!S.partner) return;
-    const replyId = replyTo || S.replyTo?.id || null;
-    const toSid = toSignalId || S.partner.partner_signal_id;
-    if (!toSid) return;
-
-    // Show optimistic message in chat FIRST (no labels, no toasts)
-    const tid = 't' + Date.now();
-    const tmp = {
-      id: tid, sender_id: S.user.id, body: String(duration),
-      sent_at: Math.floor(Date.now() / 1000), is_read: 0, is_edited: 0,
-      nickname: S.user.nickname, avatar_url: S.user.avatar_url, reply_to: replyId,
-      media_url: URL.createObjectURL(blob), media_type: 'voice',
-      voice_duration: duration, voice_waveform: JSON.stringify(waveform),
-      media_file_name: 'voice.webm', reactions: []
-    };
-
-    if (S.replyTo) { S.replyTo = null; hideRbar(); }
-    S.msgs[S.chatId] = S.msgs[S.chatId] || [];
-    S.msgs[S.chatId].push(tmp);
-    S.rxns[tid] = [];
-    S._pendingTids = S._pendingTids || new Map();
-    S._pendingTids.set(tid, '[voice]');
-    appendMsg(S.chatId, tmp);
-    scrollBot();
-
-    // Show upload progress ring on the voice message
-    _showUploadProgress(tid, blob);
-
-    // Fix: var → const
+    // ── Step 5: Upload compressed audio to server ──
     const fd = new FormData();
     fd.append('voice', blob, 'voice.webm');
     fd.append('to_signal_id', toSid);
@@ -1668,6 +1689,7 @@ window.VoiceMsg = (function () {
     try {
       res = await _apiWithProgress('send_voice_message', 'POST', fd, tid);
     } catch (e) {
+      _removeUploadProgress(tid);
       toast('Ошибка отправки голосового', 'err');
       document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();
       if (S.msgs[S.chatId]) S.msgs[S.chatId] = S.msgs[S.chatId].filter(m => m.id !== tid);
@@ -1686,8 +1708,7 @@ window.VoiceMsg = (function () {
     }
 
     // Revoke temp blob URL after server response with real URL
-    const tempBlobUrl = tmp.media_url;
-    if (tempBlobUrl && tempBlobUrl.startsWith('blob:')) URL.revokeObjectURL(tempBlobUrl);
+    if (tmpBlobUrl.startsWith('blob:')) URL.revokeObjectURL(tmpBlobUrl);
 
     if (S.msgs[S.chatId]) {
       const idx = S.msgs[S.chatId].findIndex(m => m.id === tid);
