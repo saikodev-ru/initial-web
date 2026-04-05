@@ -20,8 +20,8 @@ window.VoiceMsg = (function () {
   const MIN_DURATION = 1;
   const MAX_DURATION = 300;
   const LOCK_THRESHOLD = 60;
-  const CANCEL_THRESHOLD = 100;
-  const CANCEL_COMPLETE = 240;
+  const CANCEL_THRESHOLD = 80;          // Start cancel visual feedback
+  const CANCEL_COMPLETE_DEFAULT = 240; // Fallback if mfield-wrap not found
   const LOCKED_CANCEL_THRESHOLD = 30;
   const LOCKED_CANCEL_COMPLETE = 120;
   const MAX_CACHE_SIZE = 20;
@@ -29,10 +29,6 @@ window.VoiceMsg = (function () {
   const SEND_ANIM_DELAY = 220;
   const SEND_BTN_ANIM_MS = 400;
   const TIMER_INTERVAL = 200;
-  const STT_CACHE_PREFIX = 'vstt_';
-  const STT_CACHE_MAX = 200;
-  const STT_CACHE_TTL = 30 * 24 * 3600 * 1000; // 30 дней
-
   const PLAY_SVG_SM = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M8 5v14l11-7z"/></svg>';
   const PAUSE_SVG_SM = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
   const PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
@@ -120,7 +116,13 @@ window.VoiceMsg = (function () {
 
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+        },
+      });
     } catch (e) {
       toast('Нет доступа к микрофону', 'err');
       _removeAllOverlays();
@@ -208,6 +210,8 @@ window.VoiceMsg = (function () {
     state.recorder.isRecording = false;
     state.locked.isLocked = false;
     state.pointer.swipeCancel = false;
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
     state.pointer.swipeLock = false;
     state.locked.swiping = false;
     // Do NOT null out overlays here — _removeVoiceOverlays() needs them
@@ -350,6 +354,7 @@ window.VoiceMsg = (function () {
     // ── Transform mic button into SEND icon + create floating STOP button ──
     const sendBtn = getSendBtn();
     if (sendBtn) {
+      sendBtn.classList.remove('cancel-swipe');
       sendBtn.classList.remove('hints-visible', 'recording', 'locked-stop-mode');
       sendBtn.classList.add('voice-send-mode');
       // Hide mic, show send icon
@@ -1007,8 +1012,12 @@ window.VoiceMsg = (function () {
 
     // Swipe LEFT → cancel (with red panel + trash animation)
     if (dx > 0) {
+      const wrap = getWrap();
+      const CANCEL_COMPLETE = wrap ? wrap.offsetWidth / 2 : CANCEL_COMPLETE_DEFAULT;
       const cancelProgress = Math.min(1, (dx - CANCEL_THRESHOLD) / (CANCEL_COMPLETE - CANCEL_THRESHOLD));
       if (dx > CANCEL_THRESHOLD && !state.pointer.swipeCancel) {
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.add("cancel-swipe");
         state.pointer.swipeCancel = true;
         if (state.overlays.rec) state.overlays.rec.classList.add('swipe-cancel');
       }
@@ -1031,6 +1040,8 @@ window.VoiceMsg = (function () {
     } else {
       if (state.pointer.swipeCancel) {
         state.pointer.swipeCancel = false;
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
         const wrap = getWrap();
         if (wrap) {
           wrap.style.transform = '';
@@ -1065,9 +1076,9 @@ window.VoiceMsg = (function () {
         state.overlays.rec.classList.remove('swipe-cancel');
       }
 
-      // Hide hints
+      // Hide hints + reset cancel state
       const sendBtn = getSendBtn();
-      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording', 'cancel-swipe');
 
       state.pointer.swipeCancel = false;
       state.pointer.swipeLock = false;
@@ -1524,17 +1535,6 @@ window.VoiceMsg = (function () {
       if (!isPlaying) toggle();
     });
 
-    // STT (Speech-to-Text) transcription button
-    const sttBtn = container.querySelector('.voice-stt-btn');
-    if (sttBtn) {
-      // Restore cached transcription from localStorage
-      restoreSttCache(container, audioUrl);
-      sttBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        _transcribeVoice(container, audioUrl);
-      });
-    }
   }
 
   /* ── Auto-play next voice message ─────────────────────────── */
@@ -2097,154 +2097,6 @@ window.VoiceMsg = (function () {
   }
 
   /* ══════════════════════════════════════════════════════════════
-     SPEECH-TO-TEXT (STT) TRANSCRIPTION — localStorage cache
-     ══════════════════════════════════════════════════════════════ */
-
-  /** Extract S3 key from any URL format for cache key */
-  function _sttCacheKey(audioUrl) {
-    try {
-      if (audioUrl.includes('key=')) {
-        const u = new URL(audioUrl);
-        return u.searchParams.get('key') || audioUrl;
-      }
-      if (audioUrl.startsWith('http')) {
-        return new URL(audioUrl).pathname.replace(/^\//, '');
-      }
-      return audioUrl;
-    } catch { return audioUrl; }
-  }
-
-  /** Get cached transcription from localStorage */
-  function _getSttCache(audioUrl) {
-    try {
-      const key = STT_CACHE_PREFIX + _sttCacheKey(audioUrl);
-      const raw = localStorage.getItem(key);
-      if (!raw) return null;
-      const entry = JSON.parse(raw);
-      if (Date.now() - entry.ts > STT_CACHE_TTL) {
-        localStorage.removeItem(key);
-        return null;
-      }
-      return entry.text;
-    } catch { return null; }
-  }
-
-  /** Save transcription to localStorage */
-  function _setSttCache(audioUrl, text) {
-    try {
-      const key = STT_CACHE_PREFIX + _sttCacheKey(audioUrl);
-      localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }));
-      _pruneSttCache();
-    } catch (e) {
-      // localStorage full — prune and retry once
-      try { _pruneSttCache(true); localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() })); } catch {}
-    }
-  }
-
-  /** Remove old entries if over limit */
-  function _pruneSttCache(aggressive) {
-    try {
-      const entries = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(STT_CACHE_PREFIX)) entries.push(k);
-      }
-      if (entries.length <= STT_CACHE_MAX) return;
-      entries.sort((a, b) => {
-        const ta = JSON.parse(localStorage.getItem(a) || '{}').ts || 0;
-        const tb = JSON.parse(localStorage.getItem(b) || '{}').ts || 0;
-        return ta - tb;
-      });
-      const toRemove = aggressive ? entries.length - Math.floor(STT_CACHE_MAX / 2) : entries.length - STT_CACHE_MAX;
-      for (let i = 0; i < toRemove; i++) localStorage.removeItem(entries[i]);
-    } catch {}
-  }
-
-  /** Restore cached transcription when voice bubble renders */
-  function restoreSttCache(container, audioUrl) {
-    const cached = _getSttCache(audioUrl);
-    if (!cached) return;
-    const sttBtn = container.querySelector('.voice-stt-btn');
-    const resultEl = container.querySelector('.voice-stt-result');
-    if (!sttBtn || !resultEl) return;
-    resultEl.textContent = cached;
-    resultEl.style.display = 'block';
-    resultEl.classList.add('stt-visible');
-    sttBtn.classList.add('stt-done');
-    sttBtn.title = 'Скрыть расшифровку';
-    sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
-  }
-
-  async function _transcribeVoice(container, audioUrl) {
-    const sttBtn = container.querySelector('.voice-stt-btn');
-    const resultEl = container.querySelector('.voice-stt-result');
-    if (!sttBtn) return;
-
-    // Check localStorage cache first
-    const cached = _getSttCache(audioUrl);
-    if (cached) {
-      if (resultEl) {
-        resultEl.textContent = cached;
-        resultEl.style.display = 'block';
-        resultEl.classList.add('stt-visible');
-      }
-      sttBtn.classList.add('stt-done');
-      sttBtn.title = 'Скрыть расшифровку';
-      sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
-      return;
-    }
-
-    // Show loading state
-    sttBtn.classList.add('stt-loading');
-    sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
-
-    try {
-      const res = await fetch(API_BASE + 'transcribe_voice', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + (S.token || ''),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ audio_url: audioUrl }),
-      });
-
-      if (!res.ok) throw new Error('STT request failed');
-
-      const data = await res.json();
-
-      if (data.ok && data.text) {
-        // Show transcription result
-        if (resultEl) {
-          resultEl.textContent = data.text;
-          resultEl.style.display = 'block';
-          resultEl.classList.add('stt-visible');
-        }
-        // Cache in localStorage
-        _setSttCache(audioUrl, data.text);
-        // Change button to "done" state
-        sttBtn.classList.remove('stt-loading');
-        sttBtn.classList.add('stt-done');
-        sttBtn.title = 'Скрыть расшифровку';
-        sttBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>';
-      } else {
-        toast(data.message || 'Не удалось расшифровать', 'err');
-        _resetSttButton(sttBtn);
-      }
-    } catch (e) {
-      console.warn('[VoiceMsg] STT failed:', e);
-      toast('Ошибка расшифровки', 'err');
-      _resetSttButton(sttBtn);
-    }
-  }
-
-  function _resetSttButton(btn) {
-    if (!btn) return;
-    btn.classList.remove('stt-loading', 'stt-done');
-    btn.title = 'Расшифровать';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
-  }
-
-  /* ══════════════════════════════════════════════════════════════
      PRE-CACHE — download visible voice messages in background
      ══════════════════════════════════════════════════════════════ */
 
@@ -2313,6 +2165,5 @@ window.VoiceMsg = (function () {
     formatTimeSec,
     clearAudioCache,
     precacheVoiceMessages,
-    restoreSttCache,
   };
 })();
