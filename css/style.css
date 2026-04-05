@@ -4191,7 +4191,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 /* ── Bottom row: speed button + time (right-aligned) ── */
 .voice-wf-bottom {
   display: flex; align-items: center; justify-content: space-between;
-  height: 16px; padding-left: 1px;
+  height: 0; overflow: visible; padding-left: 1px;
 }
 .voice-speed-btn {
   background: transparent; border: none; padding: 0 4px;
@@ -4818,7 +4818,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 /* ── 7. Recording bar gradient (lavender → teal) ── */
 .voice-rec-bar {
   width: 2.5px; flex: 1 1 0; max-width: 5px; border-radius: 2px;
-  background: linear-gradient(180deg, var(--y) 0%, var(--y3) 100%);
+  background: rgba(139, 92, 246, 0.6);
   opacity: .7; transition: height .06s linear; min-height: 3px;
 }
 
@@ -4833,9 +4833,49 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   animation: recBtnRing 1.6s ease-in-out infinite;
 }
 @keyframes recBtnRing {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(139,92,246,.15), 0 0 16px rgba(139,92,246,.1); }
-  50%      { box-shadow: 0 0 0 5px rgba(139,92,246,.06), 0 0 24px rgba(139,92,246,.15); }
+
+/* ── Cancel swipe: mic → X icon ── */
+.btn-voice-rec.cancel-swipe {
+  background: rgba(255, 59, 48, 0.85) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(255,59,48,.2), 0 0 12px rgba(255,59,48,.15);
+  transition: background .2s ease, color .2s ease, transform .2s var(--sp), box-shadow .2s ease !important;
 }
+.btn-voice-rec.cancel-swipe .ico-mic { opacity: 0 !important; transform: scale(0) rotate(90deg) !important; }
+.btn-voice-rec.cancel-swipe .ico-cancel-x { display: flex !important; opacity: 1 !important; transform: scale(1) rotate(0deg) !important; }
+  0%, 100% { box-shadow: 0 0 0 3px rgba(139,92,246,.15), 0 0 16px rgba(139,92,246,.1); }
+
+/* ── Cancel swipe: mic → X icon ── */
+.btn-voice-rec.cancel-swipe {
+  background: rgba(255, 59, 48, 0.85) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(255,59,48,.2), 0 0 12px rgba(255,59,48,.15);
+  transition: background .2s ease, color .2s ease, transform .2s var(--sp), box-shadow .2s ease !important;
+}
+.btn-voice-rec.cancel-swipe .ico-mic { opacity: 0 !important; transform: scale(0) rotate(90deg) !important; }
+.btn-voice-rec.cancel-swipe .ico-cancel-x { display: flex !important; opacity: 1 !important; transform: scale(1) rotate(0deg) !important; }
+  50%      { box-shadow: 0 0 0 5px rgba(139,92,246,.06), 0 0 24px rgba(139,92,246,.15); }
+
+/* ── Cancel swipe: mic → X icon ── */
+.btn-voice-rec.cancel-swipe {
+  background: rgba(255, 59, 48, 0.85) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(255,59,48,.2), 0 0 12px rgba(255,59,48,.15);
+  transition: background .2s ease, color .2s ease, transform .2s var(--sp), box-shadow .2s ease !important;
+}
+.btn-voice-rec.cancel-swipe .ico-mic { opacity: 0 !important; transform: scale(0) rotate(90deg) !important; }
+.btn-voice-rec.cancel-swipe .ico-cancel-x { display: flex !important; opacity: 1 !important; transform: scale(1) rotate(0deg) !important; }
+}
+
+/* ── Cancel swipe: mic → X icon ── */
+.btn-voice-rec.cancel-swipe {
+  background: rgba(255, 59, 48, 0.85) !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 3px rgba(255,59,48,.2), 0 0 12px rgba(255,59,48,.15);
+  transition: background .2s ease, color .2s ease, transform .2s var(--sp), box-shadow .2s ease !important;
+}
+.btn-voice-rec.cancel-swipe .ico-mic { opacity: 0 !important; transform: scale(0) rotate(90deg) !important; }
+.btn-voice-rec.cancel-swipe .ico-cancel-x { display: flex !important; opacity: 1 !important; transform: scale(1) rotate(0deg) !important; }
 
 /* ── 11. Preview play button active glow (when audio is playing) ── */
 .voice-preview.playing .voice-preview-play {

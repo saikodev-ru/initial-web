@@ -20,8 +20,8 @@ window.VoiceMsg = (function () {
   const MIN_DURATION = 1;
   const MAX_DURATION = 300;
   const LOCK_THRESHOLD = 60;
-  const CANCEL_THRESHOLD = 100;
-  const CANCEL_COMPLETE = 240;
+  const CANCEL_THRESHOLD = 20;         // Start cancel visual feedback early
+  const CANCEL_COMPLETE_DEFAULT = 240; // Fallback if mfield-wrap not found
   const LOCKED_CANCEL_THRESHOLD = 30;
   const LOCKED_CANCEL_COMPLETE = 120;
   const MAX_CACHE_SIZE = 20;
@@ -208,6 +208,8 @@ window.VoiceMsg = (function () {
     state.recorder.isRecording = false;
     state.locked.isLocked = false;
     state.pointer.swipeCancel = false;
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
     state.pointer.swipeLock = false;
     state.locked.swiping = false;
     // Do NOT null out overlays here — _removeVoiceOverlays() needs them
@@ -339,6 +341,8 @@ window.VoiceMsg = (function () {
     state.recorder.isPaused = false;
     state.pointer.swipeLock = false;
     state.pointer.swipeCancel = false;
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
     state.locked.swiping = false;
 
     // Stop current visualization — will restart on new overlay
@@ -1007,8 +1011,12 @@ window.VoiceMsg = (function () {
 
     // Swipe LEFT → cancel (with red panel + trash animation)
     if (dx > 0) {
+      const wrap = getWrap();
+      const CANCEL_COMPLETE = wrap ? wrap.offsetWidth / 2 : CANCEL_COMPLETE_DEFAULT;
       const cancelProgress = Math.min(1, (dx - CANCEL_THRESHOLD) / (CANCEL_COMPLETE - CANCEL_THRESHOLD));
       if (dx > CANCEL_THRESHOLD && !state.pointer.swipeCancel) {
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.add("cancel-swipe");
         state.pointer.swipeCancel = true;
         if (state.overlays.rec) state.overlays.rec.classList.add('swipe-cancel');
       }
@@ -1031,6 +1039,8 @@ window.VoiceMsg = (function () {
     } else {
       if (state.pointer.swipeCancel) {
         state.pointer.swipeCancel = false;
+        const sendBtn = getSendBtn();
+        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
         const wrap = getWrap();
         if (wrap) {
           wrap.style.transform = '';
