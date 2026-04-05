@@ -4151,9 +4151,11 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
 .voice-play-btn svg { width: 15px; height: 15px; margin-left: 2px; }
 .voice-play-btn.playing svg { margin-left: 0; }
 
-/* ── Play button — outgoing: dark circle on accent bg ── */
+/* ── Play button — outgoing: solid on accent bg ── */
 .mrow.me .voice-play-btn {
-  background: var(--msg-bg); color: var(--t1);
+  background: rgba(255,255,255,.2); color: #fff;
+  border-color: rgba(255,255,255,.1);
+  backdrop-filter: none;
 }
 body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .mrow.me .voice-play-btn:hover { box-shadow: 0 2px 12px rgba(0,0,0,.15); }
@@ -4193,7 +4195,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
   width: 2px; border-radius: 2px;
   background: var(--t3); opacity: .45;
   transition: background .15s, opacity .15s, height .06s;
-  flex-shrink: 0;
+  flex: 1 1 0;
   min-height: 3px;
 }
 /* In preview/locked/recording containers, bars should stretch */
@@ -4201,15 +4203,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-locked-wave .voice-rec-bar,
 .voice-rec-wave .voice-rec-bar {
   flex: 1 1 0;
-  max-width: 5px;
 }
 .voice-wf-bar.played { background: rgba(139,92,246,.3); opacity: 1; }
 .voice-wf-bar.active { background: rgba(139,92,246,.45); opacity: 1; }
 
 /* ── Waveform bars — outgoing: white on accent bg, played blends with bubble ── */
-.mrow.me .voice-wf-bar { background: rgba(255,255,255,.45); }
-.mrow.me .voice-wf-bar.played { background: rgba(255,255,255,.72); opacity: 1; }
-.mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.55); }
+.mrow.me .voice-wf-bar { background: rgba(255,255,255,.65); }
+.mrow.me .voice-wf-bar.played { background: rgba(255,255,255,.85); opacity: 1; }
+.mrow.me .voice-wf-bar.active { background: rgba(255,255,255,.75); }
 
 /* ── Duration text — right of waveform ── */
 .voice-dur {
@@ -4288,8 +4289,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
 .voice-rec-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 38px; flex-shrink: 0; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
-.voice-rec-bar { width: 2.5px; flex: 1 1 0; max-width: 5px; border-radius: 2px; background: var(--y); opacity: .7; transition: height .06s linear; min-height: 3px; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
+.voice-rec-bar { width: 2.5px; flex: 1 1 0; border-radius: 2px; background: var(--y); opacity: .7; transition: height .06s linear; min-height: 3px; }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
@@ -4357,7 +4358,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 /* Timer */
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
 /* Waveform — fills remaining space, bars grow right to left */
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; }
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 /* Pause button — right side of locked panel */
 .voice-locked-pause {
   width: 34px; height: 34px; border-radius: 50%;
@@ -4397,7 +4398,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 .voice-preview-play { width: 34px; height: 34px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
 .voice-preview-play:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
 .voice-preview-play:active { transform: scale(0.95); }
-.voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; }
+.voice-preview-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; min-width: 0; cursor: pointer; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 .voice-preview-dur { font-size: 12px; color: var(--t3); font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; white-space: nowrap; flex-shrink: 0; }
 .voice-preview-send { width: 36px; height: 36px; border-radius: 50%; background: var(--y); color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: transform .12s var(--sp), box-shadow .12s; }
 .voice-preview-send:hover { transform: scale(1.08); box-shadow: 0 2px 12px rgba(139,92,246,.35); }
@@ -4683,9 +4684,13 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: #fff; }
 
 /* ── 8. Preview waveform played state — accent color with glow ── */
 .voice-wf-bar.played {
-  background: var(--y) !important;
-  opacity: 1 !important;
+  background: var(--y);
+  opacity: 1;
   box-shadow: 0 0 4px rgba(139,92,246,.3);
+}
+.mrow.me .voice-wf-bar.played {
+  background: rgba(255,255,255,.85);
+  box-shadow: none;
 }
 
 /* ── 9. No pulse on pause button (replaced old stop pulse) ── */
