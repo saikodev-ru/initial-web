@@ -690,13 +690,13 @@ function renderMsgs(chatId){
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
-/* ══ SEND ANIMATION — seamless morph from button to message ══ */
+/* ══ SEND ANIMATION — stretch from button, fade-out to real message ══ */
 
 /**
- * Seamless send animation:
+ * Send animation with visible stretch + fade-out:
  *   1. Burst — send button pulses
- *   2. Flight — clone (with real message content) flies from button to message position
- *   3. Land — instant swap (clone ≡ real message visually)
+ *   2. Stretch — clone (with real message content) stretches from button to message
+ *   3. Fade-out — clone fades, real message fades in at same position
  */
 function animateSend(tempId) {
   var sendBtn = document.getElementById('btn-send');
@@ -709,20 +709,20 @@ function animateSend(tempId) {
   var btnR = sendBtn.getBoundingClientRect();
   var bubR = bubble.getBoundingClientRect();
 
-  // Centers
   var btnCx = btnR.left + btnR.width / 2;
   var btnCy = btnR.top + btnR.height / 2;
   var bubCx = bubR.left + bubR.width / 2;
   var bubCy = bubR.top + bubR.height / 2;
 
-  // Clone: exact visual copy of the real message bubble
+  var dx = btnCx - bubCx;
+  var dy = btnCy - bubCy;
+  var s0 = btnR.width / Math.max(bubR.width, 1);
+
+  // Clone: visual copy of the real message bubble
   var clone = document.createElement('div');
   clone.className = 'send-anim-clone' + (isMe ? ' send-anim-clone-me' : '');
-
-  // Copy actual message content for pixel-perfect match
   clone.innerHTML = bubble.innerHTML;
 
-  // Copy computed border-radius (varies by group position: single/top/mid/bot)
   var bubCS = getComputedStyle(bubble);
 
   clone.style.cssText =
@@ -735,46 +735,26 @@ function animateSend(tempId) {
     'transform-origin:center center;' +
     'overflow:hidden;' +
     'border-radius:' + bubCS.borderRadius + ';' +
-    // Start: small circle at button center, invisible
-    'transform:translate(' + (btnCx - bubCx) + 'px,' + (btnCy - bubCy) + 'px) scale(' + (btnR.width / Math.max(bubR.width, 1)) + ');' +
-    'opacity:0;';
+    'transform:translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ');' +
+    'opacity:0.9;';
 
   document.body.appendChild(clone);
-
-  // Force layout, then animate to final position
   clone.getBoundingClientRect();
 
-  // Flight: clone morphs from button to message, content reveals as it grows
+  // Stretch: visible from button to message position, then fade out
   var flight = clone.animate([
+    // Start: small at button
+    { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', opacity: 0.9 },
+    // Mid: halfway, slightly overshoot
     {
-      transform: 'translate(' + (btnCx - bubCx) + 'px,' + (btnCy - bubCy) + 'px) scale(' + (btnR.width / Math.max(bubR.width, 1)) + ')',
-      opacity: 0
-    },
-    // Early: becomes visible as it leaves the button
-    {
-      transform: 'translate(' + ((btnCx - bubCx) * 0.6) + 'px,' + ((btnCy - bubCy) * 0.55) + 'px) scale(' + (0.35 + btnR.width / Math.max(bubR.width, 1) * 0.65) + ')',
-      opacity: 0.75,
-      offset: 0.25
-    },
-    // Midpoint: half-way, content becoming readable
-    {
-      transform: 'translate(' + ((btnCx - bubCx) * 0.18) + 'px,' + ((btnCy - bubCy) * 0.12) + 'px) scale(0.88)',
-      opacity: 0.92,
+      transform: 'translate(' + (dx * 0.3) + 'px,' + (dy * 0.25) + 'px) scale(1.04)',
+      opacity: 0.95,
       offset: 0.6
     },
-    // Settle: tiny overshoot for liveliness
-    {
-      transform: 'translate(0,0) scale(1.008)',
-      opacity: 1,
-      offset: 0.88
-    },
-    // Land: exact position — clone is visually identical to real message
-    {
-      transform: 'translate(0,0) scale(1)',
-      opacity: 1
-    }
+    // Fade-out: at target position, dissolve away
+    { transform: 'translate(0,0) scale(1)', opacity: 0 }
   ], {
-    duration: 400,
+    duration: 380,
     easing: 'cubic-bezier(.22,1.1,.36,1)',
     fill: 'forwards'
   });
@@ -787,11 +767,17 @@ function animateSend(tempId) {
   bubble.style.opacity = '0';
   bubble.style.transition = 'none';
 
-  // Land: instant swap — clone matches real message exactly, so no visible transition needed
+  // Fade-in real message as clone fades out
   flight.onfinish = function() {
     clone.remove();
-    bubble.style.opacity = '';
-    bubble.style.transition = '';
+
+    bubble.style.transition = 'opacity .2s ease-out';
+    bubble.style.opacity = '1';
+
+    setTimeout(function() {
+      bubble.style.transition = '';
+      bubble.style.opacity = '';
+    }, 220);
   };
 }
 
