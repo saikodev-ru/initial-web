@@ -690,6 +690,119 @@ function renderMsgs(chatId){
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
+/* ══ MESSAGE FLY ANIMATION — clone flies from send button to chat ══ */
+
+/**
+ * Animate a message clone flying from the send button to the target message element.
+ * @param {'text'|'voice'} type - Message type
+ * @param {object} opts
+ * @param {string} [opts.text] - Text content for text messages
+ * @param {number} [opts.duration] - Voice duration in seconds
+ * @param {number[]} [opts.waveform] - Voice waveform data array
+ * @param {string} tempId - Temp message ID to find target element after append
+ */
+function animateMsgFly(type, opts, tempId) {
+  const sendBtn = document.getElementById('btn-send');
+  const msgsArea = document.getElementById('msgs');
+  if (!sendBtn || !msgsArea) return;
+
+  // Create floating clone
+  const clone = document.createElement('div');
+  clone.className = 'msg-fly-clone';
+
+  if (type === 'text' && opts.text) {
+    clone.classList.add('fly-text');
+    // Truncate long text for the clone
+    const maxLen = 120;
+    clone.textContent = opts.text.length > maxLen ? opts.text.slice(0, maxLen) + '…' : opts.text;
+  } else if (type === 'voice') {
+    clone.classList.add('fly-voice');
+    const dur = opts.duration || 0;
+    const wf = opts.waveform || [];
+    const durStr = window.VoiceMsg ? window.VoiceMsg.formatTimeSec(dur) : '0:00';
+
+    clone.innerHTML = `
+      <div class="fly-voice-play">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+      <div class="fly-voice-bars">
+        ${wf.slice(0, 28).map(v => `<div class="fly-voice-bar" style="height:${3 + (v || 0.3) * 20}px"></div>`).join('')}
+      </div>
+      <span class="fly-voice-dur">${durStr}</span>
+    `;
+  } else {
+    return;
+  }
+
+  // Position clone at send button
+  const btnRect = sendBtn.getBoundingClientRect();
+  const startX = btnRect.left + btnRect.width / 2;
+  const startY = btnRect.top + btnRect.height / 2;
+
+  clone.style.left = startX + 'px';
+  clone.style.top = startY + 'px';
+  clone.style.transform = 'translate(-50%, -50%) scale(0.3)';
+  clone.style.opacity = '0';
+  document.body.appendChild(clone);
+
+  // Pulse on send button
+  sendBtn.classList.add('send-pulse');
+  setTimeout(() => sendBtn.classList.remove('send-pulse'), 400);
+
+  // Wait for target element to appear in DOM (appendMsg is sync)
+  requestAnimationFrame(() => {
+    const targetEl = document.querySelector(`.mrow[data-id="${tempId}"]`);
+
+    // Phase 1: Expand from button (pop out)
+    requestAnimationFrame(() => {
+      clone.style.opacity = '1';
+      clone.style.transform = 'translate(-50%, -50%) scale(1)';
+    });
+
+    // Phase 2: Fly to target after brief pause
+    setTimeout(() => {
+      let targetRect;
+      if (targetEl) {
+        targetRect = targetEl.getBoundingClientRect();
+      } else {
+        // Fallback: fly to bottom-center of msgs area
+        const areaRect = msgsArea.getBoundingClientRect();
+        targetRect = {
+          left: areaRect.right - 160,
+          top: areaRect.bottom - 40,
+          width: 140,
+          height: 40,
+        };
+      }
+
+      const endX = targetRect.left + targetRect.width / 2;
+      const endY = targetRect.top + targetRect.height / 2;
+
+      // Calculate scale difference
+      const cloneRect = clone.getBoundingClientRect();
+      const scaleX = targetRect.width / Math.max(1, cloneRect.width);
+      const scaleY = targetRect.height / Math.max(1, cloneRect.height);
+      const flyScale = Math.min(1, Math.min(scaleX, scaleY) * 0.8);
+
+      clone.style.left = endX + 'px';
+      clone.style.top = endY + 'px';
+      clone.style.transform = `translate(-50%, -50%) scale(${flyScale})`;
+      clone.style.opacity = '0.3';
+
+      // Add land animation to real message
+      if (targetEl) {
+        targetEl.classList.add('fly-land');
+        setTimeout(() => targetEl.classList.remove('fly-land'), 350);
+      }
+
+      // Cleanup clone after transition
+      setTimeout(() => {
+        clone.remove();
+      }, 380);
+    }, 120);
+  });
+}
+
 function appendMsg(chatId,m){
   const area=$('msgs'),all=S.msgs[chatId]||[];
   const empty=area.querySelector('.chat-empty-state');
@@ -2275,6 +2388,7 @@ async function sendText(){
   S._pendingTids=S._pendingTids||new Map();
   S._pendingTids.set(tid, body);
   appendMsg(S.chatId,tmp);scrollBot();
+  animateMsgFly('text', { text: body }, tid);
   const payload={to_signal_id:toSid,body};if(replyId)payload.reply_to=replyId;
   const res=await api('send_message','POST',payload);
   S._pendingTids.delete(tid);
