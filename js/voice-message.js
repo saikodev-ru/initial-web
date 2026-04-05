@@ -20,7 +20,7 @@ window.VoiceMsg = (function () {
   const MIN_DURATION = 1;
   const MAX_DURATION = 300;
   const LOCK_THRESHOLD = 60;
-  const CANCEL_THRESHOLD = 20;         // Start cancel visual feedback early
+  const CANCEL_THRESHOLD = 80;          // Start cancel visual feedback
   const CANCEL_COMPLETE_DEFAULT = 240; // Fallback if mfield-wrap not found
   const LOCKED_CANCEL_THRESHOLD = 30;
   const LOCKED_CANCEL_COMPLETE = 120;
@@ -116,7 +116,13 @@ window.VoiceMsg = (function () {
 
     let stream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          autoGainControl: false,
+          echoCancellation: false,
+          noiseSuppression: false,
+        },
+      });
     } catch (e) {
       toast('Нет доступа к микрофону', 'err');
       _removeAllOverlays();
@@ -337,8 +343,6 @@ window.VoiceMsg = (function () {
     state.recorder.isPaused = false;
     state.pointer.swipeLock = false;
     state.pointer.swipeCancel = false;
-        const sendBtn = getSendBtn();
-        if (sendBtn) sendBtn.classList.remove("cancel-swipe");
     state.locked.swiping = false;
 
     // Stop current visualization — will restart on new overlay
@@ -350,6 +354,7 @@ window.VoiceMsg = (function () {
     // ── Transform mic button into SEND icon + create floating STOP button ──
     const sendBtn = getSendBtn();
     if (sendBtn) {
+      sendBtn.classList.remove('cancel-swipe');
       sendBtn.classList.remove('hints-visible', 'recording', 'locked-stop-mode');
       sendBtn.classList.add('voice-send-mode');
       // Hide mic, show send icon
@@ -1071,9 +1076,9 @@ window.VoiceMsg = (function () {
         state.overlays.rec.classList.remove('swipe-cancel');
       }
 
-      // Hide hints
+      // Hide hints + reset cancel state
       const sendBtn = getSendBtn();
-      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording');
+      if (sendBtn) sendBtn.classList.remove('hints-visible', 'recording', 'cancel-swipe');
 
       state.pointer.swipeCancel = false;
       state.pointer.swipeLock = false;
