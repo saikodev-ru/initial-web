@@ -278,16 +278,14 @@ window.VoiceMsg = (function () {
       <div class="voice-rec-dot"></div>
       <span class="voice-rec-timer">0:00</span>
       <div class="voice-rec-wave" id="voice-rec-wave-container"></div>
-      <div class="voice-lock-arrow" id="voice-lock-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-      </div>
       <div class="voice-cancel-arrow" id="voice-cancel-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="15 18 9 12 15 6"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>Slide to cancel</span>
+      </div>
+      <div class="voice-lock-arrow" id="voice-lock-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="18 15 12 9 6 15"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       </div>
     `;
 
@@ -985,9 +983,8 @@ window.VoiceMsg = (function () {
           _recOverlay.style.background = 'rgba(255,59,48,' + (p * 0.35) + ')';
         }
         if (cancelHint) {
-          cancelHint.style.opacity = String(Math.max(0.5, p));
-          // Scale the cancel hint with progress (trash opens wider)
-          cancelHint.style.transform = 'translateY(-50%) translateX(calc(100% + 6px)) scale(' + (1 + p * 0.3) + ')';
+          cancelHint.style.opacity = String(Math.min(1, 0.55 + p * 0.45));
+          cancelHint.style.color = p > 0.3 ? `rgba(255,59,48,${Math.min(1, p * 1.2)})` : '';
         }
 
         if (p >= 1) {
@@ -1010,6 +1007,7 @@ window.VoiceMsg = (function () {
           cancelHint.classList.remove('show');
           cancelHint.style.opacity = '';
           cancelHint.style.transform = '';
+          cancelHint.style.color = '';
         }
       }
     }
@@ -1026,7 +1024,7 @@ window.VoiceMsg = (function () {
       }
 
       const cancelHint = _recOverlay?.querySelector('#voice-cancel-arrow');
-      if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; cancelHint.style.transform = ''; }
+      if (cancelHint) { cancelHint.classList.remove('show'); cancelHint.style.opacity = ''; cancelHint.style.transform = ''; cancelHint.style.color = ''; }
       const lockHint = _recOverlay?.querySelector('#voice-lock-arrow');
       if (lockHint) { lockHint.classList.remove('show'); lockHint.style.opacity = ''; }
 
@@ -1300,6 +1298,22 @@ window.VoiceMsg = (function () {
 
     const bars = wfWrap.querySelectorAll('.voice-wf-bar');
 
+    // ── Speed button: 1× → 1.5× → 2× cycle ──
+    const speedBtn = container.querySelector('.voice-speed-btn');
+    const SPEEDS = [1, 1.5, 2];
+    let speedIdx = 0;
+    if (speedBtn) {
+      speedBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        speedIdx = (speedIdx + 1) % SPEEDS.length;
+        const rate = SPEEDS[speedIdx];
+        audio.playbackRate = rate;
+        speedBtn.textContent = rate === 1 ? '1×' : rate + '×';
+        speedBtn.classList.toggle('active', rate !== 1);
+      });
+    }
+
     let audio;
     const cached = _audioCache.get(audioUrl);
     if (cached) {
@@ -1375,6 +1389,8 @@ window.VoiceMsg = (function () {
       if (durEl) durEl.textContent = formatTimeSec(audio.duration || duration);
       if (_currentAudio === audio) { _currentAudio = null; _currentBtn = null; _currentContainer = null; }
       _hideMiniPlayer();
+      // Reset speed to 1× on end
+      if (speedBtn) { speedIdx = 0; audio.playbackRate = 1; speedBtn.textContent = '1×'; speedBtn.classList.remove('active'); }
       _autoPlayNext(container);
     });
 
