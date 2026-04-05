@@ -4281,7 +4281,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 .voice-rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; animation: voicePulse 1.2s ease infinite; }
 @keyframes voicePulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(.85); } }
 .voice-rec-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 38px; flex-shrink: 0; }
-.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; min-width: 0; }
+.voice-rec-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; min-width: 0; justify-content: flex-end; position: relative; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 .voice-rec-cancel { display: flex; align-items: center; gap: 4px; color: var(--red); font-size: 13px; font-weight: 500; cursor: pointer; opacity: 0; transition: opacity .2s; white-space: nowrap; padding: 6px; }
 .voice-rec-cancel.show { opacity: 1; }
 .voice-rec-cancel svg { width: 18px; height: 18px; }
@@ -4334,8 +4334,8 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 }
 /* Timer */
 .voice-locked-timer { font-size: 14px; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; min-width: 36px; flex-shrink: 0; }
-/* Waveform — fills remaining space, bars grow right to left */
-.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-start; min-width: 0; }
+/* Waveform — fills remaining space, bars anchored to right edge with fade gradient to left */
+.voice-locked-wave { flex: 1; display: flex; align-items: center; gap: 1.5px; height: 28px; overflow: hidden; justify-content: flex-end; min-width: 0; position: relative; -webkit-mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, rgba(0,0,0,.4) 20%, #000 55%); }
 
 /* Swipe-to-delete active state */
 .voice-locked.swipe-delete .voice-locked-delete {
