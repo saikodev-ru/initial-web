@@ -3964,7 +3964,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   }
   .call-panel { display: none !important; }
   .call-mini-bar { display: none !important; }
-  .nav-rail { display: none; }
+  .nav-rail { display: none !important; }
 
   /* Hide bottom nav when in chat (sidebar is hidden) */
   .sidebar.hidden ~ .mobile-bottom-nav,
@@ -4034,6 +4034,19 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     object-fit: cover;
     display: block;
     border-radius: 50%;
+  }
+
+  /* Enlarge mic button during recording on mobile */
+  .send-btn.recording {
+    width: 52px !important;
+    height: 52px !important;
+  }
+
+  /* Enlarge stop float button in locked mode on mobile */
+  .voice-stop-float {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
   }
 }
 

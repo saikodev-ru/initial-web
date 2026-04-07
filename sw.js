@@ -196,9 +196,13 @@ self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data?.type === 'SYNC_NOTIF_DATA') {
+    // Store chat data for rich push notifications
+    self._notifChatCache = event.data.chats || [];
+  }
 });
 
-/* ══ PUSH NOTIFICATIONS CLICK HANDLER ═════════════════════════ */
+/* ══ PUSH NOTIFICATIONS ═════════════════════════════════════ */
 self.addEventListener('push', event => {
   let payload = {};
   if (event.data) {
@@ -208,14 +212,67 @@ self.addEventListener('push', event => {
     } catch (e) {}
   }
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    (async () => {
+      // Forward to all open tabs (foreground handling)
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       clients.forEach(client => {
         if (payload.action === 'incoming_call') client.postMessage({ type: 'FCM_CALL', payload });
         else client.postMessage({ type: 'FCM_MSG', payload });
       });
-    })
+
+      // Skip notification for incoming calls (handled by foreground)
+      if (payload.action === 'incoming_call') return;
+
+      // Enrich payload from cached chat data if needed
+      if ((!payload.sender_name || !payload.sender_avatar) && self._notifChatCache && payload.chat_id) {
+        const cached = self._notifChatCache.find(c => c.chat_id === payload.chat_id);
+        if (cached) {
+          if (!payload.sender_name) payload.sender_name = cached.partner_name || '';
+          if (!payload.sender_avatar) payload.sender_avatar = cached.partner_avatar || null;
+          if (!payload.body && cached.last_message) payload.body = cached.last_message;
+        }
+      }
+
+      // Show notification via SW (reliable on mobile, unlike page-level Notification)
+      const title = payload.sender_name || 'Инициал';
+      const body = (payload.body || 'Новое сообщение').slice(0, 160);
+      const chatId = payload.chat_id || null;
+      const notifData = { chatId: chatId };
+
+      // Try to fetch sender avatar if URL provided
+      let iconUrl = '/icon-192.png'; // Default app icon
+      if (payload.sender_avatar) {
+        try {
+          const resp = await fetch(payload.sender_avatar);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            iconUrl = URL.createObjectURL(blob);
+          }
+        } catch(e) {}
+      }
+
+      const notifOpts = {
+        body: body,
+        icon: iconUrl,
+        tag: chatId ? 'signal-' + chatId : 'signal-msg',
+        renotify: true,
+        data: notifData,
+        vibrate: [200, 100, 200],
+      };
+
+      // Check if actions are supported
+      if ('Notification' in self && self.Notification.maxActions > 0) {
+        notifOpts.actions = [
+          { action: 'reply', title: 'Ответить' },
+          { action: 'markread', title: 'Прочитано' }
+        ];
+      }
+
+      await self.registration.showNotification(title, notifOpts);
+    })()
   );
 });
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
 

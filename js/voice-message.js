@@ -164,6 +164,7 @@ window.VoiceMsg = (function () {
     state.recorder.recStart = Date.now();
     state.recorder.timer = setInterval(_updateRecTimer, TIMER_INTERVAL);
     state.recorder.mediaRecorder.start(200);
+    if (navigator.vibrate) navigator.vibrate(30);
     _startRecVisualization();
   }
 
@@ -207,6 +208,7 @@ window.VoiceMsg = (function () {
   }
 
   function cancelRecording() {
+    if (navigator.vibrate) navigator.vibrate(20);
     state.recorder.isRecording = false;
     state.locked.isLocked = false;
     state.pointer.swipeCancel = false;
@@ -340,6 +342,7 @@ window.VoiceMsg = (function () {
   function _transitionToLocked() {
     if (state.locked.isLocked || !state.overlays.rec) return;
     state.locked.isLocked = true;
+    if (navigator.vibrate) navigator.vibrate([20, 50, 40]);
     state.recorder.isPaused = false;
     state.pointer.swipeLock = false;
     state.pointer.swipeCancel = false;
@@ -504,6 +507,7 @@ window.VoiceMsg = (function () {
 
   /** Send directly from locked mode (no preview) */
   async function _onLockedSend() {
+    if (navigator.vibrate) navigator.vibrate(20);
     if (!state.locked.isLocked) return;
     state.recorder.isPaused = false;
     const result = await stopRecording();
@@ -850,6 +854,7 @@ window.VoiceMsg = (function () {
   }
 
   async function _sendPreview() {
+    if (navigator.vibrate) navigator.vibrate(20);
     if (!state.preview.blob || !state.preview.duration) return;
 
     const blob = state.preview.blob;

@@ -1859,6 +1859,7 @@ if ('serviceWorker' in navigator) {
 
     if (data.type === 'FCM_MSG') {
       if (window.pollNow) pollNow();
+      if (typeof syncNotifDataToSW === 'function') syncNotifDataToSW();
     } else if (data.type === 'FCM_CALL') {
       if (window.pollCallSignals) window.pollCallSignals();
     } else if (data.type === 'NOTIF_ACTION') {

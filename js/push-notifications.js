@@ -323,4 +323,22 @@
     }
   };
 
+  // Sync notification-relevant data to Service Worker for background notifications
+  window.syncNotifDataToSW = function() {
+    if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+    const chatData = (S.chats || []).slice(0, 20).map(function(c) {
+      return {
+        chat_id: c.chat_id,
+        partner_name: c.partner_name || '',
+        partner_avatar: c.partner_avatar || null,
+        last_message: c.last_message || '',
+        last_media_type: c.last_media_type || null
+      };
+    });
+    navigator.serviceWorker.controller.postMessage({
+      type: 'SYNC_NOTIF_DATA',
+      chats: chatData
+    });
+  };
+
 })();
