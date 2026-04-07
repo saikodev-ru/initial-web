@@ -1,233 +1,29 @@
 /**
- * push-subscribe.js — Web Push API subscription (no Firebase, no FCM).
+ * push-subscribe.js — STUB (VAPID Web Push removed).
  *
- * Uses the standard Web Push API with VAPID keys.
- * - Subscribes via navigator.serviceWorker.pushManager
- * - Sends subscription to server via /api/save_push_subscription
- * - Auto-renews subscription on change
+ * FCM (Firebase Cloud Messaging) is now the sole push channel.
+ * This file is kept as a placeholder to avoid 404 errors if cached.
+ * All functions are no-ops.
  *
- * VAPID keys are configured below (public key only; private key stays server-side).
+ * See fcm.js for the actual push registration logic.
  */
 
-/* global S, api, requestNotifPermission */
+/* global S */
 
 (function () {
   'use strict';
 
-  // ═══════════════════════════════════════════════════════════════
-  // VAPID Public Key (URL-safe Base64, no padding)
-  // Generated with: npx web-push generate-vapid-keys
-  // Private key lives on the server only — NEVER expose it client-side.
-  // ═══════════════════════════════════════════════════════════════
-  const VAPID_PUBLIC_KEY =
-    'BDDKX_qLAKyRECL0QzvMHVUde4z0AXC6k-rYBiw6rA6gyaaTQpmFlto1PIVwwqBDXz5RDNVbPhew74HWiq99YZQ';
+  // No-op stubs for backward compatibility
+  window.subscribePush = async function () {
+    console.log('[WebPush] Disabled — FCM is the sole push channel');
+    return false;
+  };
 
-  // Convert URL-safe Base64 → Uint8Array (required by pushManager.subscribe)
-  // URL-safe Base64 uses - and _ instead of + and /
-  function _urlBase64ToUint8(base64) {
-    try {
-      // Replace URL-safe chars with standard Base64 chars
-      const base64std = base64.replace(/-/g, '+').replace(/_/g, '/');
-      const padding = '='.repeat((4 - base64std.length % 4) % 4);
-      const raw = atob(base64std + padding);
-      return Uint8Array.from(raw, c => c.charCodeAt(0));
-    } catch (e) {
-      console.error('[WebPush] Invalid VAPID public key:', e);
-      return null;
-    }
-  }
+  window.unsubscribePush = async function () {
+    console.log('[WebPush] Disabled — nothing to unsubscribe');
+  };
 
-  const _appServerKey = _urlBase64ToUint8(VAPID_PUBLIC_KEY);
-  if (!_appServerKey) {
-    console.error('[WebPush] Cannot proceed without valid VAPID key');
-  }
-  const SUB_KEY = 'sg_push_sub'; // localStorage key for stored subscription JSON
+  window.__webPushReady = false;
 
-  // ── Helpers ──────────────────────────────────────────────────
-
-  function _getStoredSub() {
-    try {
-      const raw = localStorage.getItem(SUB_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  }
-
-  function _setStoredSub(sub) {
-    try { localStorage.setItem(SUB_KEY, sub ? JSON.stringify(sub) : ''); } catch {}
-  }
-
-  /**
-   * Convert PushSubscription → plain object with Base64 keys.
-   * PushSubscription has .getKey('p256dh') and .getKey('auth') methods (ArrayBuffer),
-   * but no direct .keys property. We convert ArrayBuffers to URL-safe Base64.
-   */
-  function _subToJSON(subscription) {
-    const p256dhBuf = subscription.getKey('p256dh');
-    const authBuf = subscription.getKey('auth');
-    return {
-      endpoint: subscription.endpoint,
-      keys: {
-        p256dh: p256dhBuf ? _bufToBase64(p256dhBuf) : null,
-        auth:   authBuf   ? _bufToBase64(authBuf)   : null,
-      },
-    };
-  }
-
-  /**
-   * ArrayBuffer → URL-safe Base64 string (no padding).
-   */
-  function _bufToBase64(buf) {
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
-    }
-    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-
-  /**
-   * Send subscription to server.
-   * The server stores it and uses it to push messages.
-   */
-  async function _sendSubToServer(subscription) {
-    if (!S.token) return false;
-    try {
-      const subJSON = _subToJSON(subscription);
-      const res = await api('save_push_subscription', 'POST', {
-        endpoint:    subJSON.endpoint,
-        keys_p256dh: subJSON.keys.p256dh,
-        keys_auth:   subJSON.keys.auth,
-      });
-      if (res && res.ok) {
-        console.log('[WebPush] Subscription saved on server');
-        return true;
-      }
-      console.warn('[WebPush] Server save failed:', res);
-      return false;
-    } catch (err) {
-      console.error('[WebPush] Error sending subscription:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Remove subscription from server.
-   */
-  async function _removeSubFromServer() {
-    if (!S.token) return;
-    try {
-      await api('remove_push_subscription', 'POST', {});
-      console.log('[WebPush] Subscription removed from server');
-    } catch {}
-  }
-
-  // ── Public API ───────────────────────────────────────────────
-
-  /**
-   * Subscribe to push notifications and register on server.
-   * Call this after user grants Notification permission.
-   * Returns true on success.
-   */
-  async function subscribePush() {
-    // Skip on Android PWA — FCM handles push delivery there
-    if (_isAndroidPWA()) {
-      console.log('[WebPush] Skipped: Android PWA uses FCM');
-      return false;
-    }
-
-    // Ensure VAPID key was parsed correctly
-    if (!_appServerKey) {
-      console.error('[WebPush] VAPID key not available');
-      return false;
-    }
-
-    // Ensure Service Worker is ready
-    const reg = await navigator.serviceWorker?.ready;
-    if (!reg) {
-      console.error('[WebPush] Service Worker not ready');
-      return false;
-    }
-
-    try {
-      const existing = await reg.pushManager.getSubscription();
-      if (existing) {
-        // Already subscribed — just re-send to server if different
-        const stored = _getStoredSub();
-        if (stored && stored.endpoint === existing.endpoint) {
-          return true; // Already registered
-        }
-        // Subscription changed — update server
-        const ok = await _sendSubToServer(existing);
-        if (ok) _setStoredSub(_subToJSON(existing));
-        return ok;
-      }
-
-      // Subscribe fresh
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: _appServerKey,
-      });
-
-      const ok = await _sendSubToServer(subscription);
-      if (ok) {
-        _setStoredSub(_subToJSON(subscription));
-        console.log('[WebPush] Subscribed successfully');
-      }
-      return ok;
-    } catch (err) {
-      if (err.name === 'NotAllowedError') {
-        console.warn('[WebPush] Permission denied');
-      } else {
-        console.error('[WebPush] Subscription error:', err);
-      }
-      return false;
-    }
-  }
-
-  /**
-   * Unsubscribe from push and notify server.
-   */
-  async function unsubscribePush() {
-    try {
-      const reg = await navigator.serviceWorker?.ready;
-      if (!reg) return;
-
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await sub.unsubscribe();
-      }
-      _setStoredSub(null);
-      await _removeSubFromServer();
-      console.log('[WebPush] Unsubscribed');
-    } catch (err) {
-      console.warn('[WebPush] Unsubscribe error:', err);
-    }
-  }
-
-  // ── Expose globally ──────────────────────────────────────────
-
-  window.subscribePush = subscribePush;
-  window.unsubscribePush = unsubscribePush;
-  window.__webPushReady = true;
-
-  // ── Auto-subscribe on load if notifications already enabled ───
-  // Skip on Android PWA — FCM (fcm.js) handles push delivery there.
-  function _isAndroidPWA() {
-    if (!window.matchMedia('(display-mode: standalone)').matches) return false;
-    return /Android/i.test(navigator.userAgent);
-  }
-
-  function _autoSubscribe() {
-    if (_isAndroidPWA()) return; // FCM handles Android PWA pushes
-    if (!S.token || !S.notif?.enabled) return;
-    if (Notification.permission === 'granted') {
-      subscribePush().catch(() => {});
-    }
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(_autoSubscribe, 2000));
-  } else {
-    setTimeout(_autoSubscribe, 2000);
-  }
+  console.log('[WebPush] VAPID Web Push disabled — using FCM only');
 })();

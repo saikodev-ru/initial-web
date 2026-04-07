@@ -723,15 +723,9 @@ function sendLoginNotification(int $userId): void {
     sendSystemMsg($userId, $body);
 }
 
-// ── Push-уведомление (Web Push + FCM fallback) ────────────────
+// ── Push-уведомление (FCM only) ──────────────────────────────
 function send_push(string $token, string $title, string $body, array $data = []): void
 {
-    // ── Web Push (preferred — uses push_subscription JSON from user row) ──
-    // The $token param is legacy (fcm_token); we also try Web Push from subscription.
-    // This function is called with the recipient's data from the users table.
-    // The actual Web Push send is handled by send_web_push_to_user() below.
-
-    // ── FCM fallback (if fcm_token exists and FCM is configured) ──
     if (empty($token)) return;
 
     $accessToken = get_fcm_access_token();
@@ -777,41 +771,11 @@ function send_push(string $token, string $title, string $body, array $data = [])
     }
 }
 
-// ── Web Push (VAPID) — send to user by user_id ───────────────
+// ── Web Push (VAPID) — DEPRECATED, kept as no-op for backward compat ──
 function send_web_push_to_user(int $userId, string $title, string $body, array $data = []): void
 {
-    static $webPushLoaded = false;
-    if (!$webPushLoaded) {
-        $wpFile = __DIR__ . '/web_push.php';
-        if (file_exists($wpFile)) {
-            require_once $wpFile;
-            $webPushLoaded = true;
-        } else {
-            error_log('WebPush: web_push.php not found');
-            return;
-        }
-    }
-
-    // Fetch push_subscription from user row
-    $stmt = db()->prepare('SELECT push_subscription FROM users WHERE id = ? LIMIT 1');
-    $stmt->execute([$userId]);
-    $row = $stmt->fetch();
-    if (!$row || empty($row['push_subscription'])) return;
-
-    $subscription = json_decode($row['push_subscription'], true);
-    if (empty($subscription['endpoint']) || empty($subscription['keys']['p256dh'])) return;
-
-    $payload = array_merge($data, [
-        'title' => $title,
-        'body'  => $body,
-    ]);
-
-    $ok = web_push_send($subscription, $payload);
-
-    if (!$ok) {
-        // If send failed with 404/410, the subscription is dead — clean up
-        error_log("WebPush: failed to send to user {$userId}");
-    }
+    // FCM is now the sole push channel. This function is a no-op.
+    error_log('WebPush: send_web_push_to_user() is deprecated — FCM handles all pushes');
 }
 
 // ============================================================

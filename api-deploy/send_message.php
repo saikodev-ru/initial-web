@@ -118,14 +118,12 @@ $stmt = db()->prepare('SELECT FLOOR(UNIX_TIMESTAMP(sent_at)) AS ts FROM messages
 $stmt->execute([$messageId]);
 $sentAt = (int) ($stmt->fetchColumn() ?: time());
 
-// ── Push-уведомление ─────────────────────────────────────────
-// Try Web Push first (VAPID), then FCM as fallback
+// ── Push-уведомление (FCM only) ─────────────────────────────────
 $senderName = $me['nickname'] ?? $me['email'];
 $pushBody   = $hasMedia
     ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
     : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
 
-// Web Push (VAPID) — preferred
 $pushData = [
     'chat_id'          => (string) $chatId,
     'sender_signal_id' => $me['signal_id'] ?? '',
@@ -134,9 +132,8 @@ $pushData = [
     'message_id'       => (string) $messageId,
     'sender_name'      => $senderName,
 ];
-send_web_push_to_user($recipientId, $senderName, $pushBody, $pushData);
 
-// FCM fallback (if fcm_token exists)
+// FCM push (sole push channel)
 if (!empty($recipient['fcm_token'])) {
     send_push(
         $recipient['fcm_token'],

@@ -1,13 +1,11 @@
 /**
- * fcm.js — Firebase Cloud Messaging for Android PWA push delivery.
+ * fcm.js — Firebase Cloud Messaging for push notifications.
  *
  * Strategy:
- *   - On Android PWA (standalone + Android UA): register FCM token
- *   - On desktop / iOS: skip (VAPID Web Push from push-subscribe.js handles it)
- *
- * FCM is the ONLY reliable way to deliver pushes to a backgrounded PWA
- * on Android. The native VAPID Web Push is unreliable there because
- * Android Chrome aggressively throttles non-FCM push services.
+ *   - FCM is the SOLE push channel (no VAPID Web Push).
+ *   - Register FCM token on ALL platforms (Android, desktop, iOS).
+ *   - If FCM is not supported, the UI shows an error prompting the user
+ *     to install a supported browser (Chrome, Edge, Firefox, etc.).
  *
  * Dependencies:
  *   - Firebase App + Messaging compat SDKs (loaded via CDN in index.html)
@@ -33,7 +31,6 @@
   };
 
   // VAPID key from Firebase Console → Project Settings → Cloud Messaging → Web Push certs
-  // This is DIFFERENT from our self-generated VAPID key in push-subscribe.js
   const FCM_VAPID_KEY = 'BDDKX_qLAKyRECL0QzvMHVUde4z0AXC6k-rYBiw6rA6gyaaTQpmFlto1PIVwwqBDXz5RDNVbPhew74HWiq99YZQ';
 
   const FCM_TOKEN_KEY = 'sg_fcm_token'; // localStorage key
@@ -41,24 +38,31 @@
   // ── Detection ───────────────────────────────────────────────
 
   /**
-   * Returns true on any Android Chrome (standalone OR browser tab).
-   * FCM token registration must work even before the user installs
-   * the PWA so that background pushes arrive on first use.
+   * Check if Firebase Messaging is available in this browser.
+   * Returns true if Firebase SDK is loaded and Notification + SW APIs exist.
    */
-  function _isAndroid() {
-    return /Android/i.test(navigator.userAgent);
-  }
-
-  /** Legacy alias kept for internal use */
-  function _isAndroidPWA() {
-    return _isAndroid();
-  }
-
   function _isFCMSupported() {
     return typeof firebase !== 'undefined' &&
            firebase.messaging &&
            'Notification' in window &&
            'serviceWorker' in navigator;
+  }
+
+  /**
+   * Returns detailed info about why FCM might not be supported.
+   * Used to show user-friendly error messages.
+   */
+  function _getFCMUnsupportedReason() {
+    if (typeof firebase === 'undefined' || !firebase.messaging) {
+      return 'Firebase SDK не загружен. Используйте современный браузер (Chrome, Edge, Firefox).';
+    }
+    if (!('serviceWorker' in navigator)) {
+      return 'Ваш браузер не поддерживает Service Workers. Установите Chrome, Edge или Firefox для получения push-уведомлений.';
+    }
+    if (!('Notification' in window)) {
+      return 'Ваш браузер не поддерживает уведомления. Установите Chrome, Edge или Firefox.';
+    }
+    return 'Push-уведомления не поддерживаются. Попробуйте другой браузер.';
   }
 
   // ── Storage ─────────────────────────────────────────────────
@@ -100,13 +104,9 @@
   // ── FCM Registration ───────────────────────────────────────
 
   async function registerFCM() {
-    if (!_isAndroidPWA()) {
-      console.log('[FCM] Skipped: not Android PWA');
-      return false;
-    }
     if (!_isFCMSupported()) {
-      console.warn('[FCM] Firebase SDK not loaded or not supported');
-      return false;
+      console.warn('[FCM] Not supported:', _getFCMUnsupportedReason());
+      return { ok: false, reason: _getFCMUnsupportedReason() };
     }
 
     // Initialize Firebase app (safe to call multiple times)
@@ -121,13 +121,13 @@
       const granted = await Notification.requestPermission();
       if (granted !== 'granted') {
         console.warn('[FCM] Notification permission denied');
-        return false;
+        return { ok: false, reason: 'Разрешите уведомления в настройках браузера.' };
       }
     }
 
     if (Notification.permission !== 'granted') {
       console.warn('[FCM] No notification permission');
-      return false;
+      return { ok: false, reason: 'Уведомления заблокированы в настройках браузера.' };
     }
 
     try {
@@ -138,13 +138,13 @@
 
       if (!currentToken) {
         console.warn('[FCM] No token received');
-        return false;
+        return { ok: false, reason: 'Не удалось получить push-токен. Попробуйте позже.' };
       }
 
       // Check if token changed
       const stored = _getStoredToken();
       if (stored === currentToken) {
-        return true; // Already registered
+        return { ok: true }; // Already registered
       }
 
       // Register on server
@@ -153,16 +153,17 @@
         _setStoredToken(currentToken);
         console.log('[FCM] Registered successfully');
       }
-      return ok;
+      return { ok };
     } catch (err) {
       if (err.code === 'messaging/permission-blocked') {
-        console.warn('[FCM] Permission blocked');
+        return { ok: false, reason: 'Уведомления заблокированы в настройках браузера.' };
       } else if (err.code === 'messaging/token-unsubscribe-failed') {
         console.warn('[FCM] Token unsubscribe failed');
+        return { ok: false, reason: 'Ошибка подписки. Попробуйте позже.' };
       } else {
         console.error('[FCM] Registration error:', err);
+        return { ok: false, reason: 'Ошибка регистрации push-уведомлений: ' + (err.message || 'неизвестная ошибка') };
       }
-      return false;
     }
   }
 
@@ -228,10 +229,11 @@
   window.registerFCM = registerFCM;
   window.unregisterFCM = unregisterFCM;
   window.__fcmReady = true;
+  window.isFCMSupported = _isFCMSupported;
+  window.getFCMUnsupportedReason = _getFCMUnsupportedReason;
 
   // ── Auto-register on load ──────────────────────────────────
   function _autoRegister() {
-    if (!_isAndroidPWA()) return;
     if (!S.token || !S.notif?.enabled) return;
     if (Notification.permission !== 'granted') return;
 

@@ -57,16 +57,36 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
   const body   = (data.body || 'Новое сообщение').slice(0, 160);
   const chatId = data.chat_id || null;
 
-  // Resolve avatar: try SW cache first, then generate initial letter
+  // Resolve avatar: try SW cache → fetch from network → generate initial letter
   let iconUrl = '/icon-192.png';
   if (data.sender_avatar) {
     try {
+      // 1. Try SW cache first
       const cached = await caches.match(data.sender_avatar);
       if (cached && cached.ok) {
         const blob = await cached.blob();
         iconUrl = URL.createObjectURL(blob);
       } else {
-        iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
+        // 2. Fetch from network (SW context supports fetch)
+        try {
+          const resp = await fetch(data.sender_avatar);
+          if (resp && resp.ok) {
+            const blob = await resp.blob();
+            if (blob && blob.size > 0 && blob.type.startsWith('image/')) {
+              // Cache for future use
+              const cache = await caches.open(CACHE_VER);
+              cache.put(data.sender_avatar, new Response(blob));
+              iconUrl = URL.createObjectURL(blob);
+            } else {
+              iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
+            }
+          } else {
+            iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
+          }
+        } catch(fetchErr) {
+          // 3. Network failed → generate initial letter
+          iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
+        }
       }
     } catch(e) {
       iconUrl = await _swGenerateInitialAvatar(data.sender_name || title).catch(() => '/icon-192.png');
@@ -75,7 +95,7 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
 
   return _queuedNotification(chatId, title, body, iconUrl, { chatId });
 });
-const CACHE_VER  = 'sg-v18';
+const CACHE_VER  = 'sg-v19';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -89,7 +109,7 @@ const CRITICAL = [
   'js/auth.js',
   'js/link-qr-renderer.js',
   'js/push-notifications.js',
-  'js/push-subscribe.js',
+  // 'js/push-subscribe.js' removed — FCM only, no VAPID Web Push
   'js/fcm.js',
   'js/messages.js',
   'js/context-menu.js',
@@ -273,11 +293,11 @@ self.addEventListener('message', event => {
   }
 });
 
-/* ══ PUSH NOTIFICATIONS (VAPID / non-FCM) ═════════════════════
-   NOTE: FCM messages on Android are handled above via
-   _fcmMessaging.onBackgroundMessage(). This 'push' event fires
-   for standard VAPID pushes (desktop, iOS, non-FCM endpoints).
-   ═══════════════════════════════════════════════════════════ */
+/* ══ PUSH NOTIFICATIONS — FCM only ═══════════════════════════
+   All push notifications are delivered via Firebase Cloud Messaging.
+   The onBackgroundMessage handler above processes background pushes.
+   No VAPID / Web Push API — FCM is the sole push channel.
+   ═══════════════════════════════════════════════════════════════ */
 
 /**
  * Generate a circle avatar with initial letter (for push notifications).
@@ -463,71 +483,8 @@ function _zlibDeflateRaw(data) {
   return result;
 }
 
-self.addEventListener('push', event => {
-  let payload = {};
-  if (event.data) {
-    try {
-      const raw = event.data.json();
-      // FCM data-only messages nest payload under "data" key:
-      //   { from: "...", data: { chat_id: "1", sender_name: "Saiko", body: "..." } }
-      // VAPID Web Push delivers payload at root level (no wrapper):
-      //   { chat_id: "1", sender_name: "Saiko", body: "..." }
-      payload = raw.data || raw;
-    } catch (e) {
-      try { payload = { body: event.data.text() }; } catch {}
-    }
-  }
-  event.waitUntil(
-    (async () => {
-      // Forward to all open tabs (foreground handling)
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      clients.forEach(client => {
-        if (payload.action === 'incoming_call') client.postMessage({ type: 'FCM_CALL', payload });
-        else client.postMessage({ type: 'FCM_MSG', payload });
-      });
-
-      // Skip notification for incoming calls (handled by foreground)
-      if (payload.action === 'incoming_call') return;
-
-      // Enrich payload from cached chat data if needed
-      if ((!payload.sender_name || !payload.sender_avatar) && self._notifChatCache && payload.chat_id) {
-        const cached = self._notifChatCache.find(c => c.chat_id === payload.chat_id);
-        if (cached) {
-          if (!payload.sender_name) payload.sender_name = cached.partner_name || '';
-          if (!payload.sender_avatar) payload.sender_avatar = cached.partner_avatar || null;
-          if (!payload.body && cached.last_message) payload.body = cached.last_message;
-        }
-      }
-
-      // Show notification via SW (reliable on mobile, unlike page-level Notification)
-      const title = payload.sender_name || 'Initial.';
-      const body = (payload.body || 'Новое сообщение').slice(0, 160);
-      const chatId = payload.chat_id || null;
-      const notifData = { chatId: chatId };
-
-      // Resolve avatar: try SW cache first, then generate initial letter
-      let iconUrl = '/icon-192.png'; // Default app icon
-      if (payload.sender_avatar) {
-        try {
-          // 1. Try all SW caches
-          const cached = await caches.match(payload.sender_avatar);
-          if (cached && cached.ok) {
-            const blob = await cached.blob();
-            iconUrl = URL.createObjectURL(blob);
-          } else {
-            // 2. Not cached → generate initial-letter circle
-            iconUrl = await _swGenerateInitialAvatar(payload.sender_name || title);
-          }
-        } catch(e) {
-          iconUrl = await _swGenerateInitialAvatar(payload.sender_name || title).catch(() => '/icon-192.png');
-        }
-      }
-
-      // Queue notification with debounce to avoid Chrome rate-limiting
-      await _queuedNotification(chatId, title, body, iconUrl, notifData);
-    })()
-  );
-});
+// VAPID push event handler removed — FCM onBackgroundMessage handles all pushes.
+// Firebase SDK intercepts FCM push events internally, so no 'push' listener is needed.
 
 /**
  * Notification queue — prevents Chrome from dropping rapid notifications.

@@ -1545,29 +1545,30 @@ $('tog-notif').onclick = async () => {
     if (Notification.permission === 'denied') {
       toast('Уведомления заблокированы в настройках браузера — разрешите вручную', 'err'); return;
     }
+    // Check FCM support first
+    if (window.isFCMSupported && !window.isFCMSupported()) {
+      const reason = window.getFCMUnsupportedReason ? window.getFCMUnsupportedReason() : 'Push-уведомления не поддерживаются в этом браузере. Установите Chrome, Edge или Firefox.';
+      toast(reason, 'err');
+      return;
+    }
     const granted = await requestNotifPermission();
     if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
     S.notif.enabled = true;
-    // Android PWA → FCM; Desktop → VAPID Web Push
+    // FCM is the sole push channel
     if (window.__fcmReady) {
-      const ok = await window.registerFCM();
-      if (ok) toast('Уведомления включены', 'ok');
-      else if (window.__webPushReady) {
-        const ok2 = await window.subscribePush();
-        toast(ok2 ? 'Уведомления включены' : 'Уведомления включены (push: ошибка подписки)', ok2 ? 'ok' : 'err');
-      } else {
+      const result = await window.registerFCM();
+      if (result && result.ok) {
         toast('Уведомления включены', 'ok');
+      } else {
+        const reason = (result && result.reason) ? result.reason : 'Ошибка регистрации push-уведомлений';
+        toast(reason, 'err');
       }
-    } else if (window.__webPushReady) {
-      const ok = await window.subscribePush();
-      toast(ok ? 'Уведомления включены' : 'Уведомления включены (push: ошибка подписки)', ok ? 'ok' : 'err');
     } else {
-      toast('Уведомления включены', 'ok');
+      toast('Push-уведомления недоступны. Установите Chrome, Edge или Firefox.', 'err');
     }
   } else {
     S.notif.enabled = false;
     if (window.unregisterFCM) window.unregisterFCM();
-    if (window.unsubscribePush) window.unsubscribePush();
     toast('Уведомления выключены');
   }
   saveNotif(); syncNotifUI();
@@ -1841,15 +1842,19 @@ function _boot() {
         if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
           setTimeout(async () => {
             if ('Notification' in window && Notification.permission === 'default') {
+              // Check FCM support before requesting permission
+              if (window.isFCMSupported && !window.isFCMSupported()) {
+                console.warn('[PWA] FCM not supported, skipping push setup');
+                return;
+              }
               _unlockAudio();
               const granted = await requestNotifPermission();
               if (granted) {
                 S.notif.enabled = true;
                 saveNotif();
                 syncNotifUI();
-                // Android PWA → FCM; fallback → VAPID
+                // FCM is the sole push channel
                 if (window.__fcmReady) await window.registerFCM().catch(() => {});
-                else if (window.__webPushReady) await window.subscribePush().catch(() => {});
                 toast('Уведомления включены', 'ok');
               }
             }
