@@ -67,7 +67,7 @@
   };
 
   // VAPID key from Firebase Console → Project Settings → Cloud Messaging → Web Push certs
-  const FCM_VAPID_KEY = 'BDDKX_qLAKyRECL0QzvMHVUde4z0AXC6k-rYBiw6rA6gyaaTQpmFlto1PIVwwqBDXz5RDNVbPhew74HWiq99YZQ';
+  const FCM_VAPID_KEY = 'BCsgefLdkzRk78_6QnK_m8o5F-8z24rrodblqgrD89jpLYxhMLZyR6ro3NKRR2a2C48FiCEnrI8Uiq1dZ18a69g';
 
   const FCM_TOKEN_KEY = 'sg_fcm_token'; // localStorage key
 
