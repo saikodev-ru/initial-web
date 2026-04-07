@@ -1246,8 +1246,8 @@ window.addEventListener('popstate', (e) => {
     if (!_panelIsSwiping) return;
     _panelSwipeCurrentX = Math.max(0, e.touches[0].clientX - _panelSwipeStartX);
     const progress = _panelSwipeCurrentX / window.innerWidth;
-    // Panel slides from right on mobile, so swipe right = close
-    panel.style.transform = `translateX(${100 - progress * 100}%)`;
+    // Panel slides from the left on mobile; swipe right from left edge = close
+    panel.style.transform = `translateX(${-progress * 100}%)`;
   }, { passive: true });
 
   panel.addEventListener('touchend', () => {
@@ -2057,6 +2057,69 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
 document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', () => openProfile());
 document.getElementById('btn-mobile-title-gear')?.addEventListener('click', () => openProfile());
+document.getElementById('btn-mobile-title-plus')?.addEventListener('click', () => openMod('modal-create'));
+
+/* ══ MODAL: BACK SWIPE (MOBILE) + ESCAPE (DESKTOP) ═══════════ */
+(function() {
+  const _modalStack = [];
+
+  // Patch openMod to track open modals and push history on mobile
+  const _origOpenMod = window.openMod;
+  window.openMod = function(id) {
+    _origOpenMod(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    _modalStack.push(id);
+    if (window.innerWidth <= 680) {
+      history.pushState({ modal: id }, '');
+    }
+  };
+
+  // Patch closeMod to pop from stack
+  const _origCloseMod = window.closeMod;
+  window.closeMod = function(id) {
+    _origCloseMod(id);
+    const idx = _modalStack.indexOf(id);
+    if (idx !== -1) _modalStack.splice(idx, 1);
+    if (window.innerWidth <= 680 && history.state?.modal === id) {
+      _closingModal = true;
+      history.back();
+    }
+  };
+
+  // Also handle [data-close] buttons that call closeMod
+  document.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-close]');
+    if (closeBtn) {
+      // closeMod is already called by existing handlers, but ensure stack is clean
+      const id = closeBtn.dataset.close;
+      const idx = _modalStack.indexOf(id);
+      if (idx !== -1) _modalStack.splice(idx, 1);
+    }
+  });
+
+  // Close topmost modal on Escape (desktop)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _modalStack.length) {
+      const topId = _modalStack[_modalStack.length - 1];
+      closeMod(topId);
+    }
+  });
+
+  // Close topmost modal on system back gesture (mobile)
+  let _closingModal = false;
+  window.addEventListener('popstate', (e) => {
+    if (window.innerWidth > 680) return;
+    if (_closingModal) { _closingModal = false; return; }
+    // If settings panel is handling its own back, skip
+    const panel = document.getElementById('sb-profile-panel');
+    if (panel && panel.classList.contains('open')) return;
+    if (_modalStack.length) {
+      const topId = _modalStack[_modalStack.length - 1];
+      closeMod(topId);
+    }
+  });
+})();
 
 document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
