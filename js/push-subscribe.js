@@ -57,16 +57,46 @@
   }
 
   /**
+   * Convert PushSubscription → plain object with Base64 keys.
+   * PushSubscription has .getKey('p256dh') and .getKey('auth') methods (ArrayBuffer),
+   * but no direct .keys property. We convert ArrayBuffers to URL-safe Base64.
+   */
+  function _subToJSON(subscription) {
+    const p256dhBuf = subscription.getKey('p256dh');
+    const authBuf = subscription.getKey('auth');
+    return {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: p256dhBuf ? _bufToBase64(p256dhBuf) : null,
+        auth:   authBuf   ? _bufToBase64(authBuf)   : null,
+      },
+    };
+  }
+
+  /**
+   * ArrayBuffer → URL-safe Base64 string (no padding).
+   */
+  function _bufToBase64(buf) {
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  /**
    * Send subscription to server.
    * The server stores it and uses it to push messages.
    */
   async function _sendSubToServer(subscription) {
     if (!S.token) return false;
     try {
+      const subJSON = _subToJSON(subscription);
       const res = await api('save_push_subscription', 'POST', {
-        endpoint:    subscription.endpoint,
-        keys_p256dh: subscription.keys.p256dh,
-        keys_auth:   subscription.keys.auth,
+        endpoint:    subJSON.endpoint,
+        keys_p256dh: subJSON.keys.p256dh,
+        keys_auth:   subJSON.keys.auth,
       });
       if (res && res.ok) {
         console.log('[WebPush] Subscription saved on server');
@@ -122,7 +152,7 @@
         }
         // Subscription changed — update server
         const ok = await _sendSubToServer(existing);
-        if (ok) _setStoredSub(existing);
+        if (ok) _setStoredSub(_subToJSON(existing));
         return ok;
       }
 
@@ -134,7 +164,7 @@
 
       const ok = await _sendSubToServer(subscription);
       if (ok) {
-        _setStoredSub(subscription);
+        _setStoredSub(_subToJSON(subscription));
         console.log('[WebPush] Subscribed successfully');
       }
       return ok;
