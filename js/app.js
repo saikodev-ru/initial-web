@@ -1962,7 +1962,7 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
 });
 
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
-document.getElementById('btn-mobile-nav-settings')?.addEventListener('click', () => openProfile());
+document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', () => openProfile());
 
 document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {

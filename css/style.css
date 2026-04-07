@@ -2360,6 +2360,33 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Epicker on mobile: never exceed 55% of viewport height */
   .epicker{max-height:55dvh}
   .emo-grid-wrap{max-height:calc(55dvh - 120px)}
+
+  /* Settings panel slides from the right on mobile */
+  .sb-profile-panel {
+    left: auto;
+    right: 0;
+    transform: translateX(100%);
+    border-right: none;
+    border-left: 1px solid var(--b);
+    width: 100vw;
+    max-width: 100vw;
+  }
+  .sb-profile-panel.open {
+    box-shadow: -8px 0 40px rgba(0,0,0,.45), -2px 0 12px rgba(0,0,0,.25);
+  }
+  /* Sub-views should also slide from the opposite direction */
+  .st-sub {
+    border-left: none;
+    border-right: 1px solid rgba(255,255,255,0.04);
+  }
+
+  /* Hide "disable blur" toggle on mobile — always disabled for performance */
+  #row-no-blur { display: none !important; }
+
+  /* Hide sidebar footer on mobile — profile is now in the navbar */
+  .sb-foot {
+    display: none;
+  }
 }
 
 /* ── Inline video player ── */
@@ -3985,9 +4012,28 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     transform: scale(1.05);
   }
 
-  /* Add bottom padding to sidebar footer to avoid overlap with bottom nav */
+  /* Hide sidebar footer on mobile — profile is now in the navbar */
   .sb-foot {
-    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 72px));
+    display: none;
+  }
+
+  /* Profile avatar button in mobile bottom nav */
+  .mobile-nav-av {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1.5px solid var(--b2, rgba(255,255,255,.1));
+  }
+  .mobile-nav-av .av-img,
+  .mobile-nav-av img,
+  .mobile-nav-av canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 50%;
   }
 }
 

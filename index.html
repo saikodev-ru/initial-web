@@ -392,9 +392,9 @@ if (window._swSupported) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
         <span>Серверы</span>
       </button>
-      <button class="mobile-nav-btn" id="btn-mobile-nav-settings" title="Настройки">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Ещё</span>
+      <button class="mobile-nav-btn mobile-nav-profile" id="btn-mobile-nav-profile" title="Профиль">
+        <div class="mobile-nav-av" id="mobile-nav-av"></div>
+        <span>Вы</span>
       </button>
     </div>
     <aside class="sidebar" id="sidebar">
@@ -650,7 +650,7 @@ if (window._swSupported) {
               <div class="sb-prof-divider"></div>
               <div class="sb-notif-row"><div><div class="sb-notif-label">Размытие фона</div><div class="sb-notif-sub" id="blur-level-label">Слабое</div></div><button class="toggle" id="tog-bg-blur"></button></div>
               <div class="sb-prof-divider"></div>
-              <div class="sb-notif-row"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
+              <div class="sb-notif-row" id="row-no-blur"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
               <div class="sb-prof-divider"></div>
               <div class="sb-notif-row"><div><div class="sb-notif-label">Отступы чата</div><div class="sb-notif-sub">Поля слева и справа</div></div><div style="display:flex;align-items:center;gap:8px"><input type="range" id="chat-max-width-range" min="0" max="200" value="0" step="10" style="flex:1;accent-color:var(--y);height:4px"><span id="chat-max-width-val" style="font-size:12px;color:var(--t3);min-width:36px;text-align:right">Авто</span></div></div>
               <div class="sb-prof-divider"></div>
@@ -1488,8 +1488,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Отключить blur-эффекты ──
   function applyBlurSetting() {
-    const noBlur = localStorage.getItem('sg_no_blur') === 'true';
-    document.body.classList.toggle('no-blur', noBlur);
+    let noBlur = localStorage.getItem('sg_no_blur');
+    // On mobile, default to blur disabled unless explicitly set to 'false'
+    if (window.innerWidth <= 680 && noBlur === null) {
+      noBlur = 'true';
+      localStorage.setItem('sg_no_blur', 'true');
+    }
+    document.body.classList.toggle('no-blur', noBlur === 'true');
   }
   applyBlurSetting();
 
