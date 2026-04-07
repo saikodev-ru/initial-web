@@ -1548,17 +1548,17 @@ $('tog-notif').onclick = async () => {
     const granted = await requestNotifPermission();
     if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
     S.notif.enabled = true;
-    // Register FCM push token for server-side push delivery
-    if (window.__fcmReady) {
-      const ok = await window.registerFCM();
+    // Register Web Push subscription for server-side push delivery
+    if (window.__webPushReady) {
+      const ok = await window.subscribePush();
       if (ok) toast('Уведомления включены', 'ok');
-      else toast('Уведомления включены (push: ошибка регистрации)', 'err');
+      else toast('Уведомления включены (push: ошибка подписки)', 'err');
     } else {
       toast('Уведомления включены', 'ok');
     }
   } else {
     S.notif.enabled = false;
-    if (window.unregisterFCM) window.unregisterFCM();
+    if (window.unsubscribePush) window.unsubscribePush();
     toast('Уведомления выключены');
   }
   saveNotif(); syncNotifUI();
@@ -1838,8 +1838,8 @@ function _boot() {
                 S.notif.enabled = true;
                 saveNotif();
                 syncNotifUI();
-                // Register FCM push token
-                if (window.__fcmReady) await window.registerFCM().catch(() => {});
+                // Register Web Push subscription
+                if (window.__webPushReady) await window.subscribePush().catch(() => {});
                 toast('Уведомления включены', 'ok');
               }
             }

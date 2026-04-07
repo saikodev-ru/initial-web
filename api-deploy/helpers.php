@@ -718,22 +718,22 @@ function sendLoginNotification(int $userId): void {
     sendSystemMsg($userId, $body);
 }
 
-// ── Push-уведомление через FCM v1 (data-only) ────────────────
+// ── Push-уведомление (Web Push + FCM fallback) ────────────────
 function send_push(string $token, string $title, string $body, array $data = []): void
 {
+    // ── Web Push (preferred — uses push_subscription JSON from user row) ──
+    // The $token param is legacy (fcm_token); we also try Web Push from subscription.
+    // This function is called with the recipient's data from the users table.
+    // The actual Web Push send is handled by send_web_push_to_user() below.
+
+    // ── FCM fallback (if fcm_token exists and FCM is configured) ──
     if (empty($token)) return;
 
     $accessToken = get_fcm_access_token();
-    if (!$accessToken) {
-        error_log('FCM: access token не получен — проверьте FCM_SERVICE_ACCOUNT_JSON в config.php');
-        return;
-    }
+    if (!$accessToken) return;
 
     $projectId = defined('FCM_PROJECT_ID') ? FCM_PROJECT_ID : getenv('FCM_PROJECT_ID');
-    if (empty($projectId)) {
-        error_log('FCM: FCM_PROJECT_ID не задан в config.php');
-        return;
-    }
+    if (empty($projectId)) return;
 
     $strData = array_map('strval', array_merge($data, [
         'title'         => $title,
@@ -769,6 +769,43 @@ function send_push(string $token, string $title, string $body, array $data = [])
 
     if ($httpCode !== 200) {
         error_log("FCM error {$httpCode}: {$response}");
+    }
+}
+
+// ── Web Push (VAPID) — send to user by user_id ───────────────
+function send_web_push_to_user(int $userId, string $title, string $body, array $data = []): void
+{
+    static $webPushLoaded = false;
+    if (!$webPushLoaded) {
+        $wpFile = __DIR__ . '/web_push.php';
+        if (file_exists($wpFile)) {
+            require_once $wpFile;
+            $webPushLoaded = true;
+        } else {
+            error_log('WebPush: web_push.php not found');
+            return;
+        }
+    }
+
+    // Fetch push_subscription from user row
+    $stmt = db()->prepare('SELECT push_subscription FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $row = $stmt->fetch();
+    if (!$row || empty($row['push_subscription'])) return;
+
+    $subscription = json_decode($row['push_subscription'], true);
+    if (empty($subscription['endpoint']) || empty($subscription['keys']['p256dh'])) return;
+
+    $payload = array_merge($data, [
+        'title' => $title,
+        'body'  => $body,
+    ]);
+
+    $ok = web_push_send($subscription, $payload);
+
+    if (!$ok) {
+        // If send failed with 404/410, the subscription is dead — clean up
+        error_log("WebPush: failed to send to user {$userId}");
     }
 }
 

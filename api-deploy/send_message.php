@@ -119,23 +119,31 @@ $stmt->execute([$messageId]);
 $sentAt = (int) ($stmt->fetchColumn() ?: time());
 
 // ── Push-уведомление ─────────────────────────────────────────
-if (!empty($recipient['fcm_token'])) {
-    $senderName = $me['nickname'] ?? $me['email'];
-    $pushBody   = $hasMedia
-        ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
-        : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
+// Try Web Push first (VAPID), then FCM as fallback
+$senderName = $me['nickname'] ?? $me['email'];
+$pushBody   = $hasMedia
+    ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
+    : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
 
+// Web Push (VAPID) — preferred
+$pushData = [
+    'chat_id'          => (string) $chatId,
+    'sender_signal_id' => $me['signal_id'] ?? '',
+    'sender_avatar'    => $me['avatar_url'] ?? '',
+    'media_type'       => $mediaType,
+    'message_id'       => (string) $messageId,
+    'sender_name'      => $senderName,
+];
+send_web_push_to_user($recipientId, $senderName, $pushBody, $pushData);
+
+// FCM fallback (if fcm_token exists)
+if (!empty($recipient['fcm_token'])) {
     send_push(
-    $recipient['fcm_token'],
-    $senderName,
-    $pushBody,
-    [
-        'chat_id'          => (string) $chatId,
-        'sender_signal_id' => $me['signal_id'] ?? '',
-        'sender_avatar'    => $me['avatar_url'] ?? '', // просто ключ: avatars/user_2_xxx.jpg
-        'media_type'       => $mediaType,
-    ]
-);
+        $recipient['fcm_token'],
+        $senderName,
+        $pushBody,
+        $pushData
+    );
 }
 
 json_ok([
