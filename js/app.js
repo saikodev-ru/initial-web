@@ -1836,7 +1836,14 @@ function _boot() {
         if (S.chats && S.chats.length) renderChats('');
         // Restore last open chat after network chats load
         const _lastChatId = parseInt(localStorage.getItem('sg_last_chat') || '0', 10) || null;
-        loadChats().then(() => { if (_lastChatId && window.innerWidth > 680) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); } });
+        loadChats().then(() => {
+          // Restore last chat (desktop)
+          if (_lastChatId && window.innerWidth > 680) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); }
+          // Process any pending notification action that arrived before chats loaded
+          if (_pendingNotifAction) _handleNotifAction(_pendingNotifAction.action, _pendingNotifAction.chatId);
+          // Push avatar data URLs to SW cache so background notifications show real avatars
+          if (typeof syncNotifDataToSW === 'function') setTimeout(syncNotifDataToSW, 500);
+        });
         startPoll(); startGlobalSSE(); syncNotifUI();
         // PWA: request notification permissions on first launch
         if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
@@ -1965,6 +1972,42 @@ setTimeout(() => {
   setInterval(_syncMyProfile, 60_000);
 }, 10_000);
 
+/* ══ NOTIFICATION ACTION HANDLER ════════════════════════════════════════════
+   Called both from SW message listener and after chats load (pending action).
+   Handles: open, reply (focus input), markread.
+   ═══════════════════════════════════════════════════════════════════════════ */
+let _pendingNotifAction = null;
+
+function _handleNotifAction(action, chatId) {
+  if (!chatId) return;
+
+  const chat = (S.chats || []).find(c => c.chat_id === chatId);
+  if (!chat) {
+    // Chats not loaded yet — store and retry after next loadChats()
+    _pendingNotifAction = { action, chatId };
+    return;
+  }
+  _pendingNotifAction = null;
+
+  if (action === 'open' || action === 'reply') {
+    if (S.chatId !== chatId && typeof openChat === 'function') {
+      openChat(chat);
+    }
+    if (action === 'reply') {
+      // Wait for chat panel to render before focusing
+      const _focusInput = (attempts) => {
+        const mfield = document.getElementById('mfield') || document.querySelector('.mfield');
+        if (mfield) { mfield.focus(); return; }
+        if (attempts > 0) setTimeout(() => _focusInput(attempts - 1), 200);
+      };
+      setTimeout(() => _focusInput(10), 400);
+    }
+  } else if (action === 'markread') {
+    api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1').catch(() => {});
+    if (typeof loadChats === 'function') loadChats().catch(() => {});
+  }
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
     const data = event.data;
@@ -1980,33 +2023,8 @@ if ('serviceWorker' in navigator) {
     } else if (data.type === 'FCM_CALL') {
       if (window.pollCallSignals) window.pollCallSignals();
     } else if (data.type === 'NOTIF_ACTION') {
-      // Handle notification action buttons from service worker
-      const chatId = data.chatId;
-      const action = data.action;
-
-      if (chatId) {
-        const chat = (S.chats || []).find(c => c.chat_id === chatId);
-        if (chat) {
-          if (action === 'open' || action === 'reply') {
-            // Open the chat
-            if (S.chatId !== chatId && typeof openChat === 'function') {
-              openChat(chat);
-            }
-            // Focus input for reply
-            if (action === 'reply') {
-              setTimeout(() => {
-                const mfield = document.getElementById('mfield') || document.querySelector('.mfield');
-                if (mfield) mfield.focus();
-              }, 600);
-            }
-          } else if (action === 'markread') {
-            // Mark messages as read via API
-            api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1').catch(() => {});
-            // Reload chat list to clear unread badge
-            if (typeof loadChats === 'function') loadChats().catch(() => {});
-          }
-        }
-      }
+      // Store action and process after chats are loaded (handles fresh-open race)
+      _handleNotifAction(data.action, data.chatId);
     }
   });
 }

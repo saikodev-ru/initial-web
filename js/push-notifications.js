@@ -230,19 +230,36 @@
 
   window.syncNotifDataToSW = function() {
     if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
-    const chatData = (S.chats || []).slice(0, 20).map(function(c) {
-      return {
-        chat_id: c.chat_id,
-        partner_name: c.partner_name || '',
-        partner_avatar: c.partner_avatar || null,
-        last_message: c.last_message || '',
-        last_media_type: c.last_media_type || null
-      };
+
+    // Convert avatars to data URLs so the SW can use them even without S3 access
+    var chats = (S.chats || []).slice(0, 30);
+    var promises = chats.map(function(c) {
+      if (!c.partner_avatar) {
+        return _generateInitialAvatar(c.partner_name || '?').then(function(dataUrl) {
+          return {
+            chat_id: c.chat_id,
+            partner_name: c.partner_name || '',
+            partner_avatar: c.partner_avatar || null,
+            avatar_data_url: dataUrl
+          };
+        });
+      }
+      return _resolveAvatar(c.partner_avatar, c.partner_name).then(function(dataUrl) {
+        return {
+          chat_id: c.chat_id,
+          partner_name: c.partner_name || '',
+          partner_avatar: c.partner_avatar || null,
+          avatar_data_url: dataUrl
+        };
+      });
     });
-    navigator.serviceWorker.controller.postMessage({
-      type: 'SYNC_NOTIF_DATA',
-      chats: chatData
-    });
+
+    Promise.all(promises).then(function(chatData) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SYNC_NOTIF_DATA',
+        chats: chatData
+      });
+    }).catch(function() {});
   };
 
 })();

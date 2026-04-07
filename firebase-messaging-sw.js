@@ -29,6 +29,123 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 // self.location = …/web/firebase-messaging-sw.js  →  BASE = /web
 const _BASE = self.location.pathname.replace(/\/firebase-messaging-sw\.js$/, '') || '';
 
+/* ═══════════════════════════════════════════════════════════════
+   Avatar data-URL cache — populated by the page via SYNC_NOTIF_DATA.
+   Stored in IndexedDB so it survives SW restarts between pushes.
+   ═══════════════════════════════════════════════════════════════ */
+
+const _IDB_NAME    = 'initial-notif-cache';
+const _IDB_STORE   = 'avatars';
+const _IDB_VERSION = 1;
+
+function _idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(_IDB_NAME, _IDB_VERSION);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(_IDB_STORE);
+    req.onsuccess  = e => resolve(e.target.result);
+    req.onerror    = e => reject(e.target.error);
+  });
+}
+
+async function _idbSaveAvatars(map) {
+  try {
+    const db = await _idbOpen();
+    const tx = db.transaction(_IDB_STORE, 'readwrite');
+    const st = tx.objectStore(_IDB_STORE);
+    for (const [key, val] of Object.entries(map)) {
+      if (key && val) st.put(val, key);
+    }
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (_) {}
+}
+
+async function _idbLoadAvatars() {
+  try {
+    const db = await _idbOpen();
+    const tx = db.transaction(_IDB_STORE, 'readonly');
+    const st = tx.objectStore(_IDB_STORE);
+    const all = await new Promise((res, rej) => {
+      const result = {};
+      const req = st.openCursor();
+      req.onsuccess = e => {
+        const cursor = e.target.result;
+        if (cursor) { result[cursor.key] = cursor.value; cursor.continue(); }
+        else res(result);
+      };
+      req.onerror = rej;
+    });
+    db.close();
+    return all;
+  } catch (_) { return {}; }
+}
+
+// In-memory mirror of IDB (populated on first background message)
+let _avatarCache    = null; // null = not loaded yet
+let _avatarCacheInited = false;
+
+async function _ensureAvatarCache() {
+  if (_avatarCacheInited) return;
+  _avatarCacheInited = true;
+  _avatarCache = await _idbLoadAvatars();
+}
+
+// ── Message handler: receive SYNC_NOTIF_DATA from the page ──
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SYNC_NOTIF_DATA') {
+    const chats = event.data.chats || [];
+    const updates = {};
+    chats.forEach(c => {
+      const key = c.partner_avatar || ('chat:' + c.chat_id);
+      if (c.avatar_data_url) updates[key] = c.avatar_data_url;
+    });
+    if (!_avatarCache) _avatarCache = {};
+    Object.assign(_avatarCache, updates);
+    _avatarCacheInited = true;
+    _idbSaveAvatars(updates);
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   Body formatting — strip HTML, convert spoilers to Braille
+   (no DOM in SW, so pure regex)
+   ═══════════════════════════════════════════════════════════════ */
+
+function _swFormatBody(raw) {
+  if (!raw) return '';
+  let text = raw;
+
+  // ||spoiler|| syntax → braille
+  text = text.replace(/\|\|([^|]+)\|\|/g, function(_, content) {
+    let result = '';
+    for (let i = 0; i < content.length; i++) {
+      result += String.fromCharCode(0x2800 + Math.floor(Math.random() * 256));
+    }
+    return result;
+  });
+
+  // <spoiler> tags → braille
+  text = text.replace(/<spoiler[^>]*>([\s\S]*?)<\/spoiler>/gi, function(_, content) {
+    let result = '';
+    for (let i = 0; i < content.length; i++) {
+      result += String.fromCharCode(0x2800 + Math.floor(Math.random() * 256));
+    }
+    return result;
+  });
+
+  // Preserve line breaks
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  // Strip remaining tags
+  text = text.replace(/<[^>]+>/g, '');
+  // Decode common HTML entities
+  text = text
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
+  // Normalize whitespace
+  text = text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  return text;
+}
+
 // ── FCM Background Message Handler ────────────────────────────
 _fcmMessaging.onBackgroundMessage(async (payload) => {
   const data = payload.data || {};
@@ -56,47 +173,17 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
   if (hasVisible) return;
 
   const title  = data.sender_name || 'Initial.';
-  const body   = (data.body || 'Новое сообщение').slice(0, 160);
+  const body   = _swFormatBody(data.body || 'Новое сообщение').slice(0, 160) || 'Новое сообщение';
   const chatId = data.chat_id || null;
 
-  // Resolve avatar: try SW cache → fetch from network → generate initial letter
+  // Resolve avatar: data-URL cache synced from page (S3 not directly accessible)
+  await _ensureAvatarCache();
   let iconUrl = _BASE + '/icon-192.png';
-  if (data.sender_avatar) {
-    try {
-      // 1. Try all SW caches — also try with full origin prefix
-      let cached = await caches.match(data.sender_avatar);
-      if (!cached || !cached.ok) {
-        // Avatar URLs may be relative (/api/…) while cache has absolute origin
-        try {
-          const absUrl = new URL(data.sender_avatar, self.location.origin).href;
-          cached = await caches.match(absUrl);
-        } catch(_) {}
-      }
-      if (cached && cached.ok) {
-        const blob = await cached.blob();
-        iconUrl = URL.createObjectURL(blob);
-      } else {
-        // 2. Fetch from network (include cookies — avatars may need auth)
-        try {
-          const resp = await fetch(data.sender_avatar, { credentials: 'include' });
-          if (resp && resp.ok) {
-            const blob = await resp.blob();
-            if (blob && blob.size > 0 && blob.type.startsWith('image/')) {
-              iconUrl = URL.createObjectURL(blob);
-            } else {
-              iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
-            }
-          } else {
-            iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
-          }
-        } catch(fetchErr) {
-          // 3. Network failed → generate initial letter
-          iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
-        }
-      }
-    } catch(e) {
-      iconUrl = await _swGenerateInitialAvatar(data.sender_name || title).catch(() => _BASE + '/icon-192.png');
-    }
+  const _cacheKey = data.sender_avatar || (chatId ? 'chat:' + chatId : null);
+  if (_cacheKey && _avatarCache && _avatarCache[_cacheKey]) {
+    iconUrl = _avatarCache[_cacheKey];
+  } else {
+    try { iconUrl = await _swGenerateInitialAvatar(data.sender_name || title); } catch(_) {}
   }
 
   return _queuedNotification(chatId, title, body, iconUrl, { chatId });
