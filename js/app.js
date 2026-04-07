@@ -922,7 +922,9 @@ function _updateHeroNameUI(u, customName) {
 }
 
 function openProfile() {
+  console.log('[openProfile] called, S.user=', !!S.user);
   if (!S.user) return;
+  try {
   const u = S.user;
   $('pm-name').value = u.nickname || '';
   $('pm-sid').value = u.signal_id || '';
@@ -960,6 +962,7 @@ function openProfile() {
       }
     }
   }).catch(() => { });
+  } catch(err) { console.error('[openProfile] ERROR:', err); }
 }
 
 async function loadSessions() {
@@ -2008,6 +2011,7 @@ document.getElementById('btn-nav-settings')?.addEventListener('click', () => ope
 const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return; // Already on this page
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
@@ -2055,9 +2059,28 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
 });
 
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
-document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', () => openProfile());
-document.getElementById('btn-mobile-title-gear')?.addEventListener('click', () => openProfile());
+// Prevent double-fire: touchend + click on same tap
+let _profileTouchFired = false;
+function _handleOpenProfile() {
+  openProfile();
+}
+document.getElementById('btn-mobile-nav-profile')?.addEventListener('touchend', (e) => {
+  e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
+}, { passive: false });
+document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', (e) => {
+  if (_profileTouchFired) { _profileTouchFired = false; return; }
+  e.stopPropagation(); _handleOpenProfile();
+});
+_profileTouchFired = false;
+document.getElementById('btn-mobile-title-gear')?.addEventListener('touchend', (e) => {
+  e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
+}, { passive: false });
+document.getElementById('btn-mobile-title-gear')?.addEventListener('click', (e) => {
+  if (_profileTouchFired) { _profileTouchFired = false; return; }
+  e.stopPropagation(); _handleOpenProfile();
+});
 document.getElementById('btn-mobile-title-plus')?.addEventListener('click', () => openMod('modal-create'));
+document.getElementById('btn-mobile-title-plus')?.addEventListener('touchend', (e) => { e.preventDefault(); openMod('modal-create'); }, { passive: false });
 
 /* ══ MODAL: BACK SWIPE (MOBILE) + ESCAPE (DESKTOP) ═══════════ */
 (function() {
@@ -2123,6 +2146,7 @@ document.getElementById('btn-mobile-title-plus')?.addEventListener('click', () =
 
 document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return; // Already on this page
     document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
