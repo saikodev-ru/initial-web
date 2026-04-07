@@ -19,6 +19,42 @@
   'use strict';
 
   // ═══════════════════════════════════════════════════════════════
+  // SW register patch — redirect Firebase hardcoded paths to /web/
+  //
+  // Firebase SDK v10+ hardcodes:
+  //   script → /firebase-messaging-sw.js
+  //   scope → /firebase-cloud-messaging-push-scope
+  // When the app lives in a subdirectory (e.g. /web/), these paths
+  // resolve to the origin root and return 404.
+  //
+  // We intercept the registration call and rewrite both paths to
+  // include the app's base directory, derived from this script's URL.
+  // ═══════════════════════════════════════════════════════════════
+  const _FCM_SW_SCRIPT = '/firebase-messaging-sw.js';
+  const _FCM_SW_SCOPE  = '/firebase-cloud-messaging-push-scope';
+
+  // Derive /web from this script's src  (…/web/js/fcm.js → /web)
+  const _fcmScriptEl = document.querySelector('script[src*="fcm.js"]');
+  const _WEB_BASE = _fcmScriptEl
+    ? new URL('..', _fcmScriptEl.src).pathname.replace(/\/$/, '')
+    : '';
+
+  if (_WEB_BASE && 'serviceWorker' in navigator) {
+    const _origRegister = navigator.serviceWorker.register.bind(navigator.serviceWorker);
+    navigator.serviceWorker.register = function (scriptURL, options) {
+      let url = typeof scriptURL === 'string' ? scriptURL : scriptURL.toString();
+      if (url === _FCM_SW_SCRIPT || url === new URL(_FCM_SW_SCRIPT, location.origin).href) {
+        url = _WEB_BASE + _FCM_SW_SCRIPT;
+        if (options && options.scope === _FCM_SW_SCOPE) {
+          options = Object.assign({}, options, { scope: _WEB_BASE + _FCM_SW_SCOPE });
+        }
+        console.log('[FCM] Patched SW path:', url, 'scope:', options?.scope);
+      }
+      return _origRegister(url, options);
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // Firebase Configuration — from Firebase Console → Project Settings → Web App
   // ═══════════════════════════════════════════════════════════════
   const FIREBASE_CONFIG = {

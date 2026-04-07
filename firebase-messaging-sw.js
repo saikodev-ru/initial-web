@@ -21,6 +21,10 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const _fcmMessaging = firebase.messaging();
 
+// ── Base path: when the app lives in a subdirectory (e.g. /web/) ──
+// self.location = …/web/firebase-messaging-sw.js  →  BASE = /web
+const _BASE = self.location.pathname.replace(/\/firebase-messaging-sw\.js$/, '') || '';
+
 // ── FCM Background Message Handler ────────────────────────────
 _fcmMessaging.onBackgroundMessage(async (payload) => {
   const data = payload.data || {};
@@ -43,7 +47,7 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
   const chatId = data.chat_id || null;
 
   // Resolve avatar: try SW cache → fetch from network → generate initial letter
-  let iconUrl = '/icon-192.png';
+  let iconUrl = _BASE + '/icon-192.png';
   if (data.sender_avatar) {
     try {
       // 1. Try all SW caches
@@ -71,7 +75,7 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
         }
       }
     } catch(e) {
-      iconUrl = await _swGenerateInitialAvatar(data.sender_name || title).catch(() => '/icon-192.png');
+      iconUrl = await _swGenerateInitialAvatar(data.sender_name || title).catch(() => _BASE + '/icon-192.png');
     }
   }
 
@@ -246,7 +250,7 @@ async function _processNotifQueue() {
       renotify: true,
       data:     notif.data,
       vibrate:  [200, 100, 200],
-      badge:    '/icon-192.png',
+      badge:    _BASE + '/icon-192.png',
     };
     if ('Notification' in self && self.Notification.maxActions > 0) {
       notifOpts.actions = [
@@ -282,7 +286,7 @@ self.addEventListener('notificationclick', event => {
         }
       }
       if (!targetClient && self.clients.openWindow) {
-        targetClient = await self.clients.openWindow('/');
+        targetClient = await self.clients.openWindow(_BASE + '/');
       }
       if (targetClient) {
         targetClient.postMessage({
