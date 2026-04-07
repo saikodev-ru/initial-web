@@ -1732,6 +1732,21 @@ function _boot() {
         const _lastChatId = parseInt(localStorage.getItem('sg_last_chat') || '0', 10) || null;
         loadChats().then(() => { if (_lastChatId) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); } }); 
         startPoll(); startGlobalSSE(); syncNotifUI();
+        // PWA: request notification permissions on first launch
+        if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
+          setTimeout(async () => {
+            if ('Notification' in window && Notification.permission === 'default') {
+              _unlockAudio();
+              const granted = await requestNotifPermission();
+              if (granted) {
+                S.notif.enabled = true;
+                saveNotif();
+                syncNotifUI();
+                toast('Уведомления включены', 'ok');
+              }
+            }
+          }, 1500);
+        }
         requestAnimationFrame(() => { const el = $('sb-title'); if (el) el.textContent = 'Сообщения'; });
       } else {
         showScr('scr-auth');
@@ -1911,6 +1926,57 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
         panel.style.opacity = '1';
         panel.style.pointerEvents = 'auto';
       }
+    }
+  });
+});
+
+/* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
+document.getElementById('btn-mobile-nav-settings')?.addEventListener('click', () => openProfile());
+
+document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const nav = btn.dataset.nav;
+
+    // Fade sidebar content during panel transition
+    const listWrap = document.getElementById('sb-list-wrap');
+    if (listWrap) {
+      listWrap.classList.add('fading');
+      setTimeout(() => listWrap.classList.remove('fading'), 300);
+    }
+    // Hide all nav panels
+    document.querySelectorAll('.nav-panel').forEach(p => {
+      p.style.transform = 'translateX(100%)';
+      p.style.opacity = '0';
+      p.style.pointerEvents = 'none';
+    });
+    // Exit search if active
+    if (typeof exitSearch === 'function' && typeof sbSearchActive !== 'undefined' && sbSearchActive) exitSearch();
+    // Show/hide chat-list and search-results based on active nav
+    const chatList = document.getElementById('chat-list');
+    const searchResults = document.getElementById('sb-search-results');
+    if (nav === 'chats') {
+      chatList.style.transform = '';
+      chatList.style.opacity = '';
+      chatList.style.pointerEvents = '';
+      searchResults.style.transform = '';
+      searchResults.style.opacity = '';
+      searchResults.style.pointerEvents = '';
+    } else {
+      chatList.style.transform = 'translateX(-100%)';
+      chatList.style.opacity = '0';
+      chatList.style.pointerEvents = 'none';
+      searchResults.style.transform = 'translateX(100%)';
+      searchResults.style.opacity = '0';
+      searchResults.style.pointerEvents = 'none';
+    }
+
+    const panel = document.getElementById('panel-' + nav);
+    if (panel) {
+      panel.style.transform = 'translateX(0)';
+      panel.style.opacity = '1';
+      panel.style.pointerEvents = 'auto';
     }
   });
 });

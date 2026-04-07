@@ -212,6 +212,8 @@ function openChat(c){
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
     // Push state so Android/iOS back button works
     history.pushState({chat:c.chat_id},'','');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.add('hidden');
   }
 
   const area=$('msgs');
@@ -956,6 +958,8 @@ async function startChat(u){
     $('sidebar').classList.add('hidden');
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
     history.pushState({chat:0},'','');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.add('hidden');
   }
   renderEmptyChat(0);
   mfield.focus();
@@ -971,6 +975,8 @@ function goBackToList(){
     // Slide chat out to the right, slide sidebar in from left
     $('active-chat').classList.remove('mb-visible');
     $('sidebar').classList.remove('hidden');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.remove('hidden');
     setTimeout(()=>{
       S.chatId=null;
       $('active-chat').style.display='';

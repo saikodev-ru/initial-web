@@ -2333,6 +2333,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   html,body,#scr-app,.layout{height:100dvh;min-height:100dvh}
   .sidebar{position:fixed;inset:0;width:100%!important;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1)}
   .sidebar.hidden{transform:translateX(-100%);pointer-events:none}
+  .chat-welcome{display:none!important}
   /* Hide desktop-only controls on mobile */
   .btn-collapse-sb,.btn-expand-sb,.resize-handle,.back-btn-mb{display:none!important}
   .msgs{padding:calc(76px + env(safe-area-inset-top, 0px)) 8px 140px}
@@ -3907,11 +3908,87 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   box-shadow: 0 0 8px rgba(139,92,246,.2);
 }
 
+/* ── Mobile Bottom Navigation Pill ── */
+.mobile-bottom-nav {
+  display: none; /* hidden on desktop by default */
+}
+
 /* On mobile: hide call panel, keep modal fullscreen for all states */
 @media (max-width: 680px) {
+  .mobile-bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 12px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    position: fixed;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background: rgba(var(--bg-rgb),.82);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--b2, rgba(255,255,255,.08));
+    border-radius: 28px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.25);
+    transition: opacity .25s ease, transform .25s ease;
+  }
   .call-panel { display: none !important; }
   .call-mini-bar { display: none !important; }
   .nav-rail { display: none; }
+
+  /* Hide bottom nav when in chat (sidebar is hidden) */
+  .sidebar.hidden ~ .mobile-bottom-nav,
+  .mobile-bottom-nav.hidden {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+    pointer-events: none;
+  }
+
+  .mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 20px;
+    background: transparent;
+    color: var(--t3);
+    cursor: pointer;
+    transition: background .15s, color .15s, transform .12s cubic-bezier(.34,1.56,.64,1);
+    -webkit-tap-highlight-color: transparent;
+    min-width: 56px;
+  }
+  .mobile-nav-btn svg {
+    width: 22px;
+    height: 22px;
+    transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+  }
+  .mobile-nav-btn span {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    font-family: var(--font);
+  }
+  .mobile-nav-btn:active {
+    transform: scale(0.88);
+  }
+  .mobile-nav-btn.active {
+    background: var(--ybg);
+    color: var(--y2);
+  }
+  .mobile-nav-btn.active svg {
+    transform: scale(1.05);
+  }
+
+  /* Add bottom padding to sidebar footer to avoid overlap with bottom nav */
+  .sb-foot {
+    padding-bottom: max(16px, calc(env(safe-area-inset-bottom) + 72px));
+  }
 }
 
 /* ── Create Modal ── */
