@@ -218,14 +218,35 @@ self.addEventListener('push', event => {
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+
+  const action = event.action; // 'reply', 'markread', or undefined (default click)
+  const chatId = event.notification.data?.chatId || null;
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+      let targetClient = null;
+
+      // Find an existing window client
       for (const client of clients) {
         if (client.url.includes('/web') && 'focus' in client) {
-          return client.focus();
+          targetClient = client;
+          await client.focus();
+          break;
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow('/web/');
+
+      if (!targetClient && self.clients.openWindow) {
+        targetClient = await self.clients.openWindow('/web/');
+      }
+
+      // Send action data to the page so it can handle reply/markread
+      if (targetClient) {
+        targetClient.postMessage({
+          type: 'NOTIF_ACTION',
+          action: action || 'open',
+          chatId: chatId
+        });
+      }
     })
   );
 });

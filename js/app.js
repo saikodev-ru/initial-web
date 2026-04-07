@@ -1854,10 +1854,41 @@ setTimeout(() => {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'FCM_MSG') {
+    const data = event.data;
+    if (!data) return;
+
+    if (data.type === 'FCM_MSG') {
       if (window.pollNow) pollNow();
-    } else if (event.data?.type === 'FCM_CALL') {
+    } else if (data.type === 'FCM_CALL') {
       if (window.pollCallSignals) window.pollCallSignals();
+    } else if (data.type === 'NOTIF_ACTION') {
+      // Handle notification action buttons from service worker
+      const chatId = data.chatId;
+      const action = data.action;
+
+      if (chatId) {
+        const chat = (S.chats || []).find(c => c.chat_id === chatId);
+        if (chat) {
+          if (action === 'open' || action === 'reply') {
+            // Open the chat
+            if (S.chatId !== chatId && typeof openChat === 'function') {
+              openChat(chat);
+            }
+            // Focus input for reply
+            if (action === 'reply') {
+              setTimeout(() => {
+                const mfield = document.getElementById('mfield') || document.querySelector('.mfield');
+                if (mfield) mfield.focus();
+              }, 600);
+            }
+          } else if (action === 'markread') {
+            // Mark messages as read via API
+            api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1').catch(() => {});
+            // Reload chat list to clear unread badge
+            if (typeof loadChats === 'function') loadChats().catch(() => {});
+          }
+        }
+      }
     }
   });
 }
