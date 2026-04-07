@@ -6,10 +6,62 @@
    жёсткие перезагрузки и очистку SW-кеша.
    ═══════════════════════════════════════════════════════════════ */
 
-// Firebase Cloud Messaging SDK — required for FCM token support on Android PWA
-importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-sw.js');
+// ── Firebase Messaging SDK (required for FCM on Android PWA) ──
+// Must import both app-compat AND messaging-compat (not the combined sw.js)
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
-const CACHE_VER  = 'sg-v17';
+// ── Firebase initialization (REQUIRED for FCM token fetch + background push) ──
+const FIREBASE_CONFIG = {
+  apiKey:            'AIzaSyBP2OObK7mkIIJfPxJOaJJ7hcP76q2gxX4',
+  authDomain:        'initial-messenger.firebaseapp.com',
+  projectId:         'initial-messenger',
+  storageBucket:     'initial-messenger.firebasestorage.app',
+  messagingSenderId: '879915718420',
+  appId:             '1:879915718420:web:1ed8f51e05a847a065bd21',
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const _fcmMessaging = firebase.messaging();
+
+// ── FCM Background Message Handler ────────────────────────────
+// Called when app is backgrounded/closed and a FCM message arrives.
+// Firebase intercepts the push event for FCM messages — we use this callback.
+_fcmMessaging.onBackgroundMessage((payload) => {
+  const data = payload.data || {};
+
+  // Forward to open tabs (foreground handling if any tab is visible)
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    clients.forEach(client => {
+      if (data.action === 'incoming_call') {
+        client.postMessage({ type: 'FCM_CALL', payload: data });
+      } else {
+        client.postMessage({ type: 'FCM_MSG', payload: data });
+      }
+    });
+  });
+
+  // Skip notification for incoming calls (handled by foreground)
+  if (data.action === 'incoming_call') return;
+
+  // Enrich payload from cached chat data if needed
+  if ((!data.sender_name || !data.sender_avatar) && self._notifChatCache && data.chat_id) {
+    const cached = self._notifChatCache.find(c => c.chat_id === data.chat_id);
+    if (cached) {
+      if (!data.sender_name)   data.sender_name   = cached.partner_name   || '';
+      if (!data.sender_avatar) data.sender_avatar = cached.partner_avatar || null;
+      if (!data.body && cached.last_message) data.body = cached.last_message;
+    }
+  }
+
+  const title  = data.sender_name || 'Инициал';
+  const body   = (data.body || 'Новое сообщение').slice(0, 160);
+  const chatId = data.chat_id || null;
+
+  return _queuedNotification(chatId, title, body, '/icon-192.png', { chatId });
+});
+
+const CACHE_VER  = 'sg-v18';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -207,7 +259,11 @@ self.addEventListener('message', event => {
   }
 });
 
-/* ══ PUSH NOTIFICATIONS ═════════════════════════════════════ */
+/* ══ PUSH NOTIFICATIONS (VAPID / non-FCM) ═════════════════════
+   NOTE: FCM messages on Android are handled above via
+   _fcmMessaging.onBackgroundMessage(). This 'push' event fires
+   for standard VAPID pushes (desktop, iOS, non-FCM endpoints).
+   ═══════════════════════════════════════════════════════════ */
 
 /**
  * Generate a circle avatar with initial letter (for push notifications).
@@ -398,8 +454,10 @@ self.addEventListener('push', event => {
   if (event.data) {
     try {
       const data = event.data.json();
-      payload = data.data || {};
-    } catch (e) {}
+      payload = data.data || data || {};
+    } catch (e) {
+      try { payload = { body: event.data.text() }; } catch {}
+    }
   }
   event.waitUntil(
     (async () => {
@@ -448,7 +506,6 @@ self.addEventListener('push', event => {
       }
 
       // Queue notification with debounce to avoid Chrome rate-limiting
-      // Chrome silently drops notifications shown faster than ~1/sec
       await _queuedNotification(chatId, title, body, iconUrl, notifData);
     })()
   );
@@ -469,15 +526,16 @@ async function _queuedNotification(chatId, title, body, iconUrl, data) {
   // If there's already a pending notification for this tag, update it
   const existing = _notifQueue.findIndex(n => n.tag === tag);
   if (existing >= 0) {
-    _notifQueue[existing].title = title;
-    _notifQueue[existing].body = body;
-    _notifQueue[existing].icon = iconUrl;
-    _notifQueue[existing].data = data;
+    _notifQueue[existing].title     = title;
+    _notifQueue[existing].body      = body;
+    _notifQueue[existing].iconUrl   = iconUrl;
+    _notifQueue[existing].data      = data;
     _notifQueue[existing].updatedAt = Date.now();
     return;
   }
 
-  _notifQueue.push({ tag, title, body, icon, iconUrl, data, updatedAt: Date.now() });
+  // FIX: was { tag, title, body, icon, iconUrl, data } — 'icon' was undefined
+  _notifQueue.push({ tag, title, body, iconUrl, data, updatedAt: Date.now() });
 
   if (!_notifProcessing) {
     _notifProcessing = true;
@@ -490,17 +548,18 @@ async function _processNotifQueue() {
     const notif = _notifQueue.shift();
 
     const notifOpts = {
-      body: notif.body,
-      icon: notif.iconUrl,
-      tag: notif.tag,
+      body:     notif.body,
+      icon:     notif.iconUrl,          // FIX: was notif.icon (undefined)
+      tag:      notif.tag,
       renotify: true,
-      data: notif.data,
-      vibrate: [200, 100, 200],
+      data:     notif.data,
+      vibrate:  [200, 100, 200],
+      badge:    '/icon-192.png',
     };
 
     if ('Notification' in self && self.Notification.maxActions > 0) {
       notifOpts.actions = [
-        { action: 'reply', title: 'Ответить' },
+        { action: 'reply',    title: 'Ответить'  },
         { action: 'markread', title: 'Прочитано' }
       ];
     }
@@ -527,7 +586,7 @@ self.addEventListener('notificationclick', event => {
 
       // Find an existing window client
       for (const client of clients) {
-        if (client.url.includes('/web') && 'focus' in client) {
+        if ('focus' in client) {
           targetClient = client;
           await client.focus();
           break;
@@ -535,13 +594,13 @@ self.addEventListener('notificationclick', event => {
       }
 
       if (!targetClient && self.clients.openWindow) {
-        targetClient = await self.clients.openWindow('/web/');
+        targetClient = await self.clients.openWindow('/');
       }
 
       // Send action data to the page so it can handle reply/markread
       if (targetClient) {
         targetClient.postMessage({
-          type: 'NOTIF_ACTION',
+          type:   'NOTIF_ACTION',
           action: action || 'open',
           chatId: chatId
         });
@@ -555,7 +614,7 @@ self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API и PHP — всегда в сеть (никогда не кешируем)
-  if (url.includes('/api/') || url.includes('.php') || url.includes('googleapis.com') || url.includes('jsdelivr.net')) {
+  if (url.includes('/api/') || url.includes('.php') || url.includes('googleapis.com') || url.includes('jsdelivr.net') || url.includes('gstatic.com')) {
     return;
   }
 

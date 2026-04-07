@@ -40,9 +40,18 @@
 
   // ── Detection ───────────────────────────────────────────────
 
-  function _isAndroidPWA() {
-    if (!window.matchMedia('(display-mode: standalone)').matches) return false;
+  /**
+   * Returns true on any Android Chrome (standalone OR browser tab).
+   * FCM token registration must work even before the user installs
+   * the PWA so that background pushes arrive on first use.
+   */
+  function _isAndroid() {
     return /Android/i.test(navigator.userAgent);
+  }
+
+  /** Legacy alias kept for internal use */
+  function _isAndroidPWA() {
+    return _isAndroid();
   }
 
   function _isFCMSupported() {
