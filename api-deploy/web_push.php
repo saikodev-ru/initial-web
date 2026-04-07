@@ -47,7 +47,7 @@ function web_push_vapid_jwt(string $audience): string {
     $claims = [
         'aud'  => $audience,
         'exp'  => $now + 12 * 3600, // 12 hours
-        'sub'  => defined('WEB_PUSH_SUBJECT') ? WEB_PUSH_SUBJECT : getenv('WEB_PUSH_SUBJECT') ?: 'mailto:push@example.com',
+        'sub'  => defined('WEB_PUSH_SUBJECT') ? WEB_PUSH_SUBJECT : (getenv('WEB_PUSH_SUBJECT') ?: 'mailto:push@example.com'),
     ];
 
     $headerB64  = web_push_urlsafe_b64_encode(json_encode($header, JSON_UNESCAPED_SLASHES));
