@@ -9,7 +9,7 @@
    firebase-messaging-sw.js (FCM background messages).
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v25';
+const CACHE_VER  = 'sg-v26';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -199,6 +199,45 @@ self.addEventListener('message', event => {
     self.skipWaiting();
   }
   // SYNC_NOTIF_DATA — kept for backward compat (no-op, data not used here)
+
+  // SHOW_NOTIF — page delegates notification to SW (SW notifications show as popups on Android)
+  if (event.data?.type === 'SHOW_NOTIF') {
+    const title = event.data.title;
+    const opts = event.data.options || {};
+    try {
+      self.registration.showNotification(title, opts);
+    } catch (_) {}
+  }
+});
+
+/* ══ NOTIFICATION CLICK — handle clicks from page-delegated notifications ══ */
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const chatId = event.notification.data?.chatId || null;
+  const action = event.action;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+      let targetClient = null;
+      for (const client of clients) {
+        if ('focus' in client) {
+          targetClient = client;
+          await client.focus();
+          break;
+        }
+      }
+      if (!targetClient && self.clients.openWindow) {
+        targetClient = await self.clients.openWindow('/web/');
+      }
+      if (targetClient) {
+        targetClient.postMessage({
+          type: 'NOTIF_ACTION',
+          action: action || 'open',
+          chatId: chatId
+        });
+      }
+    })
+  );
 });
 
 /* ══ FETCH — cache-first для ресурсов, network-first для API ══ */

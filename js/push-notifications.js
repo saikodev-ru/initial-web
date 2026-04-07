@@ -2,49 +2,27 @@
  * push-notifications.js
  * Rich browser push notifications for the messenger app.
  *
+ * All notifications are delegated to the Service Worker via postMessage.
+ * SW notifications show as heads-up popups on Android PWA;
+ * page-originated "new Notification()" does NOT.
+ *
  * Exposes `window.showRichNotif(options)` where options = {
  *   senderName   — display name of the sender
  *   senderAvatar — avatar URL (optional, will look in SW cache first)
  *   body         — raw message HTML
  *   chatId       — unique chat identifier (used for tag dedup)
- *   onClick      — callback fired when the notification is clicked
- *   onReply      — callback fired when "Reply" action is clicked
- *   onMarkRead   — callback fired when "Mark read" action is clicked
  * }
- *
- * Avatar resolution:
- *   1. Try SW cache (caches.match)
- *   2. If not cached → generate initial-letter circle via canvas
  *
  * Dependencies:
  *   - Global state `S`  (S.notif.enabled, S.notif.anon, S.notif.sound, S.token)
  *   - Global `playNotifSound()` from utils.js
- *   - Global `api()` from utils.js
  */
 
 (function () {
   'use strict';
 
-  // ── Check if actions are supported (Android Chrome, some desktop) ────
-  var _actionsSupported = false;
-  try {
-    _actionsSupported = 'Notification' in window && Notification.maxActions > 0;
-  } catch (e) {}
-
-  // ── SVG icons for action buttons (inline data URIs) ──────────────────
-  var _replyIcon = 'data:image/svg+xml,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
-  );
-  var _checkIcon = 'data:image/svg+xml,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
-  );
-
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  /**
-   * Replace the contents of every <spoiler> tag with random Braille characters
-   * so the spoiler text is hidden in the notification body.
-   */
   function replaceSpoilersWithBraille(html) {
     return html.replace(/<spoiler[^>]*>([\s\S]*?)<\/spoiler>/gi, function (match, content) {
       var result = '';
@@ -55,273 +33,148 @@
     });
   }
 
-  /**
-   * Strip known inline formatting tags but keep their text content,
-   * then remove any remaining HTML tags entirely.
-   */
   function stripHtml(raw) {
     var text = raw;
-
-    // Convert <br> to newlines first
     text = text.replace(/<br\s*\/?>/gi, '\n');
-
-    // Handle <pre> blocks — preserve inner text
     text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, '$1');
-
-    // Remove inline formatting tags but keep contents
     text = text.replace(/<(?:code|b|i|em|strong|span|div|p|ul|ol|li|blockquote|h[1-6])[^>]*>([\s\S]*?)<\/(?:code|b|i|em|strong|span|div|p|ul|ol|li|blockquote|h[1-6])>/gi, '$1');
-
-    // Replace spoilers with braille (must run before the generic strip below)
     text = replaceSpoilersWithBraille(text);
-
-    // Strip every remaining HTML tag
     text = text.replace(/<[^>]+>/g, '');
-
-    // Decode HTML entities (&amp; &lt; &gt; &quot; &#39; etc.)
     var ta = document.createElement('textarea');
     ta.innerHTML = text;
     text = ta.value;
-
-    // Collapse excessive whitespace (but keep intentional newlines)
     text = text.replace(/[ \t]+/g, ' ');
     text = text.replace(/\n{3,}/g, '\n\n');
-
     return text.trim();
   }
 
-  /**
-   * Truncate text to approximately `max` characters, appending an ellipsis.
-   */
   function truncate(text, max) {
     if (text.length <= max) return text;
-    return text.slice(0, max - 1) + '\u2026'; // '…'
+    return text.slice(0, max - 1) + '\u2026';
   }
 
-  /**
-   * Generate a circle avatar with a letter initial via canvas.
-   * Returns a Promise<string> (blob URL).
-   * Colors are deterministic based on the name hash.
-   */
+  // ── Avatar: canvas → data URL (blob URLs don't work with SW notifications) ──
+
   function _generateInitialAvatar(name) {
     return new Promise(function (resolve) {
       try {
         var size = 96;
         var canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
+        canvas.width = size; canvas.height = size;
         var ctx = canvas.getContext('2d');
-
-        // Deterministic color from name
         var hash = 0;
         var str = (name || 'A').toUpperCase();
         for (var i = 0; i < str.length; i++) {
           hash = str.charCodeAt(i) + ((hash << 5) - hash);
         }
-        // Warm palette — no blues/indigos
-        var hue = Math.abs(hash % 30) + 10; // 10-40 (reds, oranges, yellows)
-        var sat = 55 + Math.abs((hash >> 8) % 20); // 55-75%
-        var lit = 45 + Math.abs((hash >> 16) % 10); // 45-55%
-
-        // Circle background
+        var hue = Math.abs(hash % 30) + 10;
+        var sat = 55 + Math.abs((hash >> 8) % 20);
+        var lit = 45 + Math.abs((hash >> 16) % 10);
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
         ctx.closePath();
         ctx.fillStyle = 'hsl(' + hue + ',' + sat + '%,' + lit + '%)';
         ctx.fill();
-
-        // Letter
-        var letter = str.charAt(0);
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold ' + Math.round(size * 0.45) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(letter, size / 2, size / 2 + 1);
-
-        canvas.toBlob(function (blob) {
-          if (blob) resolve(URL.createObjectURL(blob));
-          else resolve(null);
-        }, 'image/png');
+        ctx.fillText(str.charAt(0), size / 2, size / 2 + 1);
+        resolve(canvas.toDataURL('image/png'));
       } catch (e) {
         resolve(null);
       }
     });
   }
 
-  /**
-   * Try to get avatar from SW cache. Returns Promise<Blob|null>.
-   */
   function _getAvatarFromCache(avatarUrl) {
     if (!avatarUrl || !navigator.serviceWorker) return Promise.resolve(null);
-    // Try all cache names (we don't know the exact one)
     return caches.match(avatarUrl).then(function (cached) {
-      if (cached && cached.ok) return cached.blob();
+      if (cached && cached.ok) return cached;
       return null;
-    }).catch(function () {
-      return null;
-    });
+    }).catch(function () { return null; });
   }
 
   /**
-   * Convert a blob to a cropped circle avatar PNG (96x96) via canvas.
-   * Falls back to blob URL if canvas fails.
+   * Convert cached response to a cropped circle data-URL.
    */
-  function _cropAvatarToBlob(blob) {
+  function _cropAvatarToDataUrl(response) {
     return new Promise(function (resolve) {
-      var url = URL.createObjectURL(blob);
       var img = new Image();
+      img.crossOrigin = 'anonymous';
       img.onload = function () {
-        URL.revokeObjectURL(url);
         try {
           var size = 96;
           var canvas = document.createElement('canvas');
-          canvas.width = size;
-          canvas.height = size;
+          canvas.width = size; canvas.height = size;
           var ctx = canvas.getContext('2d');
-          // Circle crop
           ctx.beginPath();
           ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
           ctx.closePath();
           ctx.clip();
-          // Draw image centered and covering
           var side = Math.min(img.width, img.height);
           var sx = (img.width - side) / 2;
           var sy = (img.height - side) / 2;
           ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-          canvas.toBlob(function (cropped) {
-            if (cropped) resolve(URL.createObjectURL(cropped));
-            else resolve(URL.createObjectURL(blob));
-          }, 'image/png');
-        } catch (e) {
-          // Canvas not available — use original
-          resolve(URL.createObjectURL(blob));
-        }
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) { resolve(null); }
       };
-      img.onerror = function () {
-        URL.revokeObjectURL(url);
-        resolve(URL.createObjectURL(blob));
-      };
-      img.src = url;
+      img.onerror = function () { resolve(null); };
+      img.src = URL.createObjectURL(response.blob ? response : response);
+    });
+  }
+
+  function _responseToDataUrl(resp) {
+    return resp.blob().then(function (blob) {
+      return new Promise(function (resolve) {
+        var url = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          URL.revokeObjectURL(url);
+          try {
+            var size = 96;
+            var canvas = document.createElement('canvas');
+            canvas.width = size; canvas.height = size;
+            var ctx = canvas.getContext('2d');
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.clip();
+            var side = Math.min(img.width, img.height);
+            var sx = (img.width - side) / 2;
+            var sy = (img.height - side) / 2;
+            ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+            resolve(canvas.toDataURL('image/png'));
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); resolve(null); };
+        img.src = url;
+      });
     });
   }
 
   /**
-   * Resolve avatar icon: cache → initial letter fallback.
-   * Returns Promise<string|null> (blob URL).
+   * Resolve avatar: cache → generate initial.
+   * Returns Promise<string|null> — data URL.
    */
   function _resolveAvatar(avatarUrl, senderName) {
-    return _getAvatarFromCache(avatarUrl).then(function (blob) {
-      if (blob) {
-        return _cropAvatarToBlob(blob);
-      }
-      // Not in cache → generate initial
+    return _getAvatarFromCache(avatarUrl).then(function (cached) {
+      if (cached) return _responseToDataUrl(cached);
       return _generateInitialAvatar(senderName || '?');
     });
   }
 
-  /**
-   * Create and display the actual Notification object.
-   */
-  function _sendNotif(title, body, tag, icon, largeIcon, chatId, onClick, onReply, onMarkRead) {
-    try {
-      var opts = {
-        body: body,
-        tag: tag,
-        renotify: true,
-        silent: false
-      };
-
-      // App icon (small icon in top-left corner)
-      if (icon) {
-        opts.icon = icon;
-      }
-
-      // Sender avatar (large image on the right side of notification)
-      if (largeIcon) {
-        opts.image = largeIcon;
-      }
-
-      // Action buttons (Android Chrome, some desktop browsers)
-      if (_actionsSupported) {
-        opts.actions = [
-          { action: 'reply', title: 'Ответить', icon: _replyIcon },
-          { action: 'markread', title: 'Прочитано', icon: _checkIcon }
-        ];
-        // Vibrate pattern on Android
-        if ('vibrate' in Notification.prototype) {
-          opts.vibrate = [200, 100, 200];
-        }
-      }
-
-      var n = new Notification(title, opts);
-
-      // Default click — open the chat
-      n.onclick = function () {
-        window.focus();
-        if (typeof onClick === 'function') {
-          onClick();
-        }
-        n.close();
-      };
-
-      // Action button handlers
-      n.onclose = function () {};
-
-      // Use addEventListener for 'action' if supported, fallback to onreply/onmarkread
-      if (n.addEventListener) {
-        n.addEventListener('action', function (event) {
-          window.focus();
-
-          if (event.action === 'reply') {
-            if (typeof onReply === 'function') {
-              onReply();
-            } else if (typeof onClick === 'function') {
-              onClick();
-            }
-          } else if (event.action === 'markread') {
-            // Mark messages as read via API
-            if (chatId && typeof api === 'function') {
-              api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1')
-                .catch(function () {});
-            }
-            if (typeof onMarkRead === 'function') {
-              onMarkRead();
-            }
-            // Reload chat list to clear unread badge
-            if (typeof loadChats === 'function') {
-              loadChats().catch(function () {});
-            }
-          }
-
-          n.close();
-        });
-      }
-
-      // Auto-close after 10 seconds
-      setTimeout(function () {
-        try { n.close(); } catch (e) {}
-      }, 10000);
-
-    } catch (e) {
-      // Silently fail — Notification API may throw in certain environments
-    }
-  }
+  // ── SVG icons for action buttons ─────────────────────────────────────────
+  var _replyIcon = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+  );
+  var _checkIcon = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+  );
 
   // ── Public API ───────────────────────────────────────────────────────────
 
-  /**
-   * Show a rich push notification for an incoming message.
-   *
-   * @param {Object} opts
-   * @param {string} opts.senderName   - Display name of the sender.
-   * @param {string} [opts.senderAvatar] - Avatar image URL.
-   * @param {string} opts.body         - Raw message HTML.
-   * @param {string|number} opts.chatId - Unique chat identifier.
-   * @param {Function} [opts.onClick]    - Callback on notification click.
-   * @param {Function} [opts.onReply]    - Callback on "Reply" action click.
-   * @param {Function} [opts.onMarkRead] - Callback on "Mark read" action click.
-   */
   window.showRichNotif = function (opts) {
-    // Don't show if the tab is already focused
     if (document.hasFocus()) return;
 
     // Skip if SW already showed a background notification for this chat
@@ -329,63 +182,52 @@
         window._fcmBgHandled.chatId == opts.chatId &&
         Date.now() - window._fcmBgHandled.ts < 8000) return;
 
-    // Respect user notification preferences
     if (!S.notif.enabled) return;
-
-    // Check browser support and permission
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
     // Play notification sound (from utils.js)
-    if (typeof playNotifSound === 'function') {
-      playNotifSound();
-    }
+    if (typeof playNotifSound === 'function') playNotifSound();
 
-    // Build notification title (respect anonymous mode)
     var title = S.notif.anon ? 'Инициал' : (opts.senderName || 'Initial');
-
-    // Process message body
-    var text = stripHtml(opts.body || '');
-    text = truncate(text, 160);
-
-    // Build a unique tag per chat to prevent duplicate notifications
+    var text = truncate(stripHtml(opts.body || ''), 160);
     var tag = 'signal-' + String(opts.chatId || 'msg').replace(/\s+/g, '-');
 
-    // Default click handler: open the specific chat
-    var defaultOnClick = opts.onClick || function () {
-      if (opts.chatId) {
-        var chat = (S.chats || []).find(function (c) { return c.chat_id === opts.chatId; });
-        if (chat && S.chatId !== opts.chatId) {
-          if (typeof openChat === 'function') openChat(chat);
-        }
-      }
-    };
+    // Resolve avatar then delegate to SW
+    _resolveAvatar(opts.senderAvatar, opts.senderName).then(function (avatarDataUrl) {
+      var notifOpts = {
+        body: text,
+        tag: tag,
+        renotify: true,
+        vibrate: [200, 100, 200],
+        badge: '/web/icon-192.png',
+        data: { chatId: opts.chatId },
+      };
+      if (avatarDataUrl) notifOpts.icon = avatarDataUrl;
 
-    // Reply action: open chat + focus input
-    var defaultOnReply = opts.onReply || function () {
-      if (opts.chatId) {
-        var chat = (S.chats || []).find(function (c) { return c.chat_id === opts.chatId; });
-        if (chat && S.chatId !== opts.chatId) {
-          if (typeof openChat === 'function') openChat(chat);
+      // Action buttons (Android Chrome)
+      try {
+        if ('Notification' in window && Notification.maxActions > 0) {
+          notifOpts.actions = [
+            { action: 'reply',    title: 'Ответить',   icon: _replyIcon },
+            { action: 'markread', title: 'Прочитано',  icon: _checkIcon }
+          ];
         }
-      }
-      // Focus message input after a short delay to let the chat render
-      setTimeout(function () {
-        var mfield = document.getElementById('mfield') || document.querySelector('.mfield');
-        if (mfield) mfield.focus();
-      }, 500);
-    };
+      } catch (_) {}
 
-    // Resolve avatar: try SW cache first, then generate initial
-    _resolveAvatar(opts.senderAvatar, opts.senderName).then(function (avatarUrl) {
-      _sendNotif(title, text, tag, avatarUrl, avatarUrl, opts.chatId, defaultOnClick, defaultOnReply, opts.onMarkRead);
-      // Revoke blob URL after notification is created
-      if (avatarUrl) {
-        setTimeout(function () { URL.revokeObjectURL(avatarUrl); }, 15000);
+      // Delegate to SW — SW notifications show as popups on Android PWA
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SHOW_NOTIF',
+          title: title,
+          options: notifOpts
+        });
+      } else {
+        // Fallback: page notification (no popup on Android)
+        try { new Notification(title, notifOpts); } catch (_) {}
       }
     });
   };
 
-  // Sync notification-relevant data to Service Worker for background notifications
   window.syncNotifDataToSW = function() {
     if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
     const chatData = (S.chats || []).slice(0, 20).map(function(c) {
