@@ -502,18 +502,14 @@ function uploadFileXHR(file,signal,onProgress){
 // normally, then on the first interaction we play+pause them at volume 0
 /* ══ NOTIFICATIONS ════════════════════════════════════════════ */
 
-const _notifAudio       = new Audio('audio/notification.mp3');
-const _notifActiveAudio = new Audio('audio/notification-active.mp3');
-_notifAudio.preload       = 'auto';
-_notifActiveAudio.preload = 'auto';
+const _notifAudio = new Audio('audio/notification-active.mp3');
+_notifAudio.preload = 'auto';
 let _audioUnlocked = false;
 function _unlockAudio(){
   if(_audioUnlocked) return;
   _audioUnlocked = true;
-  [_notifAudio, _notifActiveAudio].forEach(a=>{
-    a.volume = 0;
-    a.play().then(()=>{ a.pause(); a.currentTime=0; a.volume=1; }).catch(()=>{ a.volume=1; });
-  });
+  _notifAudio.volume = 0;
+  _notifAudio.play().then(()=>{ _notifAudio.pause(); _notifAudio.currentTime=0; _notifAudio.volume=1; }).catch(()=>{ _notifAudio.volume=1; });
 }
 document.addEventListener('click',   _unlockAudio, {once:true, passive:true});
 document.addEventListener('keydown',  _unlockAudio, {once:true, passive:true});
@@ -521,9 +517,10 @@ document.addEventListener('touchstart',_unlockAudio,{once:true, passive:true});
 
 function playNotifSound(){
   if(!S.notif.sound) return;
-  const a = document.hasFocus() ? _notifActiveAudio : _notifAudio;
-  a.volume = document.hasFocus() ? 0.5 : 1.0;
-  try{ a.currentTime=0; a.play().catch(()=>{}); }catch(e){}
+  // No sound when window is focused
+  if(document.hasFocus()) return;
+  _notifAudio.volume = 0.5;
+  try{ _notifAudio.currentTime=0; _notifAudio.play().catch(()=>{}); }catch(e){}
 }
 
 async function requestNotifPermission(){

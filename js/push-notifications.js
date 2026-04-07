@@ -70,18 +70,12 @@
         var canvas = document.createElement('canvas');
         canvas.width = size; canvas.height = size;
         var ctx = canvas.getContext('2d');
-        var hash = 0;
         var str = (name || 'A').toUpperCase();
-        for (var i = 0; i < str.length; i++) {
-          hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        var hue = Math.abs(hash % 30) + 10;
-        var sat = 55 + Math.abs((hash >> 8) % 20);
-        var lit = 45 + Math.abs((hash >> 16) % 10);
+        // Black circle with white letter
         ctx.beginPath();
         ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
         ctx.closePath();
-        ctx.fillStyle = 'hsl(' + hue + ',' + sat + '%,' + lit + '%)';
+        ctx.fillStyle = '#1e1e1e';
         ctx.fill();
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold ' + Math.round(size * 0.45) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -108,6 +102,9 @@
    */
   function _cropAvatarToDataUrl(response) {
     return new Promise(function (resolve) {
+      var contentType = (response.headers && response.headers.get) ? (response.headers.get('content-type') || '') : '';
+      var isGif = contentType.indexOf('gif') >= 0;
+      // For GIF: create an image element that loads first frame
       var img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = function () {
@@ -128,6 +125,7 @@
         } catch (e) { resolve(null); }
       };
       img.onerror = function () { resolve(null); };
+      // For GIF: use blob URL (draws first frame on canvas)
       img.src = URL.createObjectURL(response.blob ? response : response);
     });
   }
