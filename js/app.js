@@ -941,6 +941,11 @@ function openProfile() {
   loadSessions();
   $('sb-profile-panel').classList.add('open');
 
+  // On mobile: push history state so system back gesture works
+  if (window.innerWidth <= 680) {
+    history.pushState({ settingsPanel: true }, '');
+  }
+
   // Синхронизируем профиль с сервером на случай, если кэш устарел (подтягиваем bio)
   api('get_me', 'GET').then(res => {
     if (res && res.ok && res.user) {
@@ -1095,6 +1100,11 @@ $('btn-link-device').onclick = () => openLinkDeviceModal();
 })();
 function closeProfile() {
   $('sb-profile-panel').classList.remove('open');
+  // On mobile: go back in history to remove our pushed state (without triggering popstate handler)
+  if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+    _closingProfile = true;
+    history.back();
+  }
   // Reset all sub-views instantly so next open always starts at main page
   if (_stActiveSub) {
     _stActiveSub.classList.add('anim-none');
@@ -1117,6 +1127,7 @@ let _stActiveSub = null;
 let _stTouchStartX = 0;
 let _stTouchCurrentX = 0;
 let _stIsSwiping = false;
+let _closingProfile = false; // Prevent popstate loop when closing profile
 
 document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(btn => {
   btn.onclick = () => {
@@ -1127,6 +1138,10 @@ document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(
     $('st-view-main').classList.remove('anim-none');
     $('st-view-main').classList.add('shifted');
     target.classList.add('active');
+    // On mobile: push history for sub-view so back gesture returns to main settings
+    if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+      history.pushState({ settingsPanel: true, settingsSub: true }, '');
+    }
   };
 });
 
@@ -1178,6 +1193,76 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
     _stTouchStartX = 0; _stTouchCurrentX = 0;
   });
 });
+
+/* ── SYSTEM BACK GESTURE FOR SETTINGS (MOBILE) ── */
+window.addEventListener('popstate', (e) => {
+  if (window.innerWidth > 680) return;
+  if (_closingProfile) { _closingProfile = false; return; }
+  const panel = $('sb-profile-panel');
+  if (!panel || !panel.classList.contains('open')) return;
+
+  if (_stActiveSub) {
+    // In a sub-view: go back to main settings view
+    closeSettingsSubView();
+  } else {
+    // On main settings view: close the panel
+    panel.classList.remove('open');
+    // Reset sub-views
+    if (_stActiveSub) {
+      _stActiveSub.classList.add('anim-none');
+      $('st-view-main').classList.add('anim-none');
+      _stActiveSub.classList.remove('active');
+      $('st-view-main').classList.remove('shifted');
+      _stActiveSub.style.transform = '';
+      $('st-view-main').style.transform = '';
+      const _sub = _stActiveSub;
+      _stActiveSub = null;
+      setTimeout(() => {
+        _sub.classList.remove('anim-none');
+        $('st-view-main').classList.remove('anim-none');
+      }, 20);
+    }
+  }
+});
+
+/* ── EDGE SWIPE TO CLOSE SETTINGS PANEL ON MOBILE ── */
+(function() {
+  const panel = $('sb-profile-panel');
+  if (!panel) return;
+  let _panelSwipeStartX = 0;
+  let _panelSwipeCurrentX = 0;
+  let _panelIsSwiping = false;
+
+  panel.addEventListener('touchstart', e => {
+    // Only respond to left-edge swipes (standard Android back gesture)
+    if (e.touches[0].clientX > 20) return;
+    if (_stActiveSub) return; // Let sub-view handler take over
+    _panelIsSwiping = true;
+    _panelSwipeStartX = e.touches[0].clientX;
+    panel.classList.add('anim-none');
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', e => {
+    if (!_panelIsSwiping) return;
+    _panelSwipeCurrentX = Math.max(0, e.touches[0].clientX - _panelSwipeStartX);
+    const progress = _panelSwipeCurrentX / window.innerWidth;
+    // Panel slides from right on mobile, so swipe right = close
+    panel.style.transform = `translateX(${100 - progress * 100}%)`;
+  }, { passive: true });
+
+  panel.addEventListener('touchend', () => {
+    if (!_panelIsSwiping) return;
+    _panelIsSwiping = false;
+    panel.classList.remove('anim-none');
+    if (_panelSwipeCurrentX > window.innerWidth / 4) {
+      closeProfile();
+    } else {
+      panel.style.transform = '';
+    }
+    _panelSwipeStartX = 0;
+    _panelSwipeCurrentX = 0;
+  });
+})();
 
 $('prof-row').onclick = openProfile;
 $('sb-prof-back').onclick = closeProfile;
@@ -1730,7 +1815,7 @@ function _boot() {
         if (S.chats && S.chats.length) renderChats('');
         // Restore last open chat after network chats load
         const _lastChatId = parseInt(localStorage.getItem('sg_last_chat') || '0', 10) || null;
-        loadChats().then(() => { if (_lastChatId) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); } }); 
+        loadChats().then(() => { if (_lastChatId && window.innerWidth > 680) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); } });
         startPoll(); startGlobalSSE(); syncNotifUI();
         // PWA: request notification permissions on first launch
         if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
@@ -1913,6 +1998,12 @@ if (_btnCreateChat) {
 }
 
 /* ══ NAV RAIL ═══════════════════════════════════════════════ */
+const NAV_TITLES = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+function updateMobilePageTitle(nav) {
+  const el = document.getElementById('sb-page-title');
+  if (el) el.textContent = NAV_TITLES[nav] || 'Сообщения';
+}
+
 document.getElementById('btn-nav-settings')?.addEventListener('click', () => openProfile());
 const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
@@ -1920,6 +2011,7 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
+    updateMobilePageTitle(nav);
     // Fade sidebar content during panel transition
     const listWrap = document.getElementById('sb-list-wrap');
     if (listWrap) {
@@ -1970,6 +2062,7 @@ document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
     document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
+    updateMobilePageTitle(nav);
 
     // Fade sidebar content during panel transition
     const listWrap = document.getElementById('sb-list-wrap');
