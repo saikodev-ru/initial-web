@@ -129,6 +129,12 @@
    * Returns true on success.
    */
   async function subscribePush() {
+    // Skip on Android PWA — FCM handles push delivery there
+    if (_isAndroidPWA()) {
+      console.log('[WebPush] Skipped: Android PWA uses FCM');
+      return false;
+    }
+
     // Ensure VAPID key was parsed correctly
     if (!_appServerKey) {
       console.error('[WebPush] VAPID key not available');
@@ -205,7 +211,14 @@
   window.__webPushReady = true;
 
   // ── Auto-subscribe on load if notifications already enabled ───
+  // Skip on Android PWA — FCM (fcm.js) handles push delivery there.
+  function _isAndroidPWA() {
+    if (!window.matchMedia('(display-mode: standalone)').matches) return false;
+    return /Android/i.test(navigator.userAgent);
+  }
+
   function _autoSubscribe() {
+    if (_isAndroidPWA()) return; // FCM handles Android PWA pushes
     if (!S.token || !S.notif?.enabled) return;
     if (Notification.permission === 'granted') {
       subscribePush().catch(() => {});

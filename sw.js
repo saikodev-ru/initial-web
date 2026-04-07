@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   SERVICE WORKER — Инициал
+   SERVICE WORKER — Initial.
    Кешируем критические ресурсы при установке,
    отправляем реальный прогресс на страницу через postMessage.
    emoji.ttf дополнительно хранится в IndexedDB — переживает
@@ -27,18 +27,17 @@ const _fcmMessaging = firebase.messaging();
 // ── FCM Background Message Handler ────────────────────────────
 // Called when app is backgrounded/closed and a FCM message arrives.
 // Firebase intercepts the push event for FCM messages — we use this callback.
-_fcmMessaging.onBackgroundMessage((payload) => {
+_fcmMessaging.onBackgroundMessage(async (payload) => {
   const data = payload.data || {};
 
   // Forward to open tabs (foreground handling if any tab is visible)
-  self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-    clients.forEach(client => {
-      if (data.action === 'incoming_call') {
-        client.postMessage({ type: 'FCM_CALL', payload: data });
-      } else {
-        client.postMessage({ type: 'FCM_MSG', payload: data });
-      }
-    });
+  const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+  clients.forEach(client => {
+    if (data.action === 'incoming_call') {
+      client.postMessage({ type: 'FCM_CALL', payload: data });
+    } else {
+      client.postMessage({ type: 'FCM_MSG', payload: data });
+    }
   });
 
   // Skip notification for incoming calls (handled by foreground)
@@ -54,13 +53,28 @@ _fcmMessaging.onBackgroundMessage((payload) => {
     }
   }
 
-  const title  = data.sender_name || 'Инициал';
+  const title  = data.sender_name || 'Initial.';
   const body   = (data.body || 'Новое сообщение').slice(0, 160);
   const chatId = data.chat_id || null;
 
-  return _queuedNotification(chatId, title, body, '/icon-192.png', { chatId });
-});
+  // Resolve avatar: try SW cache first, then generate initial letter
+  let iconUrl = '/icon-192.png';
+  if (data.sender_avatar) {
+    try {
+      const cached = await caches.match(data.sender_avatar);
+      if (cached && cached.ok) {
+        const blob = await cached.blob();
+        iconUrl = URL.createObjectURL(blob);
+      } else {
+        iconUrl = await _swGenerateInitialAvatar(data.sender_name || title);
+      }
+    } catch(e) {
+      iconUrl = await _swGenerateInitialAvatar(data.sender_name || title).catch(() => '/icon-192.png');
+    }
+  }
 
+  return _queuedNotification(chatId, title, body, iconUrl, { chatId });
+});
 const CACHE_VER  = 'sg-v18';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
@@ -453,8 +467,12 @@ self.addEventListener('push', event => {
   let payload = {};
   if (event.data) {
     try {
-      const data = event.data.json();
-      payload = data.data || data || {};
+      const raw = event.data.json();
+      // FCM data-only messages nest payload under "data" key:
+      //   { from: "...", data: { chat_id: "1", sender_name: "Saiko", body: "..." } }
+      // VAPID Web Push delivers payload at root level (no wrapper):
+      //   { chat_id: "1", sender_name: "Saiko", body: "..." }
+      payload = raw.data || raw;
     } catch (e) {
       try { payload = { body: event.data.text() }; } catch {}
     }
@@ -482,7 +500,7 @@ self.addEventListener('push', event => {
       }
 
       // Show notification via SW (reliable on mobile, unlike page-level Notification)
-      const title = payload.sender_name || 'Инициал';
+      const title = payload.sender_name || 'Initial.';
       const body = (payload.body || 'Новое сообщение').slice(0, 160);
       const chatId = payload.chat_id || null;
       const notifData = { chatId: chatId };
