@@ -9,7 +9,7 @@
    firebase-messaging-sw.js (FCM background messages).
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v22';
+const CACHE_VER  = 'sg-v23';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 

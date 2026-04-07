@@ -58,12 +58,12 @@
   // Firebase Configuration — from Firebase Console → Project Settings → Web App
   // ═══════════════════════════════════════════════════════════════
   const FIREBASE_CONFIG = {
-    apiKey:            'AIzaSyBP2OObK7mkIIJfPxJOaJJ7hcP76q2gxX4',
+    apiKey:            'AIzaSyCA8vZ1d9VLDvmhQ_4DbER8WjjZ8jO9Thw',
     authDomain:        'initial-messenger.firebaseapp.com',
     projectId:         'initial-messenger',
     storageBucket:     'initial-messenger.firebasestorage.app',
-    messagingSenderId: '879915718420',
-    appId:             '1:879915718420:web:1ed8f51e05a847a065bd21',
+    messagingSenderId: '738215038267',
+    appId:             '1:738215038267:web:1cab851d6e98dd2730bb1e',
   };
 
   // VAPID key from Firebase Console → Project Settings → Cloud Messaging → Web Push certs
