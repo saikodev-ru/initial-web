@@ -2339,7 +2339,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Hide create-chat button inside search bar on mobile (moved to title) */
   #btn-create-chat { display: none !important; }
   /* Reduce sidebar head padding on mobile */
-  .sb-head { padding: 6px 12px 4px !important; }
+  .sb-head { padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 4px !important; }
   .msgs{padding:calc(76px + env(safe-area-inset-top, 0px)) 8px 140px}
   .input-zone{padding:8px 8px 16px}
   .input-zone, .system-mute-zone{padding:8px 8px 16px}
@@ -3968,7 +3968,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   .sb-mobile-title {
     display: flex;
     align-items: center;
-    padding: 8px 16px 2px 16px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 2px 16px;
     flex-shrink: 0;
   }
   .sb-mobile-title-inner {
