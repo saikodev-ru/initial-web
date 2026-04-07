@@ -1548,16 +1548,25 @@ $('tog-notif').onclick = async () => {
     const granted = await requestNotifPermission();
     if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
     S.notif.enabled = true;
-    // Register Web Push subscription for server-side push delivery
-    if (window.__webPushReady) {
-      const ok = await window.subscribePush();
+    // Android PWA → FCM; Desktop → VAPID Web Push
+    if (window.__fcmReady) {
+      const ok = await window.registerFCM();
       if (ok) toast('Уведомления включены', 'ok');
-      else toast('Уведомления включены (push: ошибка подписки)', 'err');
+      else if (window.__webPushReady) {
+        const ok2 = await window.subscribePush();
+        toast(ok2 ? 'Уведомления включены' : 'Уведомления включены (push: ошибка подписки)', ok2 ? 'ok' : 'err');
+      } else {
+        toast('Уведомления включены', 'ok');
+      }
+    } else if (window.__webPushReady) {
+      const ok = await window.subscribePush();
+      toast(ok ? 'Уведомления включены' : 'Уведомления включены (push: ошибка подписки)', ok ? 'ok' : 'err');
     } else {
       toast('Уведомления включены', 'ok');
     }
   } else {
     S.notif.enabled = false;
+    if (window.unregisterFCM) window.unregisterFCM();
     if (window.unsubscribePush) window.unsubscribePush();
     toast('Уведомления выключены');
   }
@@ -1838,8 +1847,9 @@ function _boot() {
                 S.notif.enabled = true;
                 saveNotif();
                 syncNotifUI();
-                // Register Web Push subscription
-                if (window.__webPushReady) await window.subscribePush().catch(() => {});
+                // Android PWA → FCM; fallback → VAPID
+                if (window.__fcmReady) await window.registerFCM().catch(() => {});
+                else if (window.__webPushReady) await window.subscribePush().catch(() => {});
                 toast('Уведомления включены', 'ok');
               }
             }

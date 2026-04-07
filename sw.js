@@ -6,7 +6,10 @@
    жёсткие перезагрузки и очистку SW-кеша.
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v16';
+// Firebase Cloud Messaging SDK — required for FCM token support on Android PWA
+importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-sw.js');
+
+const CACHE_VER  = 'sg-v17';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -21,6 +24,7 @@ const CRITICAL = [
   'js/link-qr-renderer.js',
   'js/push-notifications.js',
   'js/push-subscribe.js',
+  'js/fcm.js',
   'js/messages.js',
   'js/context-menu.js',
   'js/app.js',
