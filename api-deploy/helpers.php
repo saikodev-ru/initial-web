@@ -28,6 +28,11 @@ register_shutdown_function(function () {
 
 require_once __DIR__ . '/config.php';
 
+// Load Web Push VAPID config if the file exists
+if (file_exists(__DIR__ . '/push_config.php')) {
+    require_once __DIR__ . '/push_config.php';
+}
+
 // ── PDO-соединение (singleton) ───────────────────────────────
 function db(): PDO {
     static $pdo = null;

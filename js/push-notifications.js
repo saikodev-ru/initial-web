@@ -4,7 +4,7 @@
  *
  * Exposes `window.showRichNotif(options)` where options = {
  *   senderName   — display name of the sender
- *   senderAvatar — avatar URL (optional)
+ *   senderAvatar — avatar URL (optional, will look in SW cache first)
  *   body         — raw message HTML
  *   chatId       — unique chat identifier (used for tag dedup)
  *   onClick      — callback fired when the notification is clicked
@@ -12,11 +12,9 @@
  *   onMarkRead   — callback fired when "Mark read" action is clicked
  * }
  *
- * Features:
- *   - Sender avatar as notification icon + large notification image
- *   - Action buttons "Ответить" and "Прочитано" (Android Chrome)
- *   - Automatic mark-as-read via API on "Прочитано" action
- *   - Auto-close after 10 seconds
+ * Avatar resolution:
+ *   1. Try SW cache (caches.match)
+ *   2. If not cached → generate initial-letter circle via canvas
  *
  * Dependencies:
  *   - Global state `S`  (S.notif.enabled, S.notif.anon, S.notif.sound, S.token)
@@ -100,6 +98,70 @@
   }
 
   /**
+   * Generate a circle avatar with a letter initial via canvas.
+   * Returns a Promise<string> (blob URL).
+   * Colors are deterministic based on the name hash.
+   */
+  function _generateInitialAvatar(name) {
+    return new Promise(function (resolve) {
+      try {
+        var size = 96;
+        var canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        var ctx = canvas.getContext('2d');
+
+        // Deterministic color from name
+        var hash = 0;
+        var str = (name || 'A').toUpperCase();
+        for (var i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        // Warm palette — no blues/indigos
+        var hue = Math.abs(hash % 30) + 10; // 10-40 (reds, oranges, yellows)
+        var sat = 55 + Math.abs((hash >> 8) % 20); // 55-75%
+        var lit = 45 + Math.abs((hash >> 16) % 10); // 45-55%
+
+        // Circle background
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = 'hsl(' + hue + ',' + sat + '%,' + lit + '%)';
+        ctx.fill();
+
+        // Letter
+        var letter = str.charAt(0);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + Math.round(size * 0.45) + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(letter, size / 2, size / 2 + 1);
+
+        canvas.toBlob(function (blob) {
+          if (blob) resolve(URL.createObjectURL(blob));
+          else resolve(null);
+        }, 'image/png');
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  /**
+   * Try to get avatar from SW cache. Returns Promise<Blob|null>.
+   */
+  function _getAvatarFromCache(avatarUrl) {
+    if (!avatarUrl || !navigator.serviceWorker) return Promise.resolve(null);
+    // Try all cache names (we don't know the exact one)
+    return caches.match(avatarUrl).then(function (cached) {
+      if (cached && cached.ok) return cached.blob();
+      return null;
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  /**
    * Convert a blob to a cropped circle avatar PNG (96x96) via canvas.
    * Falls back to blob URL if canvas fails.
    */
@@ -139,6 +201,20 @@
         resolve(URL.createObjectURL(blob));
       };
       img.src = url;
+    });
+  }
+
+  /**
+   * Resolve avatar icon: cache → initial letter fallback.
+   * Returns Promise<string|null> (blob URL).
+   */
+  function _resolveAvatar(avatarUrl, senderName) {
+    return _getAvatarFromCache(avatarUrl).then(function (blob) {
+      if (blob) {
+        return _cropAvatarToBlob(blob);
+      }
+      // Not in cache → generate initial
+      return _generateInitialAvatar(senderName || '?');
     });
   }
 
@@ -294,33 +370,14 @@
       }, 500);
     };
 
-    // Attempt to load the sender's avatar
-    if (opts.senderAvatar) {
-      fetch(opts.senderAvatar)
-        .then(function (r) {
-          if (!r.ok) throw new Error('Avatar fetch failed');
-          return r.blob();
-        })
-        .then(function (blob) {
-          // Crop avatar to circle and create blob URLs
-          _cropAvatarToBlob(blob).then(function (avatarUrl) {
-            var iconUrl = URL.createObjectURL(blob);
-            _sendNotif(title, text, tag, iconUrl, avatarUrl, opts.chatId, defaultOnClick, defaultOnReply, opts.onMarkRead);
-            // Revoke blob URLs after the notification is created
-            setTimeout(function () {
-              URL.revokeObjectURL(iconUrl);
-              URL.revokeObjectURL(avatarUrl);
-            }, 15000);
-          });
-        })
-        .catch(function () {
-          // Fallback: show without avatar
-          _sendNotif(title, text, tag, null, null, opts.chatId, defaultOnClick, defaultOnReply, opts.onMarkRead);
-        });
-    } else {
-      // No avatar available — show without icon/image
-      _sendNotif(title, text, tag, null, null, opts.chatId, defaultOnClick, defaultOnReply, opts.onMarkRead);
-    }
+    // Resolve avatar: try SW cache first, then generate initial
+    _resolveAvatar(opts.senderAvatar, opts.senderName).then(function (avatarUrl) {
+      _sendNotif(title, text, tag, avatarUrl, avatarUrl, opts.chatId, defaultOnClick, defaultOnReply, opts.onMarkRead);
+      // Revoke blob URL after notification is created
+      if (avatarUrl) {
+        setTimeout(function () { URL.revokeObjectURL(avatarUrl); }, 15000);
+      }
+    });
   };
 
   // Sync notification-relevant data to Service Worker for background notifications

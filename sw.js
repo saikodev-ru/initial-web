@@ -6,7 +6,7 @@
    жёсткие перезагрузки и очистку SW-кеша.
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v14';
+const CACHE_VER  = 'sg-v15';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -20,6 +20,7 @@ const CRITICAL = [
   'js/auth.js',
   'js/link-qr-renderer.js',
   'js/push-notifications.js',
+  'js/push-subscribe.js',
   'js/messages.js',
   'js/context-menu.js',
   'js/app.js',
@@ -203,6 +204,191 @@ self.addEventListener('message', event => {
 });
 
 /* ══ PUSH NOTIFICATIONS ═════════════════════════════════════ */
+
+/**
+ * Generate a circle avatar with initial letter (for push notifications).
+ * SW has no DOM/canvas, so we build a minimal PNG manually:
+ * 96x96 PNG with a coloured circle and a white letter.
+ */
+async function _swGenerateInitialAvatar(name) {
+  const size = 96;
+  const str = (name || 'A').toUpperCase();
+  const letter = str.charAt(0);
+
+  // Deterministic colour from name hash
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash % 30) + 10;  // 10-40 warm palette
+  const sat = 55 + Math.abs((hash >> 8) % 20);
+  const lit = 45 + Math.abs((hash >> 16) % 10);
+
+  // Convert HSL to RGB
+  const h = hue / 360, s = sat / 100, l = lit / 100;
+  const a2 = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + h * 12) % 12;
+    return l - a2 * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+  };
+  const r = Math.round(f(0) * 255);
+  const g = Math.round(f(8) * 255);
+  const b = Math.round(f(4) * 255);
+
+  // Build raw RGBA pixel data
+  const pixels = new Uint8ClampedArray(size * size * 4);
+  const cx = size / 2, cy = size / 2, rad = size / 2 - 1;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const idx = (y * size + x) * 4;
+      const dx = x - cx, dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= rad) {
+        pixels[idx] = r;
+        pixels[idx + 1] = g;
+        pixels[idx + 2] = b;
+        pixels[idx + 3] = 255;
+      } else if (dist <= rad + 1) {
+        // Anti-alias edge
+        const alpha = Math.max(0, (rad + 1 - dist));
+        pixels[idx] = r;
+        pixels[idx + 1] = g;
+        pixels[idx + 2] = b;
+        pixels[idx + 3] = Math.round(alpha * 255);
+      }
+      // else transparent (default 0)
+    }
+  }
+
+  // Encode as PNG (minimal valid PNG with raw IDAT)
+  const png = _swEncodePNG(size, size, pixels);
+  return URL.createObjectURL(new Blob([png], { type: 'image/png' }));
+}
+
+/**
+ * Minimal PNG encoder for raw RGBA pixel data.
+ * Produces a valid PNG with a single IDAT chunk (uncompressed deflate).
+ */
+function _swEncodePNG(width, height, rgba) {
+  // PNG signature
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+
+  // IHDR chunk
+  const ihdrData = new Uint8Array(13);
+  new DataView(ihdrData.buffer).setUint32(0, width);
+  new DataView(ihdrData.buffer).setUint32(4, height);
+  ihdrData[8] = 8; // bit depth
+  ihdrData[9] = 6; // color type: RGBA
+  ihdrData[10] = 0; // compression
+  ihdrData[11] = 0; // filter
+  ihdrData[12] = 0; // interlace
+  const ihdr = _pngChunk('IHDR', ihdrData);
+
+  // IDAT: filter byte (0=None) + raw pixel rows
+  const rawData = new Uint8Array(height * (1 + width * 4));
+  for (let y = 0; y < height; y++) {
+    rawData[y * (1 + width * 4)] = 0; // no filter
+    rawData.set(rgba.subarray(y * width * 4, (y + 1) * width * 4), y * (1 + width * 4) + 1);
+  }
+
+  // Deflate: wrap in zlib header (CM=8, CINFO=7) + stored block + adler32
+  const deflated = _zlibDeflateRaw(rawData);
+  const idat = _pngChunk('IDAT', deflated);
+
+  // IEND chunk
+  const iend = _pngChunk('IEND', new Uint8Array(0));
+
+  // Concat
+  const total = sig.length + ihdr.length + idat.length + iend.length;
+  const result = new Uint8Array(total);
+  let off = 0;
+  result.set(sig, off); off += sig.length;
+  result.set(ihdr, off); off += ihdr.length;
+  result.set(idat, off); off += idat.length;
+  result.set(iend, off);
+  return result;
+}
+
+function _pngChunk(type, data) {
+  const len = data.length;
+  const chunk = new Uint8Array(12 + len);
+  const dv = new DataView(chunk.buffer);
+  dv.setUint32(0, len);
+  // type (4 ASCII bytes)
+  for (let i = 0; i < 4; i++) chunk[4 + i] = type.charCodeAt(i);
+  chunk.set(data, 8);
+  // CRC over type + data
+  const crc = _crc32(chunk.subarray(4, 8 + len));
+  dv.setUint32(8 + len, crc);
+  return chunk;
+}
+
+/** Adler-32 checksum */
+function _adler32(data) {
+  let a = 1, b = 0;
+  for (let i = 0; i < data.length; i++) {
+    a = (a + data[i]) % 65521;
+    b = (b + a) % 65521;
+  }
+  return (b << 16) | a;
+}
+
+/** CRC-32 lookup table */
+const _crcTable = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c;
+  }
+  return table;
+})();
+
+function _crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) crc = _crcTable[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+/** Minimal zlib wrapper: header (CMF=0x78, FLG=0x01) + stored block(s) + adler32 */
+function _zlibDeflateRaw(data) {
+  // zlib header: CMF=0x78 (deflate, window=32k), FLG=0x01 (no dict, check bits ok)
+  const header = new Uint8Array([0x78, 0x01]);
+
+  // Stored (uncompressed) deflate blocks
+  const maxBlock = 65535;
+  const blocks = [];
+  for (let off = 0; off < data.length; off += maxBlock) {
+    const end = Math.min(off + maxBlock, data.length);
+    const len = end - off;
+    const isLast = end >= data.length;
+    // Block header: BFINAL + BTYPE=00 (stored) + LEN + NLEN
+    const blockHead = new Uint8Array(5);
+    blockHead[0] = isLast ? 0x01 : 0x00;
+    blockHead[1] = len & 0xFF;
+    blockHead[2] = (len >> 8) & 0xFF;
+    blockHead[3] = (~len & 0xFF);
+    blockHead[4] = ((~len >> 8) & 0xFF);
+    blocks.push(blockHead, data.subarray(off, end));
+  }
+
+  // Adler-32 checksum
+  const checksum = _adler32(data);
+  const trailer = new Uint8Array(4);
+  new DataView(trailer.buffer).setUint32(0, checksum);
+
+  // Concat all
+  let total = 2; // header
+  for (const b of blocks) total += b.length;
+  total += 4; // adler32
+  const result = new Uint8Array(total);
+  let o = 0;
+  result.set(header, o); o += 2;
+  for (const b of blocks) { result.set(b, o); o += b.length; }
+  result.set(trailer, o);
+  return result;
+}
+
 self.addEventListener('push', event => {
   let payload = {};
   if (event.data) {
@@ -239,16 +425,22 @@ self.addEventListener('push', event => {
       const chatId = payload.chat_id || null;
       const notifData = { chatId: chatId };
 
-      // Try to fetch sender avatar if URL provided
+      // Resolve avatar: try SW cache first, then generate initial letter
       let iconUrl = '/icon-192.png'; // Default app icon
       if (payload.sender_avatar) {
         try {
-          const resp = await fetch(payload.sender_avatar);
-          if (resp.ok) {
-            const blob = await resp.blob();
+          // 1. Try all SW caches
+          const cached = await caches.match(payload.sender_avatar);
+          if (cached && cached.ok) {
+            const blob = await cached.blob();
             iconUrl = URL.createObjectURL(blob);
+          } else {
+            // 2. Not cached → generate initial-letter circle
+            iconUrl = await _swGenerateInitialAvatar(payload.sender_name || title);
           }
-        } catch(e) {}
+        } catch(e) {
+          iconUrl = await _swGenerateInitialAvatar(payload.sender_name || title).catch(() => '/icon-192.png');
+        }
       }
 
       const notifOpts = {
