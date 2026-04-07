@@ -23,13 +23,24 @@
     'BDDKX_qLAKyRECL0QzvMHVUde4z0AXC6k-rYBiw6rA6gyaaTQpmFlto1PIVwwqBDXz5RDNVbPhew74HWiq99YZQ';
 
   // Convert URL-safe Base64 → Uint8Array (required by pushManager.subscribe)
+  // URL-safe Base64 uses - and _ instead of + and /
   function _urlBase64ToUint8(base64) {
-    const padding = '='.repeat((4 - base64.length % 4) % 4);
-    const raw = atob(base64 + padding);
-    return Uint8Array.from(raw, c => c.charCodeAt(0));
+    try {
+      // Replace URL-safe chars with standard Base64 chars
+      const base64std = base64.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - base64std.length % 4) % 4);
+      const raw = atob(base64std + padding);
+      return Uint8Array.from(raw, c => c.charCodeAt(0));
+    } catch (e) {
+      console.error('[WebPush] Invalid VAPID public key:', e);
+      return null;
+    }
   }
 
   const _appServerKey = _urlBase64ToUint8(VAPID_PUBLIC_KEY);
+  if (!_appServerKey) {
+    console.error('[WebPush] Cannot proceed without valid VAPID key');
+  }
   const SUB_KEY = 'sg_push_sub'; // localStorage key for stored subscription JSON
 
   // ── Helpers ──────────────────────────────────────────────────
@@ -88,6 +99,12 @@
    * Returns true on success.
    */
   async function subscribePush() {
+    // Ensure VAPID key was parsed correctly
+    if (!_appServerKey) {
+      console.error('[WebPush] VAPID key not available');
+      return false;
+    }
+
     // Ensure Service Worker is ready
     const reg = await navigator.serviceWorker?.ready;
     if (!reg) {
