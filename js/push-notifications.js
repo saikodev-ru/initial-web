@@ -324,6 +324,11 @@
     // Don't show if the tab is already focused
     if (document.hasFocus()) return;
 
+    // Skip if SW already showed a background notification for this chat
+    if (window._fcmBgHandled && opts.chatId &&
+        window._fcmBgHandled.chatId == opts.chatId &&
+        Date.now() - window._fcmBgHandled.ts < 8000) return;
+
     // Respect user notification preferences
     if (!S.notif.enabled) return;
 

@@ -534,7 +534,12 @@ async function requestNotifPermission(){
   return result === 'granted';
 }
 
-function showNotif(senderName, body){
+function showNotif(senderName, body, chatId){
+  // Skip if SW already showed a background notification for this chat
+  if (window._fcmBgHandled && chatId &&
+      window._fcmBgHandled.chatId == chatId &&
+      Date.now() - window._fcmBgHandled.ts < 8000) return;
+
   playNotifSound();
   if(!S.notif.enabled) return;
   if(!('Notification' in window) || Notification.permission!=='granted') return;

@@ -1971,6 +1971,10 @@ if ('serviceWorker' in navigator) {
     if (!data) return;
 
     if (data.type === 'FCM_MSG') {
+      // If SW already showed a background notification, tell page handlers to skip
+      if (data.swHandled && data.payload?.chat_id) {
+        window._fcmBgHandled = { chatId: data.payload.chat_id, ts: Date.now() };
+      }
       if (window.pollNow) pollNow();
       if (typeof syncNotifDataToSW === 'function') syncNotifDataToSW();
     } else if (data.type === 'FCM_CALL') {

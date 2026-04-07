@@ -615,7 +615,7 @@ function syncChats(rawChats){
     } else if (!bodyText) {
        bodyText = (c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото')||'Новое сообщение';
     }
-    showNotif(name,bodyText);
+    showNotif(name,bodyText, c.chat_id);
     // Rich notification with avatar
     if (typeof showRichNotif === 'function') {
       showRichNotif({

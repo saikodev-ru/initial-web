@@ -265,10 +265,7 @@ $voicePushData = [
     'sender_name'      => $senderName,
 ];
 
-// Web Push (VAPID) — preferred
-send_web_push_to_user($recipientId, $senderName, '🎤 Голосовое сообщение', $voicePushData);
-
-// FCM fallback (if fcm_token exists)
+// FCM push (sole push channel)
 if (!empty($recipient['fcm_token'])) {
     send_push(
         $recipient['fcm_token'],

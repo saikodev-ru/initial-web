@@ -33,18 +33,27 @@ const _BASE = self.location.pathname.replace(/\/firebase-messaging-sw\.js$/, '')
 _fcmMessaging.onBackgroundMessage(async (payload) => {
   const data = payload.data || {};
 
-  // Forward to open tabs (foreground handling if any tab is visible)
+  // Forward to open tabs (foreground handling)
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+  // Check if any tab is actually visible
+  const hasVisible = clients.some(c => c.visibilityState === 'visible');
+
   clients.forEach(client => {
     if (data.action === 'incoming_call') {
       client.postMessage({ type: 'FCM_CALL', payload: data });
     } else {
-      client.postMessage({ type: 'FCM_MSG', payload: data });
+      // Tell the page whether the SW already showed a notification
+      client.postMessage({ type: 'FCM_MSG', payload: data, swHandled: !hasVisible });
     }
   });
 
   // Skip notification for incoming calls (handled by foreground)
   if (data.action === 'incoming_call') return;
+
+  // If a visible tab exists → skip notification (the page will handle sound + UI).
+  // SW notifications show as popups on Android only when NO tab is visible.
+  if (hasVisible) return;
 
   const title  = data.sender_name || 'Initial.';
   const body   = (data.body || 'Новое сообщение').slice(0, 160);
@@ -54,15 +63,22 @@ _fcmMessaging.onBackgroundMessage(async (payload) => {
   let iconUrl = _BASE + '/icon-192.png';
   if (data.sender_avatar) {
     try {
-      // 1. Try all SW caches
-      const cached = await caches.match(data.sender_avatar);
+      // 1. Try all SW caches — also try with full origin prefix
+      let cached = await caches.match(data.sender_avatar);
+      if (!cached || !cached.ok) {
+        // Avatar URLs may be relative (/api/…) while cache has absolute origin
+        try {
+          const absUrl = new URL(data.sender_avatar, self.location.origin).href;
+          cached = await caches.match(absUrl);
+        } catch(_) {}
+      }
       if (cached && cached.ok) {
         const blob = await cached.blob();
         iconUrl = URL.createObjectURL(blob);
       } else {
-        // 2. Fetch from network
+        // 2. Fetch from network (include cookies — avatars may need auth)
         try {
-          const resp = await fetch(data.sender_avatar);
+          const resp = await fetch(data.sender_avatar, { credentials: 'include' });
           if (resp && resp.ok) {
             const blob = await resp.blob();
             if (blob && blob.size > 0 && blob.type.startsWith('image/')) {

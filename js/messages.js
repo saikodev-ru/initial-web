@@ -458,7 +458,7 @@ async function fetchMsgs(chatId,init=false){
             else if (type === 'missed') txt = '📞 Пропущенный звонок';
             else txt = '📞 Отклонённый звонок';
           }
-          showNotif(m.nickname||'Initial',txt);
+          showNotif(m.nickname||'Initial',txt, chatId);
           // Rich notification with avatar (if available)
           if (typeof showRichNotif === 'function') {
             showRichNotif({
