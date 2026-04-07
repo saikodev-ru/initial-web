@@ -39,6 +39,14 @@
     text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/gi, '$1');
     text = text.replace(/<(?:code|b|i|em|strong|span|div|p|ul|ol|li|blockquote|h[1-6])[^>]*>([\s\S]*?)<\/(?:code|b|i|em|strong|span|div|p|ul|ol|li|blockquote|h[1-6])>/gi, '$1');
     text = replaceSpoilersWithBraille(text);
+    // Handle ||spoiler|| syntax — convert to braille before stripping tags
+    text = text.replace(/\|\|([^|]+)\|\|/g, function(_, content) {
+      var result = '';
+      for (var i = 0; i < content.length; i++) {
+        result += String.fromCharCode(0x2800 + Math.floor(Math.random() * 256));
+      }
+      return result;
+    });
     text = text.replace(/<[^>]+>/g, '');
     var ta = document.createElement('textarea');
     ta.innerHTML = text;
@@ -242,6 +250,14 @@
             partner_avatar: c.partner_avatar || null,
             avatar_data_url: dataUrl
           };
+        }).catch(function() {
+          // Fallback on error — send without avatar
+          return {
+            chat_id: c.chat_id,
+            partner_name: c.partner_name || '',
+            partner_avatar: null,
+            avatar_data_url: null
+          };
         });
       }
       return _resolveAvatar(c.partner_avatar, c.partner_name).then(function(dataUrl) {
@@ -250,6 +266,14 @@
           partner_name: c.partner_name || '',
           partner_avatar: c.partner_avatar || null,
           avatar_data_url: dataUrl
+        };
+      }).catch(function() {
+        // Fallback on error — send without avatar
+        return {
+          chat_id: c.chat_id,
+          partner_name: c.partner_name || '',
+          partner_avatar: null,
+          avatar_data_url: null
         };
       });
     });

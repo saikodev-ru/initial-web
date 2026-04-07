@@ -1845,6 +1845,10 @@ function _boot() {
           if (typeof syncNotifDataToSW === 'function') setTimeout(syncNotifDataToSW, 500);
         });
         startPoll(); startGlobalSSE(); syncNotifUI();
+        // Periodic sync of avatar data to SW (every 60s)
+        if (typeof syncNotifDataToSW === 'function') {
+          setInterval(syncNotifDataToSW, 60000);
+        }
         // PWA: request notification permissions on first launch
         if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
           setTimeout(async () => {
@@ -1981,30 +1985,32 @@ let _pendingNotifAction = null;
 function _handleNotifAction(action, chatId) {
   if (!chatId) return;
 
-  const chat = (S.chats || []).find(c => c.chat_id === chatId);
+  var cid = parseInt(chatId, 10);
+  const chat = (S.chats || []).find(c => c.chat_id === cid);
   if (!chat) {
     // Chats not loaded yet — store and retry after next loadChats()
-    _pendingNotifAction = { action, chatId };
+    _pendingNotifAction = { action: action, chatId: chatId };
     return;
   }
   _pendingNotifAction = null;
 
   if (action === 'open' || action === 'reply') {
-    if (S.chatId !== chatId && typeof openChat === 'function') {
+    if (S.chatId !== cid && typeof openChat === 'function') {
       openChat(chat);
     }
     if (action === 'reply') {
       // Wait for chat panel to render before focusing
       const _focusInput = (attempts) => {
         const mfield = document.getElementById('mfield') || document.querySelector('.mfield');
-        if (mfield) { mfield.focus(); return; }
+        if (mfield) { mfield.focus(); mfield.click(); return; }
         if (attempts > 0) setTimeout(() => _focusInput(attempts - 1), 200);
       };
-      setTimeout(() => _focusInput(10), 400);
+      setTimeout(() => _focusInput(15), 400);
     }
   } else if (action === 'markread') {
     api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1').catch(() => {});
     if (typeof loadChats === 'function') loadChats().catch(() => {});
+    try { if (navigator.setAppBadge) navigator.setAppBadge(0); } catch(_) {}
   }
 }
 
@@ -2019,7 +2025,7 @@ if ('serviceWorker' in navigator) {
         window._fcmBgHandled = { chatId: data.payload.chat_id, ts: Date.now() };
       }
       if (window.pollNow) pollNow();
-      if (typeof syncNotifDataToSW === 'function') syncNotifDataToSW();
+      if (typeof syncNotifDataToSW === 'function') setTimeout(syncNotifDataToSW, 2000);
     } else if (data.type === 'FCM_CALL') {
       if (window.pollCallSignals) window.pollCallSignals();
     } else if (data.type === 'NOTIF_ACTION') {
