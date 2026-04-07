@@ -738,6 +738,9 @@ let sbSearchActive=false,sbSearchTimer,_searchReqId=0;
 function enterSearch(){
   if(sbSearchActive)return;
   sbSearchActive=true;
+  // Update mobile page title to "Поиск"
+  const mobTitle = document.getElementById('sb-page-title');
+  if (mobTitle) mobTitle.textContent = 'Поиск';
   // Hide any active nav-panels and clear their inline styles so CSS can take over
   document.querySelectorAll('.nav-panel').forEach(p => {
     p.style.transform = 'translateX(100%)';
@@ -773,6 +776,13 @@ function exitSearch(){
   $('sidebar').classList.remove('searching');
   $('sb-q').value='';
   if($('sb-title')) $('sb-title').textContent = 'Сообщения';
+  // Restore mobile page title to current nav title
+  const mobTitle = document.getElementById('sb-page-title');
+  if (mobTitle) {
+    const activeNav = document.querySelector('.mobile-nav-btn.active[data-nav], .nav-rail-btn.active[data-nav]');
+    const navMap = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+    mobTitle.textContent = navMap[activeNav?.dataset.nav] || 'Сообщения';
+  }
   renderChats('');
   // Снимаем will-change после завершения transition (~300ms)
   const panels=document.querySelectorAll('.sb-panel');
@@ -1033,7 +1043,12 @@ document.addEventListener('keydown', e => {
 
 // System back (Android hardware button, browser back gesture)
 window.addEventListener('popstate',e=>{
+  // Don't close chat if settings panel or a modal is handling the back gesture
   if(window.innerWidth<=680&&$('active-chat').classList.contains('mb-visible')){
+    const panel = $('sb-profile-panel');
+    if (panel && panel.classList.contains('open')) return;
+    // Check if any modal is open
+    if (document.querySelector('.overlay.on')) return;
     goBackToList();
   }
 });
