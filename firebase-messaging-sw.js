@@ -21,6 +21,10 @@ const FIREBASE_CONFIG = {
 firebase.initializeApp(FIREBASE_CONFIG);
 const _fcmMessaging = firebase.messaging();
 
+// ── Activate immediately — Firebase needs an active SW for push subscribe ──
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+
 // ── Base path: when the app lives in a subdirectory (e.g. /web/) ──
 // self.location = …/web/firebase-messaging-sw.js  →  BASE = /web
 const _BASE = self.location.pathname.replace(/\/firebase-messaging-sw\.js$/, '') || '';

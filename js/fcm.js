@@ -167,6 +167,37 @@
     }
 
     try {
+      // Ensure the FCM service worker is registered and ACTIVE before getToken()
+      // Firebase's internal registration may not wait for activation → "no active SW"
+      if (_WEB_BASE) {
+        try {
+          const _fcmScript = _WEB_BASE + '/firebase-messaging-sw.js';
+          const _fcmScope  = _WEB_BASE + '/firebase-cloud-messaging-push-scope';
+
+          const reg = await navigator.serviceWorker.register(_fcmScript, { scope: _fcmScope });
+
+          if (reg.active) {
+            console.log('[FCM] SW already active:', reg.active.scriptURL);
+          } else {
+            const sw = reg.installing || reg.waiting;
+            if (sw) {
+              if (sw.state === 'waiting') sw.postMessage({ type: 'SKIP_WAITING' });
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('FCM SW activation timeout')), 10000);
+                function onState() {
+                  if (sw.state === 'activated') { clearTimeout(timeout); sw.removeEventListener('statechange', onState); resolve(); }
+                  if (sw.state === 'redundant')  { clearTimeout(timeout); sw.removeEventListener('statechange', onState); reject(new Error('FCM SW became redundant')); }
+                }
+                sw.addEventListener('statechange', onState);
+              });
+              console.log('[FCM] SW activated:', reg.active?.scriptURL);
+            }
+          }
+        } catch (swErr) {
+          console.warn('[FCM] SW pre-registration failed (Firebase will retry):', swErr.message);
+        }
+      }
+
       // Get FCM registration token
       const currentToken = await messaging.getToken({
         vapidKey: FCM_VAPID_KEY,
