@@ -6,7 +6,7 @@
    жёсткие перезагрузки и очистку SW-кеша.
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v15';
+const CACHE_VER  = 'sg-v16';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -443,27 +443,73 @@ self.addEventListener('push', event => {
         }
       }
 
-      const notifOpts = {
-        body: body,
-        icon: iconUrl,
-        tag: chatId ? 'signal-' + chatId : 'signal-msg',
-        renotify: true,
-        data: notifData,
-        vibrate: [200, 100, 200],
-      };
-
-      // Check if actions are supported
-      if ('Notification' in self && self.Notification.maxActions > 0) {
-        notifOpts.actions = [
-          { action: 'reply', title: 'Ответить' },
-          { action: 'markread', title: 'Прочитано' }
-        ];
-      }
-
-      await self.registration.showNotification(title, notifOpts);
+      // Queue notification with debounce to avoid Chrome rate-limiting
+      // Chrome silently drops notifications shown faster than ~1/sec
+      await _queuedNotification(chatId, title, body, iconUrl, notifData);
     })()
   );
 });
+
+/**
+ * Notification queue — prevents Chrome from dropping rapid notifications.
+ * Shows at most 1 notification per second, per chat tag.
+ * If a new notification for the same chat arrives within 1s, it updates
+ * the pending one instead of queuing a second.
+ */
+const _notifQueue = [];
+let _notifProcessing = false;
+
+async function _queuedNotification(chatId, title, body, iconUrl, data) {
+  const tag = chatId ? 'signal-' + chatId : 'signal-msg';
+
+  // If there's already a pending notification for this tag, update it
+  const existing = _notifQueue.findIndex(n => n.tag === tag);
+  if (existing >= 0) {
+    _notifQueue[existing].title = title;
+    _notifQueue[existing].body = body;
+    _notifQueue[existing].icon = iconUrl;
+    _notifQueue[existing].data = data;
+    _notifQueue[existing].updatedAt = Date.now();
+    return;
+  }
+
+  _notifQueue.push({ tag, title, body, icon, iconUrl, data, updatedAt: Date.now() });
+
+  if (!_notifProcessing) {
+    _notifProcessing = true;
+    await _processNotifQueue();
+  }
+}
+
+async function _processNotifQueue() {
+  while (_notifQueue.length > 0) {
+    const notif = _notifQueue.shift();
+
+    const notifOpts = {
+      body: notif.body,
+      icon: notif.iconUrl,
+      tag: notif.tag,
+      renotify: true,
+      data: notif.data,
+      vibrate: [200, 100, 200],
+    };
+
+    if ('Notification' in self && self.Notification.maxActions > 0) {
+      notifOpts.actions = [
+        { action: 'reply', title: 'Ответить' },
+        { action: 'markread', title: 'Прочитано' }
+      ];
+    }
+
+    await self.registration.showNotification(notif.title, notifOpts);
+
+    // Space out notifications by 1 second to avoid Chrome throttling
+    if (_notifQueue.length > 0) {
+      await new Promise(r => setTimeout(r, 1100));
+    }
+  }
+  _notifProcessing = false;
+}
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
