@@ -1436,6 +1436,8 @@ const ACCENT_DEFAULTS = {
   '#ec4899': { y2: '#f472b6', ybg: 'rgba(236,72,153,.13)', yb: 'rgba(236,72,153,.36)' },
   '#6366f1': { y2: '#818cf8', ybg: 'rgba(99,102,241,.13)', yb: 'rgba(99,102,241,.36)' },
 };
+const _accentCustomSwatch = $('accent-custom-swatch');
+let _accentPickerEl = null;
 function _applyAccentColor(hex) {
   const root = document.documentElement;
   root.style.setProperty('--y', hex);
@@ -1533,8 +1535,6 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
 });
 
 /* ── ACCENT CUSTOM HEX PICKER (field-ctx style) ───────── */
-const _accentCustomSwatch = $('accent-custom-swatch');
-let _accentPickerEl = null;
 if (_accentCustomSwatch) {
   _accentCustomSwatch.onclick = (e) => {
     e.stopPropagation();
