@@ -1206,6 +1206,7 @@ if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
 /* ── BG PATTERN TOGGLE ────────────────────────────────── */
 const BG_PAT_KEY = 'sg_bg_pattern';
 const _bgPatEl = $('tog-bg-pattern');
+const _bgPatDescEl = $('bg-pattern-desc');
 function _applyBgPattern(on) {
   const chatArea = $('msgs');
   if (!chatArea) return;
@@ -1213,9 +1214,27 @@ function _applyBgPattern(on) {
   else chatArea.style.backgroundImage = '';
   if (chatArea.style.backgroundImage) chatArea.style.backgroundSize = '20px 20px';
 }
+function _updatePatternLock() {
+  const hasCustomBg = !!localStorage.getItem(BG_IMG_KEY);
+  if (_bgPatEl) {
+    if (hasCustomBg) {
+      _bgPatEl.classList.add('on');
+      _bgPatEl.disabled = true;
+      _bgPatEl.style.opacity = '.4';
+      _bgPatEl.style.cursor = 'default';
+      if (_bgPatDescEl) _bgPatDescEl.textContent = 'Не получится использовать с текущим фоном';
+    } else {
+      _bgPatEl.disabled = false;
+      _bgPatEl.style.opacity = '';
+      _bgPatEl.style.cursor = '';
+      if (_bgPatDescEl) _bgPatDescEl.textContent = 'Отключить фоновый паттерн чата';
+    }
+  }
+}
 const _bgPatOn = (() => { try { return localStorage.getItem(BG_PAT_KEY) === '1'; } catch { return false; } })();
-if (_bgPatEl) { _bgPatEl.classList.toggle('on', _bgPatOn); _applyBgPattern(_bgPatOn); }
+if (_bgPatEl) { _bgPatEl.classList.toggle('on', _bgPatOn); _applyBgPattern(_bgPatOn); _updatePatternLock(); }
 if (_bgPatEl) _bgPatEl.onclick = () => {
+  if (_bgPatEl.disabled) return;
   const on = !_bgPatEl.classList.contains('on');
   _bgPatEl.classList.toggle('on', on);
   _applyBgPattern(on);
@@ -1251,6 +1270,7 @@ function _applyCustomBg(dataUrl) {
     document.body.classList.add('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
+    _updatePatternLock();
     // Extract dominant color from bottom of image for input zone gradient
     _extractBgBottomColor(dataUrl);
   } else {
@@ -1258,6 +1278,7 @@ function _applyCustomBg(dataUrl) {
     document.body.classList.remove('no-pattern');
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
+    _updatePatternLock();
     // Reset gradient accent
     const root = document.documentElement;
     if (root.style.getPropertyValue('--bg-fade-color')) {
@@ -1344,21 +1365,20 @@ if (_bgImgRemove) {
   };
 }
 
-/* ── BG BLUR TOGGLE (3 levels) ─────────────────────── */
-const _bgBlurEl = $('tog-bg-blur');
+/* ── BG BLUR SLIDER ─────────────────────── */
+const _bgBlurRange = $('blur-level-range');
 const _bgBlurLabel = $('blur-level-label');
 const BLUR_LABELS = ['Выкл', 'Слабое', 'Среднее', 'Сильное'];
 let _bgBlurLevel = (() => { try { return parseInt(localStorage.getItem('sg_bg_blur') || '0', 10); } catch { return 0; } })();
 function _updateBlurUI(level) {
-  if (_bgBlurEl) _bgBlurEl.classList.toggle('on', level > 0);
+  if (_bgBlurRange) _bgBlurRange.value = level;
   if (_bgBlurLabel) _bgBlurLabel.textContent = BLUR_LABELS[level] || 'Выкл';
 }
 _updateBlurUI(_bgBlurLevel);
-if (_bgBlurEl) _bgBlurEl.onclick = () => {
-  _bgBlurLevel = (_bgBlurLevel + 1) % 4;
+if (_bgBlurRange) _bgBlurRange.oninput = () => {
+  _bgBlurLevel = parseInt(_bgBlurRange.value, 10);
   try { localStorage.setItem('sg_bg_blur', String(_bgBlurLevel)); } catch { }
   _updateBlurUI(_bgBlurLevel);
-  // Re-apply background to toggle blur
   const cached = localStorage.getItem(BG_IMG_KEY);
   if (cached) _applyCustomBg(cached);
 };
@@ -1403,6 +1423,94 @@ if (_chatPadRange) {
   };
 }
 _applyChatPad(_chatPadPx);
+
+/* ── ACCENT COLOR PICKER ─────────────────────────── */
+const ACCENT_KEY = 'sg_accent_color';
+const ACCENT_DEFAULTS = {
+  '#8b5cf6': { y2: '#a78bfa', ybg: 'rgba(139,92,246,.13)', yb: 'rgba(139,92,246,.36)' },
+  '#3b82f6': { y2: '#60a5fa', ybg: 'rgba(59,130,246,.13)', yb: 'rgba(59,130,246,.36)' },
+  '#06b6d4': { y2: '#22d3ee', ybg: 'rgba(6,182,212,.13)', yb: 'rgba(6,182,212,.36)' },
+  '#10b981': { y2: '#34d399', ybg: 'rgba(16,185,129,.13)', yb: 'rgba(16,185,129,.36)' },
+  '#f59e0b': { y2: '#fbbf24', ybg: 'rgba(245,158,11,.13)', yb: 'rgba(245,158,11,.36)' },
+  '#ef4444': { y2: '#f87171', ybg: 'rgba(239,68,68,.13)', yb: 'rgba(239,68,68,.36)' },
+  '#ec4899': { y2: '#f472b6', ybg: 'rgba(236,72,153,.13)', yb: 'rgba(236,72,153,.36)' },
+  '#6366f1': { y2: '#818cf8', ybg: 'rgba(99,102,241,.13)', yb: 'rgba(99,102,241,.36)' },
+};
+function _applyAccentColor(hex) {
+  const root = document.documentElement;
+  root.style.setProperty('--y', hex);
+  const def = ACCENT_DEFAULTS[hex];
+  if (def) {
+    root.style.setProperty('--y2', def.y2);
+    root.style.setProperty('--ybg', def.ybg);
+    root.style.setProperty('--yb', def.yb);
+  }
+  // Update swatch active state
+  document.querySelectorAll('.accent-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.color === hex);
+  });
+  try { localStorage.setItem(ACCENT_KEY, hex); } catch {}
+}
+// Restore saved accent
+const _savedAccent = (() => { try { return localStorage.getItem(ACCENT_KEY); } catch { return null; } })();
+if (_savedAccent && ACCENT_DEFAULTS[_savedAccent]) _applyAccentColor(_savedAccent);
+
+document.querySelectorAll('.accent-swatch').forEach(s => {
+  s.onclick = () => _applyAccentColor(s.dataset.color);
+});
+
+// Auto accent button
+const _accentAutoBtn = $('btn-accent-auto');
+if (_accentAutoBtn) {
+  _accentAutoBtn.onclick = () => {
+    const cached = localStorage.getItem(BG_IMG_KEY);
+    if (!cached) return;
+    // Extract dominant color from center of image
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const size = Math.min(img.width, img.height, 100);
+        canvas.width = size; canvas.height = size;
+        const sx = Math.round((img.width - size) / 2);
+        const sy = Math.round((img.height - size) / 2);
+        ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4 * 4) { // sample every 4th pixel
+          r += data[i]; g += data[i+1]; b += data[i+2]; count++;
+        }
+        if (count > 0) {
+          r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+          // Saturate for more vivid color
+          const max = Math.max(r, g, b), min = Math.min(r, g, b);
+          const boost = 1.5;
+          if (max > 0) {
+            r = Math.min(255, Math.round(r === max ? r * boost : r * (1 - (boost - 1) / 2)));
+            g = Math.min(255, Math.round(g === max ? g * boost : g * (1 - (boost - 1) / 2)));
+            b = Math.min(255, Math.round(b === max ? b * boost : b * (1 - (boost - 1) / 2)));
+          }
+          const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+          _applyAccentColor(hex);
+          // Remove active from preset swatches
+          document.querySelectorAll('.accent-swatch').forEach(s => s.classList.remove('active'));
+        }
+      };
+      img.src = cached;
+    } catch {}
+  };
+}
+
+/* ── ST-SUB-HDR SCROLL BACKDROP ───────────────────── */
+document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
+  const hdr = view.querySelector('.st-sub-hdr');
+  if (!hdr) return;
+  view.addEventListener('scroll', () => {
+    hdr.classList.toggle('scrolled', view.scrollTop > 8);
+  }, { passive: true });
+});
 
 /* ── CHAT FONT SIZE ──────────────────────────────── */
 const _chatFontSizeRange = $('chat-font-size-range');
