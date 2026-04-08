@@ -942,6 +942,7 @@ function openProfile() {
   syncEnterUI();
   loadSessions();
   $('sb-profile-panel').classList.add('open');
+  _showPanelBackdrop();
 
   // On mobile: push history state so system back gesture works
   if (window.innerWidth <= 680) {
@@ -1003,7 +1004,7 @@ async function loadSessions() {
         `<div class="dev-session-name">${esc(s.device)}</div>` +
         `<div class="dev-session-meta">` +
           `<span class="sess-ip-spoiler" data-ip="${esc(s.ip)}">Скрытый</span>` +
-          ` • ${metaText}` +
+          `<span>${metaText}</span>` +
         `</div>` +
       `</div>` +
       `<div class="dev-session-actions">` +
@@ -1036,10 +1037,16 @@ async function loadSessions() {
       }
     } else {
       hasOthers = true;
+      // Add separator if not first item
+      if (list.children.length > 0) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'height:1px;background:var(--b);margin:0 14px';
+        list.appendChild(sep);
+      }
       const el = document.createElement('div');
-      el.className = 'dev-session-card';
+      el.className = 'dev-session-item';
       el.style.transition = 'opacity .2s';
-      el.innerHTML = `<div class="dev-session-item">${itemHtml}</div>`;
+      el.innerHTML = itemHtml;
       list.appendChild(el);
 
       // IP spoiler toggle
@@ -1132,6 +1139,7 @@ $('btn-link-device').onclick = () => openLinkDeviceModal();
 })();
 function closeProfile() {
   $('sb-profile-panel').classList.remove('open');
+  _hidePanelBackdrop();
   // On mobile: go back in history to remove our pushed state (without triggering popstate handler)
   if (window.innerWidth <= 680 && history.state?.settingsPanel) {
     _closingProfile = true;
@@ -2092,6 +2100,17 @@ function _switchNav(nav) {
   }
 }
 
+/* ══ PANEL BACKDROP — blur + dim behind panels (desktop only) ════ */
+function _showPanelBackdrop() {
+  if (window.innerWidth <= 680) return; // no backdrop on mobile
+  const el = $('panel-backdrop');
+  if (el) el.classList.add('visible');
+}
+function _hidePanelBackdrop() {
+  const el = $('panel-backdrop');
+  if (el) el.classList.remove('visible');
+}
+
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
 // Prevent double-fire: touchend + click on same tap
 let _profileTouchFired = false;
@@ -2147,12 +2166,14 @@ function _openMobileSelfProfile() {
   }
 
   panel.classList.add('open');
+  _showPanelBackdrop();
   history.pushState({ mobileSelfProfile: true }, '');
 }
 
 function _closeMobileSelfProfile() {
   const panel = $('mobile-self-profile');
   if (panel) panel.classList.remove('open');
+  _hidePanelBackdrop();
 }
 
 // Back button handler
