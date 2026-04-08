@@ -45,7 +45,7 @@ html,body{height:100%;height:100dvh;overflow:hidden}
   --font: 'Google Sans','EmojiLocal',-apple-system,sans-serif;
   --sb-w: 300px;
 }
-body{font-family:var(--font);background:var(--chat-bg);color:var(--t1);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);background:var(--chat-bg);color:var(--t1);font-size:15px;line-height:1.5;font-weight:500;-webkit-font-smoothing:antialiased}
 body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji',sans-serif}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
 
@@ -430,6 +430,9 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .ci-name{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ci-ts{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
 .ci-prev{font-size:12.5px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+/* Two-line chat list mode: message preview wraps to 2 lines */
+body.two-line-chat .ci-prev{white-space:normal;align-items:flex-start}
+body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;text-overflow:initial}
 /* Отключаем кликабельность ссылок и тегов в превью списка чатов */
 .ci-prev .msg-link, .ci-prev .mention { pointer-events: none; text-decoration: none; color: inherit; }
 .ci-prev.typ{color:var(--y);font-style:italic}
@@ -966,15 +969,14 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 }
 .tg-row:hover   { background: rgba(255,255,255,.05); }
 .tg-row:active  { background: rgba(255,255,255,.08); transform: scale(.995); }
-.tg-row.danger .tg-row-ic { background: rgba(255,69,58,.15) !important; color: var(--red); }
+.tg-row.danger .tg-row-ic { background: var(--red) !important; color: #fff; }
 .tg-row.danger .tg-row-lbl { color: var(--red); }
 .tg-row-ic {
-  width: 28px; height: 28px; border-radius: 7px;
+  width: 30px; height: 30px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  margin-right: 16px; flex-shrink: 0; color: var(--t2);
-  background: none !important;
+  margin-right: 14px; flex-shrink: 0; color: #fff;
 }
-.tg-row-ic svg   { width: 16px; height: 16px; }
+.tg-row-ic svg   { width: 17px; height: 17px; }
 .tg-row-body     { flex: 1; display: flex; flex-direction: column; justify-content: center; }
 .tg-row-lbl      { color: var(--t1); font-size: 14.5px; font-weight: 500; line-height: 1.25; }
 .tg-row-sub      { color: var(--t3); font-size: 12.5px; margin-top: 2px; }
@@ -983,7 +985,7 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .tg-row-sep {
   height: 1px;
   background: rgba(255,255,255,.06);
-  margin-left: 58px;
+  margin-left: 60px;
 }
 
 /* ── Logout button ── */
@@ -999,8 +1001,8 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
   -webkit-tap-highlight-color: transparent;
 }
 .tg-logout-btn .tg-row-ic {
-  background: rgba(255,69,58,.15) !important;
-  color: var(--red);
+  background: var(--red) !important;
+  color: #fff;
 }
 .tg-logout-btn:hover { background: rgba(255,69,58,.08); }
 .tg-logout-btn:active { background: rgba(255,69,58,.14); transform: scale(.995); }
@@ -2328,6 +2330,9 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .me .edit-ta{color:#000}
 .loader{width:40px;height:40px;border:3px solid rgba(255,255,255,.08);border-top-color:var(--y);border-radius:50%;animation:rot .7s linear infinite}
 .back-btn-mb{display:none}
+/* ── Mobile-only elements: hidden on desktop ── */
+.mobile-self-profile{display:none}
+.mobile-bottom-nav{display:none}
 @media(max-width:680px){
   /* Use dynamic viewport height — browser address bar collapses on scroll */
   html,body,#scr-app,.layout{height:100dvh;min-height:100dvh}
@@ -2365,11 +2370,6 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Epicker on mobile: never exceed 55% of viewport height */
   .epicker{max-height:55dvh}
   .emo-grid-wrap{max-height:calc(55dvh - 120px)}
-
-  /* ── Mobile self-profile panel (hidden on desktop) ── */
-  .mobile-self-profile {
-    display: none;
-  }
 
   /* Settings panel slides from the left on mobile — full screen, no shadow */
   .sb-profile-panel {
@@ -4556,24 +4556,6 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   content: '';
   position: absolute;
   left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: var(--y);
-  border-radius: 0 4px 4px 0;
-}
-.nav-rail-btn.active::after {
-  content: '';
-  position: absolute;
-  left: -7px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: var(--y);
-  border-radius: 0 4px 4px 0;
-}
   top: 50%;
   transform: translateY(-50%);
   width: 3px;

@@ -1275,7 +1275,7 @@ window.addEventListener('popstate', (e) => {
   });
 })();
 
-$('prof-row').onclick = openProfile;
+$('prof-row').onclick = openSelfModal;
 $('sb-prof-back').onclick = closeProfile;
 if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
 
@@ -1611,6 +1611,15 @@ $('tog-chat-dividers').onclick = () => {
   document.body.classList.toggle('chat-dividers', on);
   S.chatDividers = on;
   try { localStorage.setItem('sg_chat_dividers', on ? '1' : '0'); } catch(e){}
+};
+/* Two-line chat list mode */
+const TWO_LINE_KEY = 'sg_two_line_chat';
+const _twoLineOn = (() => { try { return localStorage.getItem(TWO_LINE_KEY) === '1'; } catch { return false; } })();
+if ($('tog-two-line')) { $('tog-two-line').classList.toggle('on', _twoLineOn); document.body.classList.toggle('two-line-chat', _twoLineOn); }
+if ($('tog-two-line')) $('tog-two-line').onclick = () => {
+  const on = $('tog-two-line').classList.toggle('on');
+  document.body.classList.toggle('two-line-chat', on);
+  try { localStorage.setItem(TWO_LINE_KEY, on ? '1' : '0'); } catch(e){}
 };
 
 $('btn-savepm').onclick = async () => {
