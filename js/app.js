@@ -1437,7 +1437,6 @@ const ACCENT_DEFAULTS = {
   '#6366f1': { y2: '#818cf8', ybg: 'rgba(99,102,241,.13)', yb: 'rgba(99,102,241,.36)' },
 };
 const _accentCustomSwatch = $('accent-custom-swatch');
-let _accentPickerEl = null;
 function _applyAccentColor(hex) {
   const root = document.documentElement;
   root.style.setProperty('--y', hex);
@@ -1534,59 +1533,45 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
   }
 });
 
-/* ── ACCENT CUSTOM HEX PICKER (field-ctx style) ───────── */
-if (_accentCustomSwatch) {
+/* ── ACCENT CUSTOM HEX PICKER (inline) ───────── */
+const _accentHexInline = $('accent-hex-inline');
+const _accentColorInput = $('accent-color-input');
+const _accentHexInput = $('accent-hex-input');
+const _accentApplyHex = $('accent-apply-hex');
+
+if (_accentCustomSwatch && _accentHexInline) {
   _accentCustomSwatch.onclick = (e) => {
     e.stopPropagation();
-    if (_accentPickerEl && _accentPickerEl.parentNode) {
-      _accentPickerEl.remove();
-      _accentPickerEl = null;
-      return;
-    }
-    const rect = _accentCustomSwatch.getBoundingClientRect();
-    const el = document.createElement('div');
-    el.className = 'field-ctx';
-    el.id = 'accent-hex-picker';
-    el.style.cssText = `position:fixed;z-index:9999;min-width:220px;left:${Math.min(rect.left, window.innerWidth - 240)}px;top:${rect.bottom + 6}px;`;
-    el.innerHTML = `
-      <div style="padding:12px;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="color" id="accent-color-input" value="${getComputedStyle(document.documentElement).getPropertyValue('--y').trim()}" style="width:36px;height:36px;border:none;border-radius:8px;cursor:pointer;background:transparent;padding:0;">
-          <input type="text" id="accent-hex-input" maxlength="7" placeholder="#8b5cf6" style="flex:1;background:var(--s2);border:1px solid var(--b2);border-radius:8px;color:var(--t1);font-family:var(--font);font-size:14px;padding:8px 10px;outline:none;">
-        </div>
-        <button class="fctx-btn" id="accent-apply-hex" style="justify-content:center;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          Применить
-        </button>
-      </div>
-    `;
-    document.body.appendChild(el);
-    _accentPickerEl = el;
-    requestAnimationFrame(() => el.classList.add('on'));
-
-    const colorInput = el.querySelector('#accent-color-input');
-    const hexInput = el.querySelector('#accent-hex-input');
-    const applyBtn = el.querySelector('#accent-apply-hex');
-    if (colorInput && hexInput) {
+    _accentHexInline.classList.toggle('open');
+    if (_accentHexInline.classList.contains('open')) {
       const current = getComputedStyle(document.documentElement).getPropertyValue('--y').trim();
-      hexInput.value = current;
-      colorInput.value = current;
-      colorInput.oninput = () => { hexInput.value = colorInput.value; };
-      hexInput.oninput = () => {
-        if (/^#[0-9a-fA-F]{6}$/.test(hexInput.value)) colorInput.value = hexInput.value;
-      };
-    }
-    if (applyBtn) {
-      applyBtn.onclick = () => {
-        const hex = hexInput.value.trim();
-        if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-          _applyAccentColorCustom(hex);
-          el.remove();
-          _accentPickerEl = null;
-        }
-      };
+      if (_accentHexInput) _accentHexInput.value = current;
+      if (_accentColorInput) _accentColorInput.value = current;
+      if (_accentHexInput) setTimeout(() => _accentHexInput.focus(), 350);
     }
   };
+
+  if (_accentColorInput && _accentHexInput) {
+    _accentColorInput.oninput = () => { _accentHexInput.value = _accentColorInput.value; };
+    _accentHexInput.oninput = () => {
+      if (/^#[0-9a-fA-F]{6}$/.test(_accentHexInput.value)) _accentColorInput.value = _accentHexInput.value;
+    };
+    _accentHexInput.onkeydown = (e) => {
+      if (e.key === 'Enter') _doApplyAccentHex();
+    };
+  }
+
+  if (_accentApplyHex) {
+    _accentApplyHex.onclick = () => _doApplyAccentHex();
+  }
+}
+
+function _doApplyAccentHex() {
+  const hex = _accentHexInput ? _accentHexInput.value.trim() : '';
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    _applyAccentColorCustom(hex);
+    if (_accentHexInline) _accentHexInline.classList.remove('open');
+  }
 }
 
 function _applyAccentColorCustom(hex) {
@@ -1597,7 +1582,7 @@ function _applyAccentColorCustom(hex) {
   const lighten = (c) => Math.min(255, c + 60);
   const y2 = '#' + [lighten(r), lighten(g), lighten(b)].map(c => c.toString(16).padStart(2,'0')).join('');
   root.style.setProperty('--y2', y2);
-  root.style.setProperty('--ybg', hex.replace('#','rgba(') ? `rgba(${r},${g},${b},.13)` : 'rgba(139,92,246,.13)');
+  root.style.setProperty('--ybg', `rgba(${r},${g},${b},.13)`);
   root.style.setProperty('--yb', `rgba(${r},${g},${b},.36)`);
   // Clear preset active
   document.querySelectorAll('.accent-swatch:not(.accent-swatch-custom)').forEach(s => s.classList.remove('active'));
@@ -1605,14 +1590,6 @@ function _applyAccentColorCustom(hex) {
   if (_accentCustomSwatch) _accentCustomSwatch.style.background = hex;
   try { localStorage.setItem(ACCENT_KEY, hex); } catch {}
 }
-
-// Close picker on outside click
-document.addEventListener('click', (e) => {
-  if (_accentPickerEl && !e.target.closest('#accent-hex-picker') && !e.target.closest('#accent-custom-swatch')) {
-    _accentPickerEl.remove();
-    _accentPickerEl = null;
-  }
-});
 
 /* ── CHAT FONT SIZE ──────────────────────────────── */
 const _chatFontSizeRange = $('chat-font-size-range');
