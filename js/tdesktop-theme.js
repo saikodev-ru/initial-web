@@ -435,10 +435,10 @@
       root.style.setProperty(prop, vars[prop]);
     }
 
-    // Update theme-color meta tag
+    // Update theme-color meta tag (transparent for PWA status bar)
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta && vars['--bg']) {
-      meta.content = vars['--bg'];
+    if (meta) {
+      meta.content = 'transparent';
     }
 
     return vars;
@@ -714,9 +714,9 @@
       cards[c].classList.toggle('active', cards[c].getAttribute('data-tdtheme') === name);
     }
 
-    // Update meta theme-color
+    // Update meta theme-color (transparent for PWA status bar)
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta && theme.vars['--bg']) meta.content = theme.vars['--bg'];
+    if (meta) meta.content = 'transparent';
   }
 
   /** On page load, re-apply the active custom theme (if any). */
@@ -753,9 +753,9 @@
       // Re-render list
       renderTdesktopThemeList();
 
-      // Meta theme-color
+      // Meta theme-color (transparent for PWA status bar)
       var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta && result.vars['--bg']) meta.content = result.vars['--bg'];
+      if (meta) meta.content = 'transparent';
 
     }).catch(function (err) {
       console.error('[TDesktopTheme] Error:', err);
