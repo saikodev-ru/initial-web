@@ -2470,15 +2470,11 @@ document.addEventListener('click',e=>{
   const panel=$('sb-profile-panel');
   if(!panel||!panel.classList.contains('open'))return;
   if(!panel.contains(e.target)&&!e.target.closest('#prof-row')&&!e.target.closest('.overlay')&&!e.target.closest('.epicker')&&!e.target.closest('#panel-backdrop'))closeProfile();
-  // Also close mobile-self-profile on desktop when click outside
-  const msp=$('mobile-self-profile');
-  if(msp&&msp.classList.contains('open')&&!msp.contains(e.target)&&!e.target.closest('#prof-row')&&!e.target.closest('.overlay')&&!e.target.closest('#panel-backdrop'))_closeMobileSelfProfile();
 });
 
 // Click on panel backdrop closes panels
 document.getElementById('panel-backdrop')?.addEventListener('click', function() {
   closeProfile();
-  _closeMobileSelfProfile();
 });
 /* ══ SWIPE TO REPLY ══════════════════════════════════════════ */
 (function initSwipeReply() {
