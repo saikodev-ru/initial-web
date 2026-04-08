@@ -967,7 +967,10 @@ function openProfile() {
 
 async function loadSessions() {
   const list = $('sessions-list');
+  const currentEl = $('dev-current-session');
+  const othersSection = $('dev-others-section');
   list.innerHTML = '<div style="display:flex;justify-content:center;padding:12px"><div class="loader" style="width:24px;height:24px;border-width:2px"></div></div>';
+  if (currentEl) currentEl.innerHTML = '';
   const res = await api('sessions');
   if (!res.ok) { list.innerHTML = '<div style="color:var(--red);font-size:13px;padding:12px">Ошибка загрузки сессий</div>'; return; }
   list.innerHTML = '';
@@ -987,49 +990,74 @@ async function loadSessions() {
     web: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
   };
 
+  let hasOthers = false;
   res.sessions.forEach(s => {
     const type = deviceType(s.device);
-    const el = document.createElement('div');
-    el.className = 'tg-session-item';
-    el.style.transition = 'opacity .2s';
-
     const metaText = s.is_current
       ? '<span class="tg-session-active-text">Активна сейчас</span>'
       : esc(fmtDate(s.last_active));
 
-    el.innerHTML =
-      `<div class="tg-session-icon tg-session-icon-${type}">${icons[type]}</div>` +
-      `<div class="tg-session-info">` +
-        `<div class="tg-session-name">${esc(s.device)}</div>` +
-        `<div class="tg-session-meta">` +
+    const itemHtml =
+      `<div class="dev-session-icon dev-session-icon-${type}">${icons[type]}</div>` +
+      `<div class="dev-session-info">` +
+        `<div class="dev-session-name">${esc(s.device)}</div>` +
+        `<div class="dev-session-meta">` +
           `<span class="sess-ip-spoiler" data-ip="${esc(s.ip)}">Скрытый</span>` +
           ` • ${metaText}` +
         `</div>` +
       `</div>` +
-      `<div class="tg-session-actions">` +
+      `<div class="dev-session-actions">` +
         (s.is_current
-          ? '<div class="tg-session-active-dot" title="Активна"></div>'
-          : '<button class="tg-session-term" title="Завершить сеанс"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>'
+          ? '<div class="dev-session-active-dot" title="Активна"></div>'
+          : '<button class="dev-session-term-btn" title="Завершить сеанс"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>'
         ) +
       `</div>`;
 
-    // IP spoiler toggle
-    const spoiler = el.querySelector('.sess-ip-spoiler');
-    spoiler.addEventListener('click', function() {
-      if (this.textContent === 'Скрытый') {
-        this.textContent = this.dataset.ip;
-        this.style.opacity = '1';
-        this.style.textDecoration = 'none';
-      } else {
-        this.textContent = 'Скрытый';
-        this.style.opacity = '';
-        this.style.textDecoration = '';
-      }
-    });
+    if (s.is_current) {
+      if (currentEl) {
+        const item = document.createElement('div');
+        item.className = 'dev-session-item';
+        item.innerHTML = itemHtml;
+        currentEl.appendChild(item);
 
-    // Terminate button handler
-    if (!s.is_current) {
-      const termBtn = el.querySelector('.tg-session-term');
+        // IP spoiler toggle for current session
+        const spoiler = item.querySelector('.sess-ip-spoiler');
+        spoiler.addEventListener('click', function() {
+          if (this.textContent === 'Скрытый') {
+            this.textContent = this.dataset.ip;
+            this.style.opacity = '1';
+            this.style.textDecoration = 'none';
+          } else {
+            this.textContent = 'Скрытый';
+            this.style.opacity = '';
+            this.style.textDecoration = '';
+          }
+        });
+      }
+    } else {
+      hasOthers = true;
+      const el = document.createElement('div');
+      el.className = 'dev-session-card';
+      el.style.transition = 'opacity .2s';
+      el.innerHTML = `<div class="dev-session-item">${itemHtml}</div>`;
+      list.appendChild(el);
+
+      // IP spoiler toggle
+      const spoiler = el.querySelector('.sess-ip-spoiler');
+      spoiler.addEventListener('click', function() {
+        if (this.textContent === 'Скрытый') {
+          this.textContent = this.dataset.ip;
+          this.style.opacity = '1';
+          this.style.textDecoration = 'none';
+        } else {
+          this.textContent = 'Скрытый';
+          this.style.opacity = '';
+          this.style.textDecoration = '';
+        }
+      });
+
+      // Terminate button handler
+      const termBtn = el.querySelector('.dev-session-term-btn');
       if (termBtn) {
         termBtn.onclick = async (e) => {
           e.stopPropagation();
@@ -1039,9 +1067,10 @@ async function loadSessions() {
         };
       }
     }
-
-    list.appendChild(el);
   });
+
+  // Show/hide "Active sessions" section
+  if (othersSection) othersSection.style.display = hasOthers ? '' : 'none';
 }
 
 $('btn-link-device').onclick = () => openLinkDeviceModal();
@@ -1197,7 +1226,7 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
   });
 });
 
-$('prof-row').onclick = () => { if (window.innerWidth <= 680) { _handleOpenProfile(); } else { openSelfModal(); } };
+$('prof-row').onclick = (e) => { e.stopPropagation(); _handleOpenProfile(); };
 $('sb-prof-back').onclick = closeProfile;
 if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
 
@@ -2174,13 +2203,9 @@ document.getElementById('msp-btn-settings')?.addEventListener('click', () => {
   openProfile();
 });
 
-// "Вы" button — mobile: self profile panel; desktop: settings panel
+// "Вы" button — always opens self profile panel (both mobile and desktop)
 function _handleOpenProfile() {
-  if (window.innerWidth <= 680) {
-    _openMobileSelfProfile();
-  } else {
-    openProfile();
-  }
+  _openMobileSelfProfile();
 }
 document.getElementById('btn-mobile-nav-profile')?.addEventListener('touchend', (e) => {
   e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
