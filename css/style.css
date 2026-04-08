@@ -2381,26 +2381,29 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     box-shadow: none !important;
   }
 
-  /* Search bar on mobile: narrower, more gap from header */
+  /* Search bar on mobile: narrower width, more gap from header */
   .sb-search-row {
-    padding-top: 8px;
+    padding-top: 12px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
   .sb-search-row .srch-new {
-    max-width: calc(100% - 40px);
-    border-radius: 18px;
+    max-width: calc(100% - 80px);
+    border-radius: 20px;
   }
   .sb-search-row .srch-new input {
-    padding: 9px 0;
-    font-size: 14px;
+    padding: 10px 0;
+    font-size: 14.5px;
   }
   .sb-search-row .srch-new-icon {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
   }
 
   /* Larger chat items on mobile (Telegram Android style) */
-  .ci { gap: 14px; padding: 11px 16px; }
-  .av-img { width: 52px !important; height: 52px !important; font-size: 18px !important; }
+  .ci { gap: 14px; padding: 12px 14px; }
+  .av-img { width: 54px !important; height: 54px !important; font-size: 19px !important; }
+  .av-dot { width: 12px !important; height: 12px !important; border-width: 2.5px !important; }
   .ci-name { font-size: 15.5px; }
   .ci-prev { font-size: 13.5px; }
   .ci-ts { font-size: 12px; }

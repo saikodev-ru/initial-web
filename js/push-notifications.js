@@ -160,10 +160,79 @@
   }
 
   /**
-   * Resolve avatar: cache → generate initial.
+   * Extract a data-URL from a loaded <img> or <canvas> element found in the DOM.
+   * Returns Promise<string|null>.
+   */
+  function _extractAvatarFromDOM(chatId, senderName) {
+    // Find the chat list item for this chat
+    var ciEl = document.querySelector('.ci[data-chat-id="' + chatId + '"]');
+    if (!ciEl) return _generateInitialAvatar(senderName || '?');
+
+    var avImg = ciEl.querySelector('.av-img');
+    if (!avImg) return _generateInitialAvatar(senderName || '?');
+
+    // Check for a loaded <img> inside
+    var img = avImg.querySelector('img');
+    if (img && img.classList.contains('loaded') && img.naturalWidth > 0) {
+      return new Promise(function (resolve) {
+        try {
+          var size = 96;
+          var canvas = document.createElement('canvas');
+          canvas.width = size; canvas.height = size;
+          var ctx = canvas.getContext('2d');
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          var side = Math.min(img.naturalWidth, img.naturalHeight);
+          var sx = (img.naturalWidth - side) / 2;
+          var sy = (img.naturalHeight - side) / 2;
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+          resolve(canvas.toDataURL('image/png'));
+        } catch (e) { resolve(null); }
+      }).then(function (url) {
+        return url || _generateInitialAvatar(senderName || '?');
+      });
+    }
+
+    // Check for a <canvas> (used for GIF avatars)
+    var cvs = avImg.querySelector('canvas');
+    if (cvs && cvs.width > 0 && cvs.height > 0) {
+      return new Promise(function (resolve) {
+        try {
+          var size = 96;
+          var out = document.createElement('canvas');
+          out.width = size; out.height = size;
+          var ctx = out.getContext('2d');
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          var side = Math.min(cvs.width, cvs.height);
+          var sx = (cvs.width - side) / 2;
+          var sy = (cvs.height - side) / 2;
+          ctx.drawImage(cvs, sx, sy, side, side, 0, 0, size, size);
+          resolve(out.toDataURL('image/png'));
+        } catch (e) { resolve(null); }
+      }).then(function (url) {
+        return url || _generateInitialAvatar(senderName || '?');
+      });
+    }
+
+    // No loaded avatar in DOM → generate initial
+    return _generateInitialAvatar(senderName || '?');
+  }
+
+  /**
+   * Resolve avatar: try DOM first, then SW cache, then generate initial.
    * Returns Promise<string|null> — data URL.
    */
-  function _resolveAvatar(avatarUrl, senderName) {
+  function _resolveAvatar(avatarUrl, senderName, chatId) {
+    // Primary: extract from already-loaded DOM elements (most reliable)
+    if (chatId) {
+      return _extractAvatarFromDOM(chatId, senderName);
+    }
+    // Fallback for cases without chatId (e.g. search results)
     return _getAvatarFromCache(avatarUrl).then(function (cached) {
       if (cached) return _responseToDataUrl(cached);
       return _generateInitialAvatar(senderName || '?');
@@ -198,8 +267,8 @@
     var text = truncate(stripHtml(opts.body || ''), 160);
     var tag = 'signal-' + String(opts.chatId || 'msg').replace(/\s+/g, '-');
 
-    // Resolve avatar then delegate to SW
-    _resolveAvatar(opts.senderAvatar, opts.senderName).then(function (avatarDataUrl) {
+    // Resolve avatar: try DOM first (chatId), then SW cache
+    _resolveAvatar(opts.senderAvatar, opts.senderName, opts.chatId).then(function (avatarDataUrl) {
       var notifOpts = {
         body: text,
         tag: tag,
@@ -240,25 +309,7 @@
     // Convert avatars to data URLs so the SW can use them even without S3 access
     var chats = (S.chats || []).slice(0, 30);
     var promises = chats.map(function(c) {
-      if (!c.partner_avatar) {
-        return _generateInitialAvatar(c.partner_name || '?').then(function(dataUrl) {
-          return {
-            chat_id: c.chat_id,
-            partner_name: c.partner_name || '',
-            partner_avatar: c.partner_avatar || null,
-            avatar_data_url: dataUrl
-          };
-        }).catch(function() {
-          // Fallback on error — send without avatar
-          return {
-            chat_id: c.chat_id,
-            partner_name: c.partner_name || '',
-            partner_avatar: null,
-            avatar_data_url: null
-          };
-        });
-      }
-      return _resolveAvatar(c.partner_avatar, c.partner_name).then(function(dataUrl) {
+      return _resolveAvatar(c.partner_avatar, c.partner_name, c.chat_id).then(function(dataUrl) {
         return {
           chat_id: c.chat_id,
           partner_name: c.partner_name || '',
@@ -266,13 +317,15 @@
           avatar_data_url: dataUrl
         };
       }).catch(function() {
-        // Fallback on error — send without avatar
-        return {
-          chat_id: c.chat_id,
-          partner_name: c.partner_name || '',
-          partner_avatar: null,
-          avatar_data_url: null
-        };
+        // Fallback on error — generate initial avatar
+        return _generateInitialAvatar(c.partner_name || '?').then(function(dataUrl) {
+          return {
+            chat_id: c.chat_id,
+            partner_name: c.partner_name || '',
+            partner_avatar: null,
+            avatar_data_url: dataUrl
+          };
+        });
       });
     });
 
