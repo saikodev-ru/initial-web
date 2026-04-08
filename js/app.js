@@ -1150,7 +1150,7 @@ function closeProfile() {
     _stActiveSub.classList.add('anim-none');
     $('st-view-main').classList.add('anim-none');
     _stActiveSub.classList.remove('active');
-    $('st-view-main').classList.remove('shifted');
+    $('st-view-main').classList.remove('faded');
     _stActiveSub.style.transform = '';
     $('st-view-main').style.transform = '';
     const _sub = _stActiveSub;
@@ -1164,9 +1164,6 @@ function closeProfile() {
 
 /* ── SETTINGS VIEWS NAVIGATION & SWIPE ── */
 let _stActiveSub = null;
-let _stTouchStartX = 0;
-let _stTouchCurrentX = 0;
-let _stIsSwiping = false;
 let _closingProfile = false; // Prevent popstate loop when closing profile
 
 document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(btn => {
@@ -1176,7 +1173,7 @@ document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(
     _stActiveSub = target;
     target.classList.remove('anim-none');
     $('st-view-main').classList.remove('anim-none');
-    $('st-view-main').classList.add('shifted');
+    $('st-view-main').classList.add('faded');
     target.classList.add('active');
     // On mobile: push history for sub-view so back gesture returns to main settings
     if (window.innerWidth <= 680 && history.state?.settingsPanel) {
@@ -1198,41 +1195,9 @@ function closeSettingsSubView() {
   _stActiveSub.style.transform = '';
   $('st-view-main').style.transform = '';
   _stActiveSub.classList.remove('active');
-  $('st-view-main').classList.remove('shifted');
-  setTimeout(() => { _stActiveSub = null; }, 350);
+  $('st-view-main').classList.remove('faded');
+  setTimeout(() => { _stActiveSub = null; }, 250);
 }
-
-document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
-  view.addEventListener('touchstart', e => {
-    if (e.touches[0].clientX > 40) return;
-    _stIsSwiping = true;
-    _stTouchStartX = e.touches[0].clientX;
-    view.classList.add('anim-none');
-    $('st-view-main').classList.add('anim-none');
-  }, { passive: true });
-
-  view.addEventListener('touchmove', e => {
-    if (!_stIsSwiping) return;
-    _stTouchCurrentX = Math.max(0, e.touches[0].clientX - _stTouchStartX);
-    const progress = _stTouchCurrentX / window.innerWidth;
-    view.style.transform = `translateX(${_stTouchCurrentX}px)`;
-    $('st-view-main').style.transform = `translateX(-${30 * (1 - progress)}%)`;
-  }, { passive: true });
-
-  view.addEventListener('touchend', e => {
-    if (!_stIsSwiping) return;
-    _stIsSwiping = false;
-    view.classList.remove('anim-none');
-    $('st-view-main').classList.remove('anim-none');
-    if (_stTouchCurrentX > window.innerWidth / 3) {
-      closeSettingsSubView();
-    } else {
-      view.style.transform = '';
-      $('st-view-main').style.transform = '';
-    }
-    _stTouchStartX = 0; _stTouchCurrentX = 0;
-  });
-});
 
 $('prof-row').onclick = (e) => { e.stopPropagation(); _handleOpenProfile(); };
 $('sb-prof-back').onclick = closeProfile;
@@ -2111,136 +2076,13 @@ function _hidePanelBackdrop() {
   if (el) el.classList.remove('visible');
 }
 
-/* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
-// Prevent double-fire: touchend + click on same tap
+/* ══ PROFILE OPEN HANDLER ════ */
 let _profileTouchFired = false;
 
-// ── Mobile self-profile panel ──
-function _openMobileSelfProfile() {
-  if (!S.user) return;
-  const u = S.user;
-  const panel = $('mobile-self-profile');
-  if (!panel) { openProfile(); return; }
-
-  const nameEl = $('msp-name');
-  if (nameEl) nameEl.textContent = u.nickname || u.email || '—';
-
-  const statusEl = $('msp-status');
-  if (statusEl) {
-    statusEl.textContent = 'в сети';
-    statusEl.className = 'msp-status on';
-  }
-
-  const avatarEl = $('msp-avatar');
-  if (avatarEl) avatarEl.innerHTML = aviHtml(u.nickname || u.email, u.avatar_url);
-
-  const sidRow = $('msp-row-sid');
-  const sidVal = $('msp-sid-val');
-  if (u.signal_id && sidRow && sidVal) {
-    sidRow.style.display = '';
-    sidVal.textContent = '@' + u.signal_id;
-    sidRow.onclick = () => {
-      navigator.clipboard.writeText('@' + u.signal_id).then(() => toast('Initial ID скопирован', 'ok'));
-    };
-    sidRow.style.cursor = 'pointer';
-  } else if (sidRow) {
-    sidRow.style.display = 'none';
-  }
-
-  const bioRow = $('msp-row-bio');
-  const bioVal = $('msp-bio-val');
-  if (u.bio && bioRow && bioVal) {
-    bioRow.style.display = '';
-    bioVal.innerHTML = typeof fmtText === 'function' ? fmtText(u.bio) : u.bio;
-  } else if (bioRow) {
-    bioRow.style.display = 'none';
-  }
-
-  const emailRow = $('msp-row-email');
-  const emailVal = $('msp-email-val');
-  if (u.email && emailRow && emailVal) {
-    emailRow.style.display = '';
-    emailVal.textContent = u.email;
-  } else if (emailRow) {
-    emailRow.style.display = 'none';
-  }
-
-  panel.classList.add('open');
-  _showPanelBackdrop();
-  history.pushState({ mobileSelfProfile: true }, '');
-}
-
-function _closeMobileSelfProfile() {
-  const panel = $('mobile-self-profile');
-  if (panel) panel.classList.remove('open');
-  _hidePanelBackdrop();
-}
-
-// Back button handler
-document.getElementById('msp-back')?.addEventListener('click', () => {
-  _closeMobileSelfProfile();
-  history.back();
-});
-
-// Avatar upload handler — reuse the same upload logic as settings
-document.getElementById('msp-avi-input')?.addEventListener('change', function() {
-  if (!this.files || !this.files[0]) return;
-  const file = this.files[0];
-  if (file.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс. 10 МБ)', 'err'); return; }
-  const fd = new FormData();
-  fd.append('avatar', file);
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', API + '/update_avatar');
-  xhr.setRequestHeader('Authorization', 'Bearer ' + S.token);
-  xhr.onload = function() {
-    try {
-      const res = JSON.parse(xhr.responseText);
-      if (res.ok) {
-        toast('Аватар обновлён', 'ok');
-        if (S.user) S.user.avatar_url = res.avatar_url;
-        localStorage.setItem('sg_user', JSON.stringify(S.user));
-        _openMobileSelfProfile(); // refresh panel
-        // Also update settings panel avatar if loaded
-        const pmAv = $('pm-av');
-        if (pmAv) pmAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
-        const footAv = $('foot-av');
-        if (footAv) footAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
-      } else {
-        toast(res.message || 'Ошибка загрузки', 'err');
-      }
-    } catch(e) { toast('Ошибка загрузки', 'err'); }
-  };
-  xhr.onerror = function() { toast('Ошибка сети', 'err'); };
-  xhr.send(fd);
-  this.value = '';
-});
-
-// "Фото" button — trigger file input
-document.getElementById('msp-btn-photo')?.addEventListener('click', () => {
-  document.getElementById('msp-avi-input')?.click();
-});
-
-// "Изменить" button — open profile edit in settings panel
-document.getElementById('msp-btn-edit')?.addEventListener('click', () => {
-  _closeMobileSelfProfile();
-  openProfile();
-  // Navigate to profile edit subview after a short delay
-  setTimeout(() => {
-    const profBtn = document.querySelector('[data-goto="st-view-prof"]');
-    if (profBtn) profBtn.click();
-  }, 350);
-});
-
-// "Настройки" button — open settings panel
-document.getElementById('msp-btn-settings')?.addEventListener('click', () => {
-  _closeMobileSelfProfile();
-  openProfile();
-});
-
-// "Вы" button — always opens self profile panel (both mobile and desktop)
 function _handleOpenProfile() {
-  _openMobileSelfProfile();
+  openProfile();
 }
+
 document.getElementById('btn-mobile-nav-profile')?.addEventListener('touchend', (e) => {
   e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
 }, { passive: false });
