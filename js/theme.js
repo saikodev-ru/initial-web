@@ -54,7 +54,7 @@ function applyTheme(name) {
   document.querySelectorAll('.tg-theme-card').forEach(c => c.classList.toggle('active', c.dataset.theme === name));
   try { localStorage.setItem('sg_theme', name); } catch {}
   const metaTheme = document.querySelector('meta[name="theme-color"]');
-  if (metaTheme) metaTheme.content = vars['--bg'];
+  if (metaTheme) metaTheme.content = 'transparent';
 }
 
 const _savedTheme = (() => { try { return localStorage.getItem('sg_theme') || 'dark'; } catch { return 'dark'; } })();
