@@ -415,7 +415,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .srch input:focus{border-color:var(--yb);background:var(--ybg)}.srch input::placeholder{color:var(--t3)}
 .srch-ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);pointer-events:none}.srch-ic svg{width:13px;height:13px}
 .chat-list{flex:1;overflow-y:auto;padding:4px 0}
-.ci{display:flex;align-items:center;gap:11px;padding:10px 16px;cursor:pointer;transition:background .12s;position:relative;contain:content;touch-action:manipulation}
+.ci{display:flex;align-items:center;gap:11px;padding:10px 16px;cursor:pointer;transition:background .12s;position:relative;contain:content;touch-action:manipulation;height:68px;overflow:hidden}
 .ci:hover{background:var(--s0)}.ci.active{background:var(--ybg)}
 
 /* ── Chat list dividers ── */
@@ -840,7 +840,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   display: flex; flex-direction: column;
   background: transparent;
   overflow-y: auto; overflow-x: hidden;
-  transition: opacity .32s cubic-bezier(.22,1,.36,1), transform .32s cubic-bezier(.22,1,.36,1);
+  transition: opacity .42s cubic-bezier(.22,1,.36,1), transform .42s cubic-bezier(.32,.72,0,1);
   will-change: transform, opacity;
 }
 .sb-settings-view.st-main {
@@ -850,7 +850,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   z-index: 2;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(30px);
+  transform: translateX(50px);
 }
 .sb-settings-view.st-sub.active {
   opacity: 1;
@@ -860,7 +860,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .sb-settings-view.st-main.faded {
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-30px) scale(.97);
+  transform: translateX(-50px) scale(.96);
 }
 .st-sub.anim-none, .st-main.anim-none { transition: none !important; }
 
@@ -1041,6 +1041,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .pwa-install-arrow {
   color: rgba(255,255,255,.2); flex-shrink: 0; margin-left: 4px;
 }
+.pwa-install-arrow svg { width: 12px; height: 20px; }
 
 /* ── Accent Color Picker ── */
 .accent-picker {
@@ -1060,6 +1061,51 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   font-size: 13px; font-weight: 700; color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,.4);
 }
+.accent-swatch-custom {
+  position: relative;
+  background: conic-gradient(red,yellow,lime,aqua,blue,magenta,red) !important;
+  overflow: hidden;
+}
+.accent-swatch-custom.active { border-color: var(--t1); }
+.accent-swatch-custom.active::after { display: none; }
+.accent-swatch-custom .pipette-svg {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.accent-swatch-custom .pipette-svg svg {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.4));
+}
+
+/* Inline accent hex picker inside settings */
+.accent-hex-inline {
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height .35s cubic-bezier(.32,.72,0,1), opacity .25s ease, padding .3s ease;
+  padding: 0 0;
+}
+.accent-hex-inline.open {
+  max-height: 80px; opacity: 1;
+  padding: 8px 0 0;
+}
+.accent-hex-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.accent-hex-row input[type="color"] {
+  width: 36px; height: 36px; border: none; border-radius: 8px;
+  cursor: pointer; background: transparent; padding: 0; flex-shrink: 0;
+}
+.accent-hex-row input[type="text"] {
+  flex: 1; background: var(--s2); border: 1px solid var(--b2);
+  border-radius: 8px; color: var(--t1); font-family: var(--font);
+  font-size: 14px; padding: 8px 10px; outline: none;
+}
+.accent-hex-apply {
+  background: var(--y); color: #fff; border: none;
+  border-radius: 8px; padding: 8px 14px; font-size: 13px;
+  font-weight: 600; cursor: pointer; font-family: var(--font);
+  transition: opacity .15s; flex-shrink: 0;
+}
+.accent-hex-apply:active { opacity: .7; }
 .accent-auto-btn {
   font-size: 12px; color: var(--y); background: var(--ybg);
   border: 1px solid var(--yb); border-radius: 8px;
