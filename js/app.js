@@ -1201,6 +1201,14 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
 window.addEventListener('popstate', (e) => {
   if (window.innerWidth > 680) return;
   if (_closingProfile) { _closingProfile = false; return; }
+
+  // Check mobile self-profile panel first
+  const mspPanel = $('mobile-self-profile');
+  if (mspPanel && mspPanel.classList.contains('open')) {
+    mspPanel.classList.remove('open');
+    return;
+  }
+
   const panel = $('sb-profile-panel');
   if (!panel || !panel.classList.contains('open')) return;
 
@@ -2114,8 +2122,135 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
 // Prevent double-fire: touchend + click on same tap
 let _profileTouchFired = false;
-function _handleOpenProfile() {
+
+// ── Mobile self-profile panel ──
+function _openMobileSelfProfile() {
+  if (!S.user) return;
+  const u = S.user;
+  const panel = $('mobile-self-profile');
+  if (!panel) { openProfile(); return; }
+
+  // Populate fields
+  const nameEl = $('msp-name');
+  if (nameEl) nameEl.textContent = u.nickname || u.email || '—';
+
+  const statusEl = $('msp-status');
+  if (statusEl) {
+    statusEl.textContent = 'в сети';
+    statusEl.className = 'msp-status on';
+  }
+
+  const avatarEl = $('msp-avatar');
+  if (avatarEl) avatarEl.innerHTML = aviHtml(u.nickname || u.email, u.avatar_url);
+
+  const sidRow = $('msp-row-sid');
+  const sidVal = $('msp-sid-val');
+  if (u.signal_id && sidRow && sidVal) {
+    sidRow.style.display = '';
+    sidVal.textContent = '@' + u.signal_id;
+    sidRow.onclick = () => {
+      navigator.clipboard.writeText('@' + u.signal_id).then(() => toast('Initial ID скопирован', 'ok'));
+    };
+    sidRow.style.cursor = 'pointer';
+  } else if (sidRow) {
+    sidRow.style.display = 'none';
+  }
+
+  const bioRow = $('msp-row-bio');
+  const bioVal = $('msp-bio-val');
+  if (u.bio && bioRow && bioVal) {
+    bioRow.style.display = '';
+    bioVal.textContent = u.bio;
+  } else if (bioRow) {
+    bioRow.style.display = 'none';
+  }
+
+  const emailRow = $('msp-row-email');
+  const emailVal = $('msp-email-val');
+  if (u.email && emailRow && emailVal) {
+    emailRow.style.display = '';
+    emailVal.textContent = u.email;
+  } else if (emailRow) {
+    emailRow.style.display = 'none';
+  }
+
+  panel.classList.add('open');
+  history.pushState({ mobileSelfProfile: true }, '');
+}
+
+function _closeMobileSelfProfile() {
+  const panel = $('mobile-self-profile');
+  if (panel) panel.classList.remove('open');
+}
+
+// Back button handler
+document.getElementById('msp-back')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
+  history.back();
+});
+
+// Avatar upload handler — reuse the same upload logic as settings
+document.getElementById('msp-avi-input')?.addEventListener('change', function() {
+  if (!this.files || !this.files[0]) return;
+  const file = this.files[0];
+  if (file.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс. 10 МБ)', 'err'); return; }
+  const fd = new FormData();
+  fd.append('avatar', file);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', API + '/update_avatar');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + S.token);
+  xhr.onload = function() {
+    try {
+      const res = JSON.parse(xhr.responseText);
+      if (res.ok) {
+        toast('Аватар обновлён', 'ok');
+        if (S.user) S.user.avatar_url = res.avatar_url;
+        localStorage.setItem('sg_user', JSON.stringify(S.user));
+        _openMobileSelfProfile(); // refresh panel
+        // Also update settings panel avatar if loaded
+        const pmAv = $('pm-av');
+        if (pmAv) pmAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
+        const footAv = $('foot-av');
+        if (footAv) footAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
+      } else {
+        toast(res.message || 'Ошибка загрузки', 'err');
+      }
+    } catch(e) { toast('Ошибка загрузки', 'err'); }
+  };
+  xhr.onerror = function() { toast('Ошибка сети', 'err'); };
+  xhr.send(fd);
+  this.value = '';
+});
+
+// "Фото" button — trigger file input
+document.getElementById('msp-btn-photo')?.addEventListener('click', () => {
+  document.getElementById('msp-avi-input')?.click();
+});
+
+// "Изменить" button — open profile edit in settings panel
+document.getElementById('msp-btn-edit')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
   openProfile();
+  // Navigate to profile edit subview after a short delay
+  setTimeout(() => {
+    const profBtn = document.querySelector('[data-goto="st-view-prof"]');
+    if (profBtn) profBtn.click();
+  }, 350);
+});
+
+// "Настройки" button — open settings panel
+document.getElementById('msp-btn-settings')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
+  openProfile();
+});
+
+// "Вы" button — mobile: self profile panel; desktop: settings panel
+function _handleOpenProfile() {
+  if (window.innerWidth <= 680) {
+    _openMobileSelfProfile();
+  } else {
+    openProfile();
+  }
 }
 document.getElementById('btn-mobile-nav-profile')?.addEventListener('touchend', (e) => {
   e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
@@ -2124,13 +2259,15 @@ document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', (e)
   if (_profileTouchFired) { _profileTouchFired = false; return; }
   e.stopPropagation(); _handleOpenProfile();
 });
-_profileTouchFired = false;
+
+// Gear icon — always opens settings panel
+let _gearTouchFired = false;
 document.getElementById('btn-mobile-title-gear')?.addEventListener('touchend', (e) => {
-  e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
+  e.preventDefault(); _gearTouchFired = true; openProfile();
 }, { passive: false });
 document.getElementById('btn-mobile-title-gear')?.addEventListener('click', (e) => {
-  if (_profileTouchFired) { _profileTouchFired = false; return; }
-  e.stopPropagation(); _handleOpenProfile();
+  if (_gearTouchFired) { _gearTouchFired = false; return; }
+  e.stopPropagation(); openProfile();
 });
 document.getElementById('btn-mobile-title-plus')?.addEventListener('click', () => openMod('modal-create'));
 document.getElementById('btn-mobile-title-plus')?.addEventListener('touchend', (e) => { e.preventDefault(); openMod('modal-create'); }, { passive: false });
@@ -2187,9 +2324,11 @@ document.getElementById('btn-mobile-title-plus')?.addEventListener('touchend', (
   window.addEventListener('popstate', (e) => {
     if (window.innerWidth > 680) return;
     if (_closingModal) { _closingModal = false; return; }
-    // If settings panel is handling its own back, skip
+    // If settings panel or mobile self-profile is handling its own back, skip
     const panel = document.getElementById('sb-profile-panel');
     if (panel && panel.classList.contains('open')) return;
+    const mspPanel = document.getElementById('mobile-self-profile');
+    if (mspPanel && mspPanel.classList.contains('open')) return;
     if (_modalStack.length) {
       const topId = _modalStack[_modalStack.length - 1];
       closeMod(topId);

@@ -2366,6 +2366,11 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .epicker{max-height:55dvh}
   .emo-grid-wrap{max-height:calc(55dvh - 120px)}
 
+  /* ── Mobile self-profile panel (hidden on desktop) ── */
+  .mobile-self-profile {
+    display: none;
+  }
+
   /* Settings panel slides from the left on mobile — full screen, no shadow */
   .sb-profile-panel {
     left: 0;
@@ -2419,6 +2424,227 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Hide sidebar footer on mobile — profile is now in the navbar */
   .sb-foot {
     display: none;
+  }
+
+  /* ── Mobile self-profile panel ── */
+  .mobile-self-profile {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0;
+    z-index: 1600;
+    background: var(--bg);
+    transform: translateX(-100%);
+    transition: transform .3s cubic-bezier(.25,1,.5,1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mobile-self-profile.open {
+    transform: translateX(0);
+  }
+
+  .msp-header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 8px 4px 4px;
+    background: var(--bg);
+  }
+  .msp-back {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--t1);
+    transition: background .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .msp-back:active {
+    background: rgba(255,255,255,.08);
+  }
+
+  .msp-avatar-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 20px 16px;
+  }
+  .msp-avatar-wrap {
+    position: relative;
+    cursor: pointer;
+    margin-bottom: 14px;
+  }
+  .msp-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--solid1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--t2);
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px rgba(139,92,246,.4), 0 4px 16px rgba(0,0,0,.25);
+  }
+  .msp-avatar img,
+  .msp-avatar canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .msp-avatar-cam {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--y);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    border: 3px solid var(--bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .msp-name {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--t1);
+    letter-spacing: -.4px;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .msp-status {
+    font-size: 14px;
+    color: var(--t3);
+    text-align: center;
+  }
+  .msp-status.on { color: var(--green); }
+
+  .msp-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 20px;
+    justify-content: center;
+  }
+  .msp-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,.06);
+    border: none;
+    border-radius: 14px;
+    padding: 14px 18px;
+    cursor: pointer;
+    color: var(--t2);
+    transition: background .15s, color .15s, transform .12s;
+    -webkit-tap-highlight-color: transparent;
+    min-width: 80px;
+  }
+  .msp-action-btn:active {
+    background: rgba(255,255,255,.12);
+    transform: scale(.95);
+  }
+  .msp-action-btn span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--t2);
+    white-space: nowrap;
+  }
+
+  .msp-info-card {
+    margin: 0 16px 32px;
+    background: rgba(255,255,255,.04);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .msp-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    cursor: default;
+  }
+  .msp-info-row + .msp-info-row {
+    border-top: 1px solid var(--b);
+  }
+  .msp-info-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(139,92,246,.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--y);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .msp-info-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .msp-info-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--t1);
+    word-break: break-all;
+    line-height: 1.4;
+  }
+  .msp-info-label {
+    font-size: 12.5px;
+    color: var(--t3);
+    margin-top: 2px;
+  }
+
+  /* ── Settings panel mobile refinements (Image 2 style) ── */
+  .tg-settings-hero {
+    padding: calc(50px + env(safe-area-inset-top, 0px)) 20px 20px;
+  }
+  .tg-hero-avi-wrap {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 14px;
+  }
+  .tg-hero-avi-wrap .avi-upl-img {
+    width: 90px;
+    height: 90px;
+  }
+  .tg-hero-name {
+    font-size: 22px;
+  }
+  .tg-settings-body {
+    padding: 0 8px 40px;
+    gap: 6px;
+  }
+  .tg-row {
+    padding: 13px 12px;
+    border-radius: 12px;
+  }
+  .tg-row-ic {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .tg-row-ic svg {
+    width: 18px;
+    height: 18px;
+  }
+  .tg-row-lbl {
+    font-size: 15px;
   }
 }
 
