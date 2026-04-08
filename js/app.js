@@ -1999,7 +1999,7 @@ function updateMobilePageTitle(nav) {
   if (el) el.textContent = NAV_TITLES[nav] || 'Сообщения';
 }
 
-document.getElementById('btn-nav-settings')?.addEventListener('click', () => openProfile());
+document.getElementById('btn-nav-settings')?.addEventListener('click', (e) => { e.stopPropagation(); openProfile(); });
 const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
