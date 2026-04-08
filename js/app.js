@@ -922,7 +922,9 @@ function _updateHeroNameUI(u, customName) {
 }
 
 function openProfile() {
+  console.log('[openProfile] called, S.user=', !!S.user);
   if (!S.user) return;
+  try {
   const u = S.user;
   $('pm-name').value = u.nickname || '';
   $('pm-sid').value = u.signal_id || '';
@@ -941,6 +943,11 @@ function openProfile() {
   loadSessions();
   $('sb-profile-panel').classList.add('open');
 
+  // On mobile: push history state so system back gesture works
+  if (window.innerWidth <= 680) {
+    history.pushState({ settingsPanel: true }, '');
+  }
+
   // Синхронизируем профиль с сервером на случай, если кэш устарел (подтягиваем bio)
   api('get_me', 'GET').then(res => {
     if (res && res.ok && res.user) {
@@ -955,6 +962,7 @@ function openProfile() {
       }
     }
   }).catch(() => { });
+  } catch(err) { console.error('[openProfile] ERROR:', err); }
 }
 
 async function loadSessions() {
@@ -1095,6 +1103,11 @@ $('btn-link-device').onclick = () => openLinkDeviceModal();
 })();
 function closeProfile() {
   $('sb-profile-panel').classList.remove('open');
+  // On mobile: go back in history to remove our pushed state (without triggering popstate handler)
+  if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+    _closingProfile = true;
+    history.back();
+  }
   // Reset all sub-views instantly so next open always starts at main page
   if (_stActiveSub) {
     _stActiveSub.classList.add('anim-none');
@@ -1117,6 +1130,7 @@ let _stActiveSub = null;
 let _stTouchStartX = 0;
 let _stTouchCurrentX = 0;
 let _stIsSwiping = false;
+let _closingProfile = false; // Prevent popstate loop when closing profile
 
 document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(btn => {
   btn.onclick = () => {
@@ -1127,6 +1141,10 @@ document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(
     $('st-view-main').classList.remove('anim-none');
     $('st-view-main').classList.add('shifted');
     target.classList.add('active');
+    // On mobile: push history for sub-view so back gesture returns to main settings
+    if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+      history.pushState({ settingsPanel: true, settingsSub: true }, '');
+    }
   };
 });
 
@@ -1179,7 +1197,85 @@ document.querySelectorAll('.sb-settings-view.st-sub').forEach(view => {
   });
 });
 
-$('prof-row').onclick = openProfile;
+/* ── SYSTEM BACK GESTURE FOR SETTINGS (MOBILE) ── */
+window.addEventListener('popstate', (e) => {
+  if (window.innerWidth > 680) return;
+  if (_closingProfile) { _closingProfile = false; return; }
+
+  // Check mobile self-profile panel first
+  const mspPanel = $('mobile-self-profile');
+  if (mspPanel && mspPanel.classList.contains('open')) {
+    mspPanel.classList.remove('open');
+    return;
+  }
+
+  const panel = $('sb-profile-panel');
+  if (!panel || !panel.classList.contains('open')) return;
+
+  if (_stActiveSub) {
+    // In a sub-view: go back to main settings view
+    closeSettingsSubView();
+  } else {
+    // On main settings view: close the panel
+    panel.classList.remove('open');
+    // Reset sub-views
+    if (_stActiveSub) {
+      _stActiveSub.classList.add('anim-none');
+      $('st-view-main').classList.add('anim-none');
+      _stActiveSub.classList.remove('active');
+      $('st-view-main').classList.remove('shifted');
+      _stActiveSub.style.transform = '';
+      $('st-view-main').style.transform = '';
+      const _sub = _stActiveSub;
+      _stActiveSub = null;
+      setTimeout(() => {
+        _sub.classList.remove('anim-none');
+        $('st-view-main').classList.remove('anim-none');
+      }, 20);
+    }
+  }
+});
+
+/* ── EDGE SWIPE TO CLOSE SETTINGS PANEL ON MOBILE ── */
+(function() {
+  const panel = $('sb-profile-panel');
+  if (!panel) return;
+  let _panelSwipeStartX = 0;
+  let _panelSwipeCurrentX = 0;
+  let _panelIsSwiping = false;
+
+  panel.addEventListener('touchstart', e => {
+    // Only respond to left-edge swipes (standard Android back gesture)
+    if (e.touches[0].clientX > 20) return;
+    if (_stActiveSub) return; // Let sub-view handler take over
+    _panelIsSwiping = true;
+    _panelSwipeStartX = e.touches[0].clientX;
+    panel.classList.add('anim-none');
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', e => {
+    if (!_panelIsSwiping) return;
+    _panelSwipeCurrentX = Math.max(0, e.touches[0].clientX - _panelSwipeStartX);
+    const progress = _panelSwipeCurrentX / window.innerWidth;
+    // Panel slides from the left on mobile; swipe right from left edge = close
+    panel.style.transform = `translateX(${-progress * 100}%)`;
+  }, { passive: true });
+
+  panel.addEventListener('touchend', () => {
+    if (!_panelIsSwiping) return;
+    _panelIsSwiping = false;
+    panel.classList.remove('anim-none');
+    if (_panelSwipeCurrentX > window.innerWidth / 4) {
+      closeProfile();
+    } else {
+      panel.style.transform = '';
+    }
+    _panelSwipeStartX = 0;
+    _panelSwipeCurrentX = 0;
+  });
+})();
+
+$('prof-row').onclick = openSelfModal;
 $('sb-prof-back').onclick = closeProfile;
 if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
 
@@ -1457,12 +1553,30 @@ $('tog-notif').onclick = async () => {
     if (Notification.permission === 'denied') {
       toast('Уведомления заблокированы в настройках браузера — разрешите вручную', 'err'); return;
     }
+    // Check FCM support first
+    if (window.isFCMSupported && !window.isFCMSupported()) {
+      const reason = window.getFCMUnsupportedReason ? window.getFCMUnsupportedReason() : 'Push-уведомления не поддерживаются в этом браузере. Установите Chrome, Edge или Firefox.';
+      toast(reason, 'err');
+      return;
+    }
     const granted = await requestNotifPermission();
     if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
     S.notif.enabled = true;
-    toast('Уведомления включены', 'ok');
+    // FCM is the sole push channel
+    if (window.__fcmReady) {
+      const result = await window.registerFCM();
+      if (result && result.ok) {
+        toast('Уведомления включены', 'ok');
+      } else {
+        const reason = (result && result.reason) ? result.reason : 'Ошибка регистрации push-уведомлений';
+        toast(reason, 'err');
+      }
+    } else {
+      toast('Push-уведомления недоступны. Установите Chrome, Edge или Firefox.', 'err');
+    }
   } else {
     S.notif.enabled = false;
+    if (window.unregisterFCM) window.unregisterFCM();
     toast('Уведомления выключены');
   }
   saveNotif(); syncNotifUI();
@@ -1497,6 +1611,15 @@ $('tog-chat-dividers').onclick = () => {
   document.body.classList.toggle('chat-dividers', on);
   S.chatDividers = on;
   try { localStorage.setItem('sg_chat_dividers', on ? '1' : '0'); } catch(e){}
+};
+/* Two-line chat list mode */
+const TWO_LINE_KEY = 'sg_two_line_chat';
+const _twoLineOn = (() => { try { return localStorage.getItem(TWO_LINE_KEY) === '1'; } catch { return false; } })();
+if ($('tog-two-line')) { $('tog-two-line').classList.toggle('on', _twoLineOn); document.body.classList.toggle('two-line-chat', _twoLineOn); }
+if ($('tog-two-line')) $('tog-two-line').onclick = () => {
+  const on = $('tog-two-line').classList.toggle('on');
+  document.body.classList.toggle('two-line-chat', on);
+  try { localStorage.setItem(TWO_LINE_KEY, on ? '1' : '0'); } catch(e){}
 };
 
 $('btn-savepm').onclick = async () => {
@@ -1730,8 +1853,41 @@ function _boot() {
         if (S.chats && S.chats.length) renderChats('');
         // Restore last open chat after network chats load
         const _lastChatId = parseInt(localStorage.getItem('sg_last_chat') || '0', 10) || null;
-        loadChats().then(() => { if (_lastChatId) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); } }); 
+        loadChats().then(() => {
+          // Restore last chat (desktop)
+          if (_lastChatId && window.innerWidth > 680) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); }
+          // Process any pending notification action that arrived before chats loaded
+          if (_pendingNotifAction) _handleNotifAction(_pendingNotifAction.action, _pendingNotifAction.chatId);
+          // Push avatar data URLs to SW cache so background notifications show real avatars
+          if (typeof syncNotifDataToSW === 'function') setTimeout(syncNotifDataToSW, 500);
+        });
         startPoll(); startGlobalSSE(); syncNotifUI();
+        // Periodic sync of avatar data to SW (every 60s)
+        if (typeof syncNotifDataToSW === 'function') {
+          setInterval(syncNotifDataToSW, 60000);
+        }
+        // PWA: request notification permissions on first launch
+        if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
+          setTimeout(async () => {
+            if ('Notification' in window && Notification.permission === 'default') {
+              // Check FCM support before requesting permission
+              if (window.isFCMSupported && !window.isFCMSupported()) {
+                console.warn('[PWA] FCM not supported, skipping push setup');
+                return;
+              }
+              _unlockAudio();
+              const granted = await requestNotifPermission();
+              if (granted) {
+                S.notif.enabled = true;
+                saveNotif();
+                syncNotifUI();
+                // FCM is the sole push channel
+                if (window.__fcmReady) await window.registerFCM().catch(() => {});
+                toast('Уведомления включены', 'ok');
+              }
+            }
+          }, 1500);
+        }
         requestAnimationFrame(() => { const el = $('sb-title'); if (el) el.textContent = 'Сообщения'; });
       } else {
         showScr('scr-auth');
@@ -1837,12 +1993,61 @@ setTimeout(() => {
   setInterval(_syncMyProfile, 60_000);
 }, 10_000);
 
+/* ══ NOTIFICATION ACTION HANDLER ════════════════════════════════════════════
+   Called both from SW message listener and after chats load (pending action).
+   Handles: open, reply (focus input), markread.
+   ═══════════════════════════════════════════════════════════════════════════ */
+let _pendingNotifAction = null;
+
+function _handleNotifAction(action, chatId) {
+  if (!chatId) return;
+
+  var cid = parseInt(chatId, 10);
+  const chat = (S.chats || []).find(c => c.chat_id === cid);
+  if (!chat) {
+    // Chats not loaded yet — store and retry after next loadChats()
+    _pendingNotifAction = { action: action, chatId: chatId };
+    return;
+  }
+  _pendingNotifAction = null;
+
+  if (action === 'open' || action === 'reply') {
+    if (S.chatId !== cid && typeof openChat === 'function') {
+      openChat(chat);
+    }
+    if (action === 'reply') {
+      // Wait for chat panel to render before focusing
+      const _focusInput = (attempts) => {
+        const mfield = document.getElementById('mfield') || document.querySelector('.mfield');
+        if (mfield) { mfield.focus(); mfield.click(); return; }
+        if (attempts > 0) setTimeout(() => _focusInput(attempts - 1), 200);
+      };
+      setTimeout(() => _focusInput(15), 400);
+    }
+  } else if (action === 'markread') {
+    api('get_messages?chat_id=' + chatId + '&mark_read=1&skip_chats=1').catch(() => {});
+    if (typeof loadChats === 'function') loadChats().catch(() => {});
+    try { if (navigator.setAppBadge) navigator.setAppBadge(0); } catch(_) {}
+  }
+}
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'FCM_MSG') {
+    const data = event.data;
+    if (!data) return;
+
+    if (data.type === 'FCM_MSG') {
+      // If SW already showed a background notification, tell page handlers to skip
+      if (data.swHandled && data.payload?.chat_id) {
+        window._fcmBgHandled = { chatId: data.payload.chat_id, ts: Date.now() };
+      }
       if (window.pollNow) pollNow();
-    } else if (event.data?.type === 'FCM_CALL') {
+      if (typeof syncNotifDataToSW === 'function') setTimeout(syncNotifDataToSW, 2000);
+    } else if (data.type === 'FCM_CALL') {
       if (window.pollCallSignals) window.pollCallSignals();
+    } else if (data.type === 'NOTIF_ACTION') {
+      // Store action and process after chats are loaded (handles fresh-open race)
+      _handleNotifAction(data.action, data.chatId);
     }
   });
 }
@@ -1866,13 +2071,21 @@ if (_btnCreateChat) {
 }
 
 /* ══ NAV RAIL ═══════════════════════════════════════════════ */
+const NAV_TITLES = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+function updateMobilePageTitle(nav) {
+  const el = document.getElementById('sb-page-title');
+  if (el) el.textContent = NAV_TITLES[nav] || 'Сообщения';
+}
+
 document.getElementById('btn-nav-settings')?.addEventListener('click', () => openProfile());
 const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return; // Already on this page
     document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     const nav = btn.dataset.nav;
+    updateMobilePageTitle(nav);
     // Fade sidebar content during panel transition
     const listWrap = document.getElementById('sb-list-wrap');
     if (listWrap) {
@@ -1911,6 +2124,273 @@ document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
         panel.style.opacity = '1';
         panel.style.pointerEvents = 'auto';
       }
+    }
+  });
+});
+
+/* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
+// Prevent double-fire: touchend + click on same tap
+let _profileTouchFired = false;
+
+// ── Mobile self-profile panel ──
+function _openMobileSelfProfile() {
+  if (!S.user) return;
+  const u = S.user;
+  const panel = $('mobile-self-profile');
+  if (!panel) { openProfile(); return; }
+
+  // Populate fields
+  const nameEl = $('msp-name');
+  if (nameEl) nameEl.textContent = u.nickname || u.email || '—';
+
+  const statusEl = $('msp-status');
+  if (statusEl) {
+    statusEl.textContent = 'в сети';
+    statusEl.className = 'msp-status on';
+  }
+
+  const avatarEl = $('msp-avatar');
+  if (avatarEl) avatarEl.innerHTML = aviHtml(u.nickname || u.email, u.avatar_url);
+
+  const sidRow = $('msp-row-sid');
+  const sidVal = $('msp-sid-val');
+  if (u.signal_id && sidRow && sidVal) {
+    sidRow.style.display = '';
+    sidVal.textContent = '@' + u.signal_id;
+    sidRow.onclick = () => {
+      navigator.clipboard.writeText('@' + u.signal_id).then(() => toast('Initial ID скопирован', 'ok'));
+    };
+    sidRow.style.cursor = 'pointer';
+  } else if (sidRow) {
+    sidRow.style.display = 'none';
+  }
+
+  const bioRow = $('msp-row-bio');
+  const bioVal = $('msp-bio-val');
+  if (u.bio && bioRow && bioVal) {
+    bioRow.style.display = '';
+    bioVal.innerHTML = typeof fmtText === 'function' ? fmtText(u.bio) : u.bio;
+  } else if (bioRow) {
+    bioRow.style.display = 'none';
+  }
+
+  const emailRow = $('msp-row-email');
+  const emailVal = $('msp-email-val');
+  if (u.email && emailRow && emailVal) {
+    emailRow.style.display = '';
+    emailVal.textContent = u.email;
+  } else if (emailRow) {
+    emailRow.style.display = 'none';
+  }
+
+  panel.classList.add('open');
+  history.pushState({ mobileSelfProfile: true }, '');
+}
+
+function _closeMobileSelfProfile() {
+  const panel = $('mobile-self-profile');
+  if (panel) panel.classList.remove('open');
+}
+
+// Back button handler
+document.getElementById('msp-back')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
+  history.back();
+});
+
+// Avatar upload handler — reuse the same upload logic as settings
+document.getElementById('msp-avi-input')?.addEventListener('change', function() {
+  if (!this.files || !this.files[0]) return;
+  const file = this.files[0];
+  if (file.size > 10 * 1024 * 1024) { toast('Файл слишком большой (макс. 10 МБ)', 'err'); return; }
+  const fd = new FormData();
+  fd.append('avatar', file);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', API + '/update_avatar');
+  xhr.setRequestHeader('Authorization', 'Bearer ' + S.token);
+  xhr.onload = function() {
+    try {
+      const res = JSON.parse(xhr.responseText);
+      if (res.ok) {
+        toast('Аватар обновлён', 'ok');
+        if (S.user) S.user.avatar_url = res.avatar_url;
+        localStorage.setItem('sg_user', JSON.stringify(S.user));
+        _openMobileSelfProfile(); // refresh panel
+        // Also update settings panel avatar if loaded
+        const pmAv = $('pm-av');
+        if (pmAv) pmAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
+        const footAv = $('foot-av');
+        if (footAv) footAv.innerHTML = aviHtml(S.user.nickname || S.user.email, S.user.avatar_url);
+      } else {
+        toast(res.message || 'Ошибка загрузки', 'err');
+      }
+    } catch(e) { toast('Ошибка загрузки', 'err'); }
+  };
+  xhr.onerror = function() { toast('Ошибка сети', 'err'); };
+  xhr.send(fd);
+  this.value = '';
+});
+
+// "Фото" button — trigger file input
+document.getElementById('msp-btn-photo')?.addEventListener('click', () => {
+  document.getElementById('msp-avi-input')?.click();
+});
+
+// "Изменить" button — open profile edit in settings panel
+document.getElementById('msp-btn-edit')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
+  openProfile();
+  // Navigate to profile edit subview after a short delay
+  setTimeout(() => {
+    const profBtn = document.querySelector('[data-goto="st-view-prof"]');
+    if (profBtn) profBtn.click();
+  }, 350);
+});
+
+// "Настройки" button — open settings panel
+document.getElementById('msp-btn-settings')?.addEventListener('click', () => {
+  _closeMobileSelfProfile();
+  openProfile();
+});
+
+// "Вы" button — mobile: self profile panel; desktop: settings panel
+function _handleOpenProfile() {
+  if (window.innerWidth <= 680) {
+    _openMobileSelfProfile();
+  } else {
+    openProfile();
+  }
+}
+document.getElementById('btn-mobile-nav-profile')?.addEventListener('touchend', (e) => {
+  e.preventDefault(); _profileTouchFired = true; _handleOpenProfile();
+}, { passive: false });
+document.getElementById('btn-mobile-nav-profile')?.addEventListener('click', (e) => {
+  if (_profileTouchFired) { _profileTouchFired = false; return; }
+  e.stopPropagation(); _handleOpenProfile();
+});
+
+// Gear icon — always opens settings panel
+let _gearTouchFired = false;
+document.getElementById('btn-mobile-title-gear')?.addEventListener('touchend', (e) => {
+  e.preventDefault(); _gearTouchFired = true; openProfile();
+}, { passive: false });
+document.getElementById('btn-mobile-title-gear')?.addEventListener('click', (e) => {
+  if (_gearTouchFired) { _gearTouchFired = false; return; }
+  e.stopPropagation(); openProfile();
+});
+document.getElementById('btn-mobile-title-plus')?.addEventListener('click', () => openMod('modal-create'));
+document.getElementById('btn-mobile-title-plus')?.addEventListener('touchend', (e) => { e.preventDefault(); openMod('modal-create'); }, { passive: false });
+
+/* ══ MODAL: BACK SWIPE (MOBILE) + ESCAPE (DESKTOP) ═══════════ */
+(function() {
+  const _modalStack = [];
+
+  // Patch openMod to track open modals and push history on mobile
+  const _origOpenMod = window.openMod;
+  window.openMod = function(id) {
+    _origOpenMod(id);
+    const el = document.getElementById(id);
+    if (!el) return;
+    _modalStack.push(id);
+    if (window.innerWidth <= 680) {
+      history.pushState({ modal: id }, '');
+    }
+  };
+
+  // Patch closeMod to pop from stack
+  const _origCloseMod = window.closeMod;
+  window.closeMod = function(id) {
+    _origCloseMod(id);
+    const idx = _modalStack.indexOf(id);
+    if (idx !== -1) _modalStack.splice(idx, 1);
+    if (window.innerWidth <= 680 && history.state?.modal === id) {
+      _closingModal = true;
+      history.back();
+    }
+  };
+
+  // Also handle [data-close] buttons that call closeMod
+  document.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-close]');
+    if (closeBtn) {
+      // closeMod is already called by existing handlers, but ensure stack is clean
+      const id = closeBtn.dataset.close;
+      const idx = _modalStack.indexOf(id);
+      if (idx !== -1) _modalStack.splice(idx, 1);
+    }
+  });
+
+  // Close topmost modal on Escape (desktop)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _modalStack.length) {
+      const topId = _modalStack[_modalStack.length - 1];
+      closeMod(topId);
+    }
+  });
+
+  // Close topmost modal on system back gesture (mobile)
+  let _closingModal = false;
+  window.addEventListener('popstate', (e) => {
+    if (window.innerWidth > 680) return;
+    if (_closingModal) { _closingModal = false; return; }
+    // If settings panel or mobile self-profile is handling its own back, skip
+    const panel = document.getElementById('sb-profile-panel');
+    if (panel && panel.classList.contains('open')) return;
+    const mspPanel = document.getElementById('mobile-self-profile');
+    if (mspPanel && mspPanel.classList.contains('open')) return;
+    if (_modalStack.length) {
+      const topId = _modalStack[_modalStack.length - 1];
+      closeMod(topId);
+    }
+  });
+})();
+
+document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return; // Already on this page
+    document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const nav = btn.dataset.nav;
+    updateMobilePageTitle(nav);
+
+    // Fade sidebar content during panel transition
+    const listWrap = document.getElementById('sb-list-wrap');
+    if (listWrap) {
+      listWrap.classList.add('fading');
+      setTimeout(() => listWrap.classList.remove('fading'), 300);
+    }
+    // Hide all nav panels
+    document.querySelectorAll('.nav-panel').forEach(p => {
+      p.style.transform = 'translateX(100%)';
+      p.style.opacity = '0';
+      p.style.pointerEvents = 'none';
+    });
+    // Exit search if active
+    if (typeof exitSearch === 'function' && typeof sbSearchActive !== 'undefined' && sbSearchActive) exitSearch();
+    // Show/hide chat-list and search-results based on active nav
+    const chatList = document.getElementById('chat-list');
+    const searchResults = document.getElementById('sb-search-results');
+    if (nav === 'chats') {
+      chatList.style.transform = '';
+      chatList.style.opacity = '';
+      chatList.style.pointerEvents = '';
+      searchResults.style.transform = '';
+      searchResults.style.opacity = '';
+      searchResults.style.pointerEvents = '';
+    } else {
+      chatList.style.transform = 'translateX(-100%)';
+      chatList.style.opacity = '0';
+      chatList.style.pointerEvents = 'none';
+      searchResults.style.transform = 'translateX(100%)';
+      searchResults.style.opacity = '0';
+      searchResults.style.pointerEvents = 'none';
+    }
+
+    const panel = document.getElementById('panel-' + nav);
+    if (panel) {
+      panel.style.transform = 'translateX(0)';
+      panel.style.opacity = '1';
+      panel.style.pointerEvents = 'auto';
     }
   });
 });

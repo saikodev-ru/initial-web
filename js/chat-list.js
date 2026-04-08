@@ -212,6 +212,8 @@ function openChat(c){
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
     // Push state so Android/iOS back button works
     history.pushState({chat:c.chat_id},'','');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.add('hidden');
   }
 
   const area=$('msgs');
@@ -613,17 +615,13 @@ function syncChats(rawChats){
     } else if (!bodyText) {
        bodyText = (c.last_media_type==='video'?'🎥 Видео':c.last_media_type==='voice'?'🎤 Голосовое сообщение':'🖼 Фото')||'Новое сообщение';
     }
-    showNotif(name,bodyText);
-    // Rich notification with avatar
-    if (typeof showRichNotif === 'function') {
-      showRichNotif({
+    showRichNotif({
         senderName: name,
         senderAvatar: c.partner_avatar || null,
         body: bodyText,
         chatId: c.chat_id,
         onClick: function() { if (S.chatId !== c.chat_id) openChat(c); }
       });
-    }
   });
 
   // ── Update chat list with FLIP animation (no jumps) ─────────
@@ -736,6 +734,9 @@ let sbSearchActive=false,sbSearchTimer,_searchReqId=0;
 function enterSearch(){
   if(sbSearchActive)return;
   sbSearchActive=true;
+  // Update mobile page title to "Поиск"
+  const mobTitle = document.getElementById('sb-page-title');
+  if (mobTitle) mobTitle.textContent = 'Поиск';
   // Hide any active nav-panels and clear their inline styles so CSS can take over
   document.querySelectorAll('.nav-panel').forEach(p => {
     p.style.transform = 'translateX(100%)';
@@ -771,6 +772,13 @@ function exitSearch(){
   $('sidebar').classList.remove('searching');
   $('sb-q').value='';
   if($('sb-title')) $('sb-title').textContent = 'Сообщения';
+  // Restore mobile page title to current nav title
+  const mobTitle = document.getElementById('sb-page-title');
+  if (mobTitle) {
+    const activeNav = document.querySelector('.mobile-nav-btn.active[data-nav], .nav-rail-btn.active[data-nav]');
+    const navMap = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+    mobTitle.textContent = navMap[activeNav?.dataset.nav] || 'Сообщения';
+  }
   renderChats('');
   // Снимаем will-change после завершения transition (~300ms)
   const panels=document.querySelectorAll('.sb-panel');
@@ -956,6 +964,8 @@ async function startChat(u){
     $('sidebar').classList.add('hidden');
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
     history.pushState({chat:0},'','');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.add('hidden');
   }
   renderEmptyChat(0);
   mfield.focus();
@@ -971,6 +981,8 @@ function goBackToList(){
     // Slide chat out to the right, slide sidebar in from left
     $('active-chat').classList.remove('mb-visible');
     $('sidebar').classList.remove('hidden');
+    const mbNav = document.getElementById('mobile-bottom-nav');
+    if(mbNav) mbNav.classList.remove('hidden');
     setTimeout(()=>{
       S.chatId=null;
       $('active-chat').style.display='';
@@ -1027,7 +1039,12 @@ document.addEventListener('keydown', e => {
 
 // System back (Android hardware button, browser back gesture)
 window.addEventListener('popstate',e=>{
+  // Don't close chat if settings panel or a modal is handling the back gesture
   if(window.innerWidth<=680&&$('active-chat').classList.contains('mb-visible')){
+    const panel = $('sb-profile-panel');
+    if (panel && panel.classList.contains('open')) return;
+    // Check if any modal is open
+    if (document.querySelector('.overlay.on')) return;
     goBackToList();
   }
 });

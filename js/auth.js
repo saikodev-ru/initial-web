@@ -1186,6 +1186,9 @@ function updateFooter() {
   fn.style.display = 'flex'; fn.style.alignItems = 'center'; fn.style.gap = '3px';
   $('foot-id').textContent = u.signal_id ? `@${u.signal_id}` : u.email;
   $('foot-av').innerHTML   = aviHtml(u.nickname || u.email, u.avatar_url);
+  // Update mobile navbar avatar
+  var mobileNavAv = document.getElementById('mobile-nav-av');
+  if (mobileNavAv) mobileNavAv.innerHTML = aviHtml(u.nickname || u.email, u.avatar_url);
 }
 
 function syncNotifUI() {

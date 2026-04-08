@@ -458,17 +458,13 @@ async function fetchMsgs(chatId,init=false){
             else if (type === 'missed') txt = '📞 Пропущенный звонок';
             else txt = '📞 Отклонённый звонок';
           }
-          showNotif(m.nickname||'Initial',txt);
-          // Rich notification with avatar (if available)
-          if (typeof showRichNotif === 'function') {
-            showRichNotif({
+          showRichNotif({
               senderName: m.nickname || 'Initial',
               senderAvatar: m.avatar_url || null,
               body: m.body || txt,
               chatId: chatId,
               onClick: function() { if (S.chatId !== chatId) { var c = S.chats.find(function(ch){ return ch.chat_id === chatId; }); if (c) openChat(c); } }
             });
-          }
         }
       }
     });

@@ -28,6 +28,11 @@ register_shutdown_function(function () {
 
 require_once __DIR__ . '/config.php';
 
+// Load Web Push VAPID config if the file exists
+if (file_exists(__DIR__ . '/push_config.php')) {
+    require_once __DIR__ . '/push_config.php';
+}
+
 // ── PDO-соединение (singleton) ───────────────────────────────
 function db(): PDO {
     static $pdo = null;
@@ -718,22 +723,16 @@ function sendLoginNotification(int $userId): void {
     sendSystemMsg($userId, $body);
 }
 
-// ── Push-уведомление через FCM v1 (data-only) ────────────────
+// ── Push-уведомление (FCM only) ──────────────────────────────
 function send_push(string $token, string $title, string $body, array $data = []): void
 {
     if (empty($token)) return;
 
     $accessToken = get_fcm_access_token();
-    if (!$accessToken) {
-        error_log('FCM: access token не получен — проверьте FCM_SERVICE_ACCOUNT_JSON в config.php');
-        return;
-    }
+    if (!$accessToken) return;
 
     $projectId = defined('FCM_PROJECT_ID') ? FCM_PROJECT_ID : getenv('FCM_PROJECT_ID');
-    if (empty($projectId)) {
-        error_log('FCM: FCM_PROJECT_ID не задан в config.php');
-        return;
-    }
+    if (empty($projectId)) return;
 
     $strData = array_map('strval', array_merge($data, [
         'title'         => $title,
@@ -770,6 +769,13 @@ function send_push(string $token, string $title, string $body, array $data = [])
     if ($httpCode !== 200) {
         error_log("FCM error {$httpCode}: {$response}");
     }
+}
+
+// ── Web Push (VAPID) — DEPRECATED, kept as no-op for backward compat ──
+function send_web_push_to_user(int $userId, string $title, string $body, array $data = []): void
+{
+    // FCM is now the sole push channel. This function is a no-op.
+    error_log('WebPush: send_web_push_to_user() is deprecated — FCM handles all pushes');
 }
 
 // ============================================================
