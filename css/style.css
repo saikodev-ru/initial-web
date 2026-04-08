@@ -921,7 +921,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 
 /* ── Settings body ── */
 .tg-settings-body {
-  padding: 0 10px 24px;
+  padding: 0 20px 24px;
   display: flex; flex-direction: column; gap: 6px;
 }
 .sb-profile-panel.open .tg-settings-body > * {
@@ -972,7 +972,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .tg-row.danger .tg-row-ic { background: var(--red) !important; color: #fff; }
 .tg-row.danger .tg-row-lbl { color: var(--red); }
 .tg-row-ic {
-  width: 26px; height: 26px; border-radius: 7px;
+  width: 24px; height: 24px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   margin-right: 13px; flex-shrink: 0; color: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,.18), inset 0 0 0 .5px rgba(255,255,255,.08);
@@ -981,24 +981,28 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .tg-row-ic::after {
   content:'';
   position:absolute; top:0; left:1px; right:1px; height:50%;
-  border-radius: 6px 6px 50% 50%;
+  border-radius: 5px 5px 50% 50%;
   background: linear-gradient(180deg, rgba(255,255,255,.34) 0%, rgba(255,255,255,.06) 65%, transparent 100%);
   pointer-events:none;
 }
 .tg-row-ic::before {
   content:'';
   position:absolute; bottom:0; left:0; right:0; height:40%;
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 6px 6px;
   background: linear-gradient(0deg, rgba(0,0,0,.10) 0%, rgba(0,0,0,0) 100%);
   pointer-events:none;
 }
-.tg-row-ic svg   { width: 14px; height: 14px; position: relative; z-index: 1; }
+.tg-row-ic svg   { width: 12px; height: 12px; position: relative; z-index: 1; }
 .tg-row-body     { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
 .tg-row-lbl      { color: var(--t1); font-size: 14px; font-weight: 500; line-height: 1.2; }
 .tg-row-sub      { color: var(--t3); font-size: 12px; line-height: 1.2; }
 .tg-row-arr      { color: rgba(255,255,255,.2); font-size: 20px; font-weight: 400; line-height: 1; margin-left: 4px; }
 
-.tg-row-sep { display: none; }
+.tg-row-sep {
+  height: 1px;
+  background: var(--b2);
+  margin: 0 16px 0 53px;
+}
 
 /* ── Logout button ── */
 .tg-logout-btn {
@@ -2848,13 +2852,13 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     border-radius: 12px;
   }
   .tg-row-ic {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
   }
   .tg-row-ic svg {
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
   }
   .tg-row-lbl {
     font-size: 15px;
