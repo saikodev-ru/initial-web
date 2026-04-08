@@ -1205,6 +1205,7 @@ if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
 
 /* ── BG PATTERN TOGGLE ────────────────────────────────── */
 const BG_PAT_KEY = 'sg_bg_pattern';
+const BG_IMG_KEY = 'sg_chat_bg_image';
 const _bgPatEl = $('tog-bg-pattern');
 const _bgPatDescEl = $('bg-pattern-desc');
 function _applyBgPattern(on) {
@@ -1242,7 +1243,6 @@ if (_bgPatEl) _bgPatEl.onclick = () => {
 };
 
 /* ── CUSTOM CHAT BACKGROUND IMAGE ───────────────────────── */
-const BG_IMG_KEY = 'sg_chat_bg_image';
 const BG_IMG_EL_ID = 'chat-bg-custom';
 const _bgImgInput = $('bg-image-input');
 const _bgImgUpload = $('btn-bg-upload');
