@@ -960,7 +960,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 /* ── Rows ── */
 .tg-row {
   width: 100%; display: flex; align-items: center;
-  padding: 8px 16px; min-height: 38px;
+  padding: 6px 20px; min-height: 36px;
   background: transparent; border: none; cursor: pointer;
   text-align: left; gap: 0;
   transition: background .18s cubic-bezier(.25,1,.5,1), transform .12s;
@@ -976,8 +976,23 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   display: flex; align-items: center; justify-content: center;
   margin-right: 14px; flex-shrink: 0; color: #fff;
   box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  position: relative; overflow: hidden;
 }
-.tg-row-ic svg   { width: 15px; height: 15px; }
+.tg-row-ic::after {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:50%;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 100%);
+  pointer-events:none;
+}
+.tg-row-ic::before {
+  content:'';
+  position:absolute; bottom:0; left:0; right:0; height:45%;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(0deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,0) 100%);
+  pointer-events:none;
+}
+.tg-row-ic svg   { width: 15px; height: 15px; position: relative; z-index: 1; }
 .tg-row-body     { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
 .tg-row-lbl      { color: var(--t1); font-size: 14px; font-weight: 500; line-height: 1.2; }
 .tg-row-sub      { color: var(--t3); font-size: 12px; line-height: 1.2; }
@@ -2576,10 +2591,10 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     height: 36px;
   }
 
-  /* Larger chat items on mobile (Telegram Android style) */
-  .ci { gap: 14px; padding: 12px 14px; }
-  .av-img { width: 54px !important; height: 54px !important; font-size: 19px !important; }
-  .av-dot { width: 12px !important; height: 12px !important; border-width: 2.5px !important; }
+  /* Chat items on mobile */
+  .ci { gap: 12px; padding: 10px 10px; }
+  .av-img { width: 52px !important; height: 52px !important; font-size: 18px !important; }
+  .av-dot { width: 11px !important; height: 11px !important; border-width: 2px !important; }
   .ci-name { font-size: 15.5px; }
   .ci-prev { font-size: 13.5px; }
   .ci-ts { font-size: 12px; }

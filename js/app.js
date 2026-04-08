@@ -2033,51 +2033,64 @@ const navRail = document.getElementById('nav-rail');
 document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.classList.contains('active')) return; // Already on this page
-    document.querySelectorAll('.nav-rail-btn[data-nav]').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-rail-btn[data-nav], .mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    const nav = btn.dataset.nav;
-    updateMobilePageTitle(nav);
-    // Fade sidebar content during panel transition
-    const listWrap = document.getElementById('sb-list-wrap');
-    if (listWrap) {
-      listWrap.classList.add('fading');
-      setTimeout(() => listWrap.classList.remove('fading'), 300);
-    }
-    // Hide all nav panels
-    document.querySelectorAll('.nav-panel').forEach(p => {
-      p.style.transform = 'translateX(100%)';
-      p.style.opacity = '0';
-      p.style.pointerEvents = 'none';
-    });
-    // Exit search if active
-    if (typeof exitSearch === 'function' && typeof sbSearchActive !== 'undefined' && sbSearchActive) exitSearch();
-    // Show/hide chat-list and search-results based on active nav
-    const chatList = document.getElementById('chat-list');
-    const searchResults = document.getElementById('sb-search-results');
-    if (nav === 'chats') {
-      // Clear inline styles so CSS can control
-      chatList.style.transform = '';
-      chatList.style.opacity = '';
-      chatList.style.pointerEvents = '';
-      searchResults.style.transform = '';
-      searchResults.style.opacity = '';
-      searchResults.style.pointerEvents = '';
-    } else {
-      chatList.style.transform = 'translateX(-100%)';
-      chatList.style.opacity = '0';
-      chatList.style.pointerEvents = 'none';
-      searchResults.style.transform = 'translateX(100%)';
-      searchResults.style.opacity = '0';
-      searchResults.style.pointerEvents = 'none';
-      const panel = document.getElementById('panel-' + nav);
-      if (panel) {
-        panel.style.transform = 'translateX(0)';
-        panel.style.opacity = '1';
-        panel.style.pointerEvents = 'auto';
-      }
-    }
+    _switchNav(btn.dataset.nav);
   });
 });
+
+/* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
+document.querySelectorAll('.mobile-nav-btn[data-nav]').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    if (btn.classList.contains('active')) return;
+    document.querySelectorAll('.nav-rail-btn[data-nav], .mobile-nav-btn[data-nav]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    _switchNav(btn.dataset.nav);
+  });
+});
+
+// Shared nav switching logic
+function _switchNav(nav) {
+  updateMobilePageTitle(nav);
+  // Fade sidebar content during panel transition
+  const listWrap = document.getElementById('sb-list-wrap');
+  if (listWrap) {
+    listWrap.classList.add('fading');
+    setTimeout(() => listWrap.classList.remove('fading'), 300);
+  }
+  // Hide all nav panels
+  document.querySelectorAll('.nav-panel').forEach(p => {
+    p.style.transform = 'translateX(100%)';
+    p.style.opacity = '0';
+    p.style.pointerEvents = 'none';
+  });
+  // Exit search if active
+  if (typeof exitSearch === 'function' && typeof sbSearchActive !== 'undefined' && sbSearchActive) exitSearch();
+  // Show/hide chat-list and search-results based on active nav
+  const chatList = document.getElementById('chat-list');
+  const searchResults = document.getElementById('sb-search-results');
+  if (nav === 'chats') {
+    chatList.style.transform = '';
+    chatList.style.opacity = '';
+    chatList.style.pointerEvents = '';
+    searchResults.style.transform = '';
+    searchResults.style.opacity = '';
+    searchResults.style.pointerEvents = '';
+  } else {
+    chatList.style.transform = 'translateX(-100%)';
+    chatList.style.opacity = '0';
+    chatList.style.pointerEvents = 'none';
+    searchResults.style.transform = 'translateX(100%)';
+    searchResults.style.opacity = '0';
+    searchResults.style.pointerEvents = 'none';
+    const panel = document.getElementById('panel-' + nav);
+    if (panel) {
+      panel.style.transform = 'translateX(0)';
+      panel.style.opacity = '1';
+      panel.style.pointerEvents = 'auto';
+    }
+  }
+}
 
 /* ══ MOBILE BOTTOM NAV ════════════════════════════════════════ */
 // Prevent double-fire: touchend + click on same tap
