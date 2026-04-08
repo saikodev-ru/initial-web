@@ -255,20 +255,23 @@ $stmt->execute([$messageId]);
 $sentAt = (int) ($stmt->fetchColumn() ?: time());
 
 /* ── Push-уведомление ───────────────────────────────────────── */
-if (!empty($recipient['fcm_token'])) {
-    $senderName = $me['nickname'] ?? $me['email'];
+$senderName = $me['nickname'] ?? $me['email'];
+$voicePushData = [
+    'chat_id'          => (string) $chatId,
+    'sender_signal_id' => $me['signal_id'] ?? '',
+    'sender_avatar'    => $me['avatar_url'] ?? '',
+    'media_type'       => 'voice',
+    'voice_duration'   => (string) $voiceDuration,
+    'sender_name'      => $senderName,
+];
 
+// FCM push (sole push channel)
+if (!empty($recipient['fcm_token'])) {
     send_push(
         $recipient['fcm_token'],
         $senderName,
         '🎤 Голосовое сообщение',
-        [
-            'chat_id'          => (string) $chatId,
-            'sender_signal_id' => $me['signal_id'] ?? '',
-            'sender_avatar'    => $me['avatar_url'] ?? '',
-            'media_type'       => 'voice',
-            'voice_duration'   => (string) $voiceDuration,
-        ]
+        $voicePushData
     );
 }
 

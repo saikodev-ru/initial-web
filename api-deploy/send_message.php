@@ -118,24 +118,29 @@ $stmt = db()->prepare('SELECT FLOOR(UNIX_TIMESTAMP(sent_at)) AS ts FROM messages
 $stmt->execute([$messageId]);
 $sentAt = (int) ($stmt->fetchColumn() ?: time());
 
-// ── Push-уведомление ─────────────────────────────────────────
-if (!empty($recipient['fcm_token'])) {
-    $senderName = $me['nickname'] ?? $me['email'];
-    $pushBody   = $hasMedia
-        ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
-        : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
+// ── Push-уведомление (FCM only) ─────────────────────────────────
+$senderName = $me['nickname'] ?? $me['email'];
+$pushBody   = $hasMedia
+    ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
+    : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
 
+$pushData = [
+    'chat_id'          => (string) $chatId,
+    'sender_signal_id' => $me['signal_id'] ?? '',
+    'sender_avatar'    => $me['avatar_url'] ?? '',
+    'media_type'       => $mediaType,
+    'message_id'       => (string) $messageId,
+    'sender_name'      => $senderName,
+];
+
+// FCM push (sole push channel)
+if (!empty($recipient['fcm_token'])) {
     send_push(
-    $recipient['fcm_token'],
-    $senderName,
-    $pushBody,
-    [
-        'chat_id'          => (string) $chatId,
-        'sender_signal_id' => $me['signal_id'] ?? '',
-        'sender_avatar'    => $me['avatar_url'] ?? '', // просто ключ: avatars/user_2_xxx.jpg
-        'media_type'       => $mediaType,
-    ]
-);
+        $recipient['fcm_token'],
+        $senderName,
+        $pushBody,
+        $pushData
+    );
 }
 
 json_ok([

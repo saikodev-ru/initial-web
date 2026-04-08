@@ -1,12 +1,15 @@
 /* ═══════════════════════════════════════════════════════════════
-   SERVICE WORKER — Инициал
+   SERVICE WORKER — Initial.
    Кешируем критические ресурсы при установке,
    отправляем реальный прогресс на страницу через postMessage.
    emoji.ttf дополнительно хранится в IndexedDB — переживает
    жёсткие перезагрузки и очистку SW-кеша.
+
+   Push-уведомления обрабатываются отдельным SW:
+   firebase-messaging-sw.js (FCM background messages).
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_VER  = 'sg-v14';
+const CACHE_VER  = 'sg-v28';
 const API_PREFIX = '/api/';
 const EMOJI_URL  = 'assets/emoji.ttf'; // тяжёлый ресурс — храним в IDB
 
@@ -20,6 +23,7 @@ const CRITICAL = [
   'js/auth.js',
   'js/link-qr-renderer.js',
   'js/push-notifications.js',
+  'js/fcm.js',
   'js/messages.js',
   'js/context-menu.js',
   'js/app.js',
@@ -173,14 +177,12 @@ self.addEventListener('message', event => {
       if (!reallyDone) {
         try {
           const cache = await caches.open(CACHE_VER);
-          // Проверяем каждый критический ресурс отдельно
           const checks = await Promise.all(
             CRITICAL.map(url => cache.match(url).then(r => !!r))
           );
           reallyDone = checks.every(Boolean);
           if (reallyDone) { _installProgress = 100; _installDone = true; }
           else {
-            // Считаем сколько уже есть для прогресс-бара
             const done = checks.filter(Boolean).length;
             _installProgress = Math.round((done / CRITICAL.length) * 100);
           }
@@ -196,36 +198,44 @@ self.addEventListener('message', event => {
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  // SYNC_NOTIF_DATA — kept for backward compat (no-op, data not used here)
+
+  // SHOW_NOTIF — page delegates notification to SW (SW notifications show as popups on Android)
+  if (event.data?.type === 'SHOW_NOTIF') {
+    const title = event.data.title;
+    const opts = event.data.options || {};
+    try {
+      self.registration.showNotification(title, opts);
+    } catch (_) {}
+  }
 });
 
-/* ══ PUSH NOTIFICATIONS CLICK HANDLER ═════════════════════════ */
-self.addEventListener('push', event => {
-  let payload = {};
-  if (event.data) {
-    try {
-      const data = event.data.json();
-      payload = data.data || {};
-    } catch (e) {}
-  }
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-      clients.forEach(client => {
-        if (payload.action === 'incoming_call') client.postMessage({ type: 'FCM_CALL', payload });
-        else client.postMessage({ type: 'FCM_MSG', payload });
-      });
-    })
-  );
-});
+/* ══ NOTIFICATION CLICK — handle clicks from page-delegated notifications ══ */
 self.addEventListener('notificationclick', event => {
   event.notification.close();
+  const chatId = event.notification.data?.chatId || null;
+  const action = event.action;
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async clients => {
+      let targetClient = null;
       for (const client of clients) {
-        if (client.url.includes('/web') && 'focus' in client) {
-          return client.focus();
+        if ('focus' in client) {
+          targetClient = client;
+          await client.focus();
+          break;
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow('/web/');
+      if (!targetClient && self.clients.openWindow) {
+        targetClient = await self.clients.openWindow('/web/');
+      }
+      if (targetClient) {
+        targetClient.postMessage({
+          type: 'NOTIF_ACTION',
+          action: action || 'open',
+          chatId: chatId
+        });
+      }
     })
   );
 });
@@ -235,7 +245,7 @@ self.addEventListener('fetch', event => {
   const url = event.request.url;
 
   // API и PHP — всегда в сеть (никогда не кешируем)
-  if (url.includes('/api/') || url.includes('.php') || url.includes('googleapis.com') || url.includes('jsdelivr.net')) {
+  if (url.includes('/api/') || url.includes('.php') || url.includes('googleapis.com') || url.includes('jsdelivr.net') || url.includes('gstatic.com')) {
     return;
   }
 

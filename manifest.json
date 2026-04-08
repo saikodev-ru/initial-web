@@ -1,6 +1,6 @@
 {
-  "name": "Инициал",
-  "short_name": "Инициал",
+  "name": "Initial.",
+  "short_name": "Initial.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0d0d0f",

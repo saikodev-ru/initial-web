@@ -2,6 +2,7 @@
 // POST /api/register_fcm.php
 // Header: Authorization: Bearer <token>
 // Body: { "fcm_token": "firebase_token_here" }
+//   or { "fcm_token": "" }  → clears the token (unregister)
 declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 
@@ -12,9 +13,11 @@ $me       = auth_user();
 $data     = input();
 $fcmToken = trim($data['fcm_token'] ?? '');
 
-if (empty($fcmToken)) json_err('invalid_token', 'fcm_token не может быть пустым');
+// Allow empty token for unregistering (clears FCM token from DB)
+$value = empty($fcmToken) ? null : $fcmToken;
 
 db()->prepare('UPDATE users SET fcm_token = ? WHERE id = ?')
-    ->execute([$fcmToken, $me['id']]);
+    ->execute([$value, $me['id']]);
 
-json_ok(['message' => 'FCM токен сохранён']);
+$msg = empty($fcmToken) ? 'FCM токен удалён' : 'FCM токен сохранён';
+json_ok(['message' => $msg]);
