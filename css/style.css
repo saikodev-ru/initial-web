@@ -735,7 +735,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   display:flex;align-items:center;justify-content:center;gap:7px;
   margin-bottom:2px;max-width:100%;padding:0 4px;
 }
-.pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:var(--t1);display:flex;min-width:0;max-width:100%;}
+.pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%;}
 /* Verified badge — see .verified-badge global rule */
 .pm-badge{cursor:pointer;transition:transform .2s var(--sp),filter .2s var(--ease);will-change:transform,filter;display:inline-flex;align-items:center;justify-content:center;}
 .pm-badge:hover{transform:scale(1.15);filter:drop-shadow(0 0 6px currentColor);}
@@ -960,7 +960,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 /* ── Rows ── */
 .tg-row {
   width: 100%; display: flex; align-items: center;
-  padding: 10px 16px; min-height: 42px;
+  padding: 8px 16px; min-height: 38px;
   background: transparent; border: none; cursor: pointer;
   text-align: left; gap: 0;
   transition: background .18s cubic-bezier(.25,1,.5,1), transform .12s;
@@ -972,14 +972,14 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .tg-row.danger .tg-row-ic { background: var(--red) !important; color: #fff; }
 .tg-row.danger .tg-row-lbl { color: var(--red); }
 .tg-row-ic {
-  width: 30px; height: 30px; border-radius: 8px;
+  width: 26px; height: 26px; border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
   margin-right: 14px; flex-shrink: 0; color: #fff;
 }
-.tg-row-ic svg   { width: 17px; height: 17px; }
-.tg-row-body     { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-.tg-row-lbl      { color: var(--t1); font-size: 14.5px; font-weight: 500; line-height: 1.25; }
-.tg-row-sub      { color: var(--t3); font-size: 12.5px; margin-top: 2px; }
+.tg-row-ic svg   { width: 14px; height: 14px; }
+.tg-row-body     { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.tg-row-lbl      { color: var(--t1); font-size: 14px; font-weight: 500; line-height: 1.2; }
+.tg-row-sub      { color: var(--t3); font-size: 12px; line-height: 1.2; }
 .tg-row-arr      { color: rgba(255,255,255,.2); font-size: 20px; font-weight: 400; line-height: 1; margin-left: 4px; }
 
 .tg-row-sep {
@@ -3610,6 +3610,36 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   .call-incoming{padding-bottom:calc(20px + env(safe-area-inset-bottom)); position:relative; z-index:2;}
   .call-local-video{top:calc(20px + env(safe-area-inset-top)); right:16px; width:90px; height:140px; bottom:auto;}
   .call-end-btn{margin-bottom:calc(48px + env(safe-area-inset-bottom)); position:relative; z-index:2;}
+
+  /* ── Hide sidebar footer on mobile (profile is now in the navbar) ── */
+  .sb-foot{display:none}
+
+  /* ── Mobile self-profile panel — slides from RIGHT ── */
+  .mobile-self-profile{display:flex;flex-direction:column;position:fixed;inset:0;z-index:1600;background:var(--bg);transform:translateX(100%);transition:transform .3s cubic-bezier(.25,1,.5,1);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+  .mobile-self-profile.open{transform:translateX(0)}
+  .msp-header{position:sticky;top:0;z-index:5;display:flex;align-items:center;padding:calc(8px + env(safe-area-inset-top,0px)) 8px 4px 4px;background:var(--bg)}
+  .msp-back{width:40px;height:40px;border-radius:50%;background:transparent;border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--t1);transition:background .15s;-webkit-tap-highlight-color:transparent}
+  .msp-back:active{background:rgba(255,255,255,.08)}
+  .msp-avatar-section{display:flex;flex-direction:column;align-items:center;padding:8px 20px 16px}
+  .msp-avatar-wrap{position:relative;cursor:pointer;margin-bottom:14px}
+  .msp-avatar{width:90px;height:90px;border-radius:50%;overflow:hidden;background:var(--solid1);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;color:var(--t2);box-shadow:0 0 0 3px var(--bg),0 0 0 5px rgba(139,92,246,.4),0 4px 16px rgba(0,0,0,.25)}
+  .msp-avatar img,.msp-avatar canvas{width:100%;height:100%;object-fit:cover;display:block}
+  .msp-avatar-cam{position:absolute;bottom:0;right:0;width:30px;height:30px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;color:#fff;border:3px solid var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  .msp-name{font-size:22px;font-weight:800;color:var(--t1);letter-spacing:-.4px;text-align:center;margin-bottom:4px}
+  .msp-status{font-size:14px;color:var(--t3);text-align:center}
+  .msp-status.on{color:var(--green)}
+  .msp-actions{display:flex;gap:8px;padding:0 16px 20px;justify-content:center}
+  .msp-action-btn{display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;color:var(--y2);cursor:pointer;padding:8px 16px;border-radius:12px;font-size:11.5px;font-weight:500;-webkit-tap-highlight-color:transparent;transition:background .15s}
+  .msp-action-btn:active{background:rgba(255,255,255,.08)}
+  .msp-action-btn svg{width:22px;height:22px}
+  .msp-info-card{margin:0 16px 24px;background:rgba(var(--bg-rgb),.6);border-radius:12px;overflow:hidden}
+  .msp-info-row{display:flex;align-items:center;padding:12px 14px;gap:14px;cursor:default}
+  .msp-info-row+.msp-info-row{border-top:1px solid var(--b)}
+  .msp-info-icon{color:var(--y2);display:flex;align-items:center;flex-shrink:0}
+  .msp-info-body{flex:1;min-width:0}
+  .msp-info-value{font-size:14.5px;color:var(--t1);word-break:break-word}
+  .msp-info-label{font-size:12.5px;color:var(--t3);margin-top:1px}
+  .msp-info-value strong,.msp-info-value em,.msp-info-value code{font-size:inherit}
 }
 
 /* ══ CALL LOG BUBBLES IN CHAT ════════════════════════════════ */
