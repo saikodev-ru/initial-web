@@ -2160,7 +2160,7 @@ function _openMobileSelfProfile() {
   const bioVal = $('msp-bio-val');
   if (u.bio && bioRow && bioVal) {
     bioRow.style.display = '';
-    bioVal.textContent = u.bio;
+    bioVal.innerHTML = typeof fmtText === 'function' ? fmtText(u.bio) : u.bio;
   } else if (bioRow) {
     bioRow.style.display = 'none';
   }

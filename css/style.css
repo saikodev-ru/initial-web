@@ -2426,7 +2426,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     display: none;
   }
 
-  /* ── Mobile self-profile panel ── */
+  /* ── Mobile self-profile panel — slides in from the RIGHT ── */
   .mobile-self-profile {
     display: flex;
     flex-direction: column;
@@ -2434,7 +2434,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     inset: 0;
     z-index: 1600;
     background: var(--bg);
-    transform: translateX(-100%);
+    transform: translateX(100%);
     transition: transform .3s cubic-bezier(.25,1,.5,1);
     overflow-y: auto;
     overflow-x: hidden;
@@ -2601,9 +2601,18 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     font-size: 15px;
     font-weight: 600;
     color: var(--t1);
-    word-break: break-all;
+    word-break: break-word;
+    overflow-wrap: break-word;
     line-height: 1.4;
   }
+  .msp-info-value strong { font-weight: 800; }
+  .msp-info-value em { font-style: italic; }
+  .msp-info-value del { opacity: .6; }
+  .msp-info-value u { text-decoration: underline; text-underline-offset: 2px; }
+  .msp-info-value code { background: rgba(255,255,255,.1); border-radius: 5px; padding: 1px 5px; font-family: ui-monospace,'SF Mono','Menlo',monospace; font-size: 12.5px; }
+  .msp-info-value pre { background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; margin: 4px 0; font-family: ui-monospace,'SF Mono','Menlo',monospace; font-size: 12.5px; overflow-x: auto; white-space: pre; }
+  .msp-info-value .spoiler { background: var(--solid1); border-radius: 4px; padding: 1px 4px; cursor: pointer; transition: background .15s; }
+  .msp-info-value .mention { color: var(--y); font-weight: 700; }
   .msp-info-label {
     font-size: 12.5px;
     color: var(--t3);
