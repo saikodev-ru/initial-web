@@ -45,7 +45,7 @@ html,body{height:100%;height:100dvh;overflow:hidden}
   --font: 'Google Sans','EmojiLocal',-apple-system,sans-serif;
   --sb-w: 300px;
 }
-body{font-family:var(--font);background:var(--chat-bg);color:var(--t1);font-size:15px;line-height:1.5;font-weight:500;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);background:var(--chat-bg);color:var(--t1);font-size:15px;line-height:1.5;font-weight:500;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top)}
 body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji',sans-serif}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:99px}
 
