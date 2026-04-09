@@ -92,11 +92,14 @@ function _renderChatItemContent(el,c){
   const isRead = isOutgoing && c.is_read == 1;
   const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="16" height="11" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
-  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
+  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span class="marquee-inner" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
   // Restore saved animating icon
   if(iconAnimating&&existingIcon){const ts=el.querySelector('.ci-ts');const wrap=ts?.parentElement;if(wrap)wrap.insertBefore(existingIcon,ts);}
   wtn(el);
+  // Marquee for long nicknames
+  const ciNameSpan = el.querySelector('.ci-name .marquee-inner');
+  if(ciNameSpan) setTimeout(() => checkMarquee(ciNameSpan), 0);
 }
 
 function _chatDataChanged(el,c){
@@ -116,6 +119,9 @@ function hideRbar(inst=false){const rb=$('rbar');if(!rb||!rb.classList.contains(
 /* ══ OPEN CHAT ════════════════════════════════════════════════ */
 function openChat(c){
   if(S.chatId===c.chat_id)return;
+  // Hide in-app push banner when opening a chat
+  var inappPush = $('inapp-push');
+  if(inappPush) inappPush.classList.remove('visible');
   // Remember last open chat for restore on reload
   try{localStorage.setItem('sg_last_chat',String(c.chat_id));}catch(e){}
   // Save current scroll position before leaving
@@ -1100,6 +1106,7 @@ function updateHeaderUI(c, name) {
     else displayName = name;
 
     const span = document.createElement('span');
+    span.className = 'marquee-inner';
     span.textContent = displayName;
     wtn(span);
     hn.appendChild(span);

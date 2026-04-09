@@ -249,8 +249,152 @@
 
   // ── Public API ───────────────────────────────────────────────────────────
 
+  // ── In-app push banner state ──
+  var _inappPushTimeout = null;
+  var _inappPushChatId = null;
+
+  function _showInappPush(opts) {
+    var el = $('inapp-push');
+    if (!el) return;
+    var avEl = $('inapp-push-av');
+    var nameEl = $('inapp-push-name');
+    var msgEl = $('inapp-push-msg');
+    var replyWrap = $('inapp-push-reply-wrap');
+    var replyInput = $('inapp-push-reply-input');
+
+    // Set name
+    nameEl.textContent = opts.senderName || 'Initial';
+    // Set message body
+    msgEl.textContent = truncate(stripHtml(opts.body || ''), 80);
+    // Set avatar
+    if (avEl) {
+      if (opts.senderAvatar) {
+        avEl.innerHTML = '<img src="' + opts.senderAvatar + '" alt="" onerror="this.parentElement.textContent=\'' + (opts.senderName || '?').charAt(0).toUpperCase() + '\'">';
+      } else {
+        avEl.textContent = (opts.senderName || '?').charAt(0).toUpperCase();
+      }
+    }
+
+    // Reset reply state
+    if (replyWrap) replyWrap.classList.remove('open');
+    if (replyInput) replyInput.textContent = '';
+
+    // Store chatId for reply
+    _inappPushChatId = opts.chatId;
+
+    // Clear existing timeout
+    if (_inappPushTimeout) clearTimeout(_inappPushTimeout);
+
+    // Show
+    el.classList.add('visible');
+
+    // Auto-hide after 5 seconds
+    _inappPushTimeout = setTimeout(function () {
+      _hideInappPush();
+    }, 5000);
+  }
+
+  function _hideInappPush() {
+    var el = $('inapp-push');
+    if (!el) return;
+    el.classList.remove('visible');
+    if (_inappPushTimeout) { clearTimeout(_inappPushTimeout); _inappPushTimeout = null; }
+    var replyWrap = $('inapp-push-reply-wrap');
+    if (replyWrap) replyWrap.classList.remove('open');
+    var replyInput = $('inapp-push-reply-input');
+    if (replyInput) replyInput.textContent = '';
+    _inappPushChatId = null;
+  }
+
+  // Close button
+  document.addEventListener('DOMContentLoaded', function () {
+    var closeBtn = $('inapp-push-close-btn');
+    if (closeBtn) closeBtn.addEventListener('click', function () { _hideInappPush(); });
+
+    // Reply toggle button
+    var replyBtn = $('inapp-push-reply-btn');
+    if (replyBtn) replyBtn.addEventListener('click', function () {
+      var wrap = $('inapp-push-reply-wrap');
+      if (!wrap) return;
+      wrap.classList.toggle('open');
+      if (wrap.classList.contains('open')) {
+        var inp = $('inapp-push-reply-input');
+        if (inp) inp.focus();
+        // Reset auto-hide timer while reply is open
+        if (_inappPushTimeout) { clearTimeout(_inappPushTimeout); _inappPushTimeout = null; }
+      }
+    });
+
+    // Send quick reply
+    var sendBtn = $('inapp-push-reply-send');
+    if (sendBtn) sendBtn.addEventListener('click', function () { _sendInappReply(); });
+
+    // Enter key to send
+    var replyInput = $('inapp-push-reply-input');
+    if (replyInput) {
+      replyInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          _sendInappReply();
+        }
+      });
+    }
+
+    // Click on push content area to open the chat
+    var pushEl = $('inapp-push');
+    if (pushEl) {
+      pushEl.addEventListener('click', function (e) {
+        // Don't trigger if clicking on action buttons or reply field
+        if (e.target.closest('.inapp-push-acts') || e.target.closest('.inapp-push-reply-wrap')) return;
+        if (_inappPushChatId && typeof openChat === 'function') {
+          var c = (S.chats || []).find(function(ch) { return ch.chat_id == _inappPushChatId; });
+          if (c) openChat(c);
+          _hideInappPush();
+        }
+      });
+    }
+  });
+
+  function _sendInappReply() {
+    var inp = $('inapp-push-reply-input');
+    if (!inp || !inp.textContent.trim()) return;
+    var text = inp.textContent.trim();
+    if (!_inappPushChatId) return;
+
+    var c = (S.chats || []).find(function(ch) { return ch.chat_id == _inappPushChatId; });
+    if (!c) return;
+
+    // Send via API
+    var payload = { to_signal_id: c.partner_signal_id, body: text };
+    if (typeof api === 'function') {
+      api('send_message', 'POST', payload).then(function (res) {
+        if (res && res.ok) {
+          toast('Отправлено', 'ok');
+        } else {
+          toast(res && res.message ? res.message : 'Ошибка отправки', 'err');
+        }
+      }).catch(function () {
+        toast('Ошибка отправки', 'err');
+      });
+    }
+
+    _hideInappPush();
+  }
+
   window.showRichNotif = function (opts) {
-    if (document.hasFocus()) return;
+    var isTabFocused = document.hasFocus();
+
+    // If tab IS focused: show in-app banner if not in the same chat
+    if (isTabFocused) {
+      // Only show banner if user is NOT in the chat that received the message
+      if (opts.chatId && opts.chatId == S.chatId) return;
+      _showInappPush(opts);
+      // Play sound if enabled
+      if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
+      return;
+    }
+
+    // Tab NOT focused: show browser push notification (existing logic)
 
     // Skip if SW already showed a background notification for this chat
     if (window._fcmBgHandled && opts.chatId &&
