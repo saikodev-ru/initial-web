@@ -1164,6 +1164,12 @@ function closeProfile() {
       $('st-view-main').classList.remove('anim-none');
     }, 20);
   }
+  // Force reflow after panel closes to prevent GPU-composited text spacing artifacts
+  setTimeout(() => {
+    document.body.style.setProperty('word-spacing','normal');
+    void document.body.offsetHeight;
+    document.body.style.removeProperty('word-spacing');
+  }, 350);
 }
 
 /* ── SETTINGS VIEWS NAVIGATION & SWIPE ── */
