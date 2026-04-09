@@ -652,9 +652,11 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 /* Mobile-only avatar button (right side of pill header) */
 .hdr-mb-avatar{display:none;position:relative;background:none;border:none;cursor:pointer;padding:0;z-index:2;-webkit-tap-highlight-color:transparent}
 .hdr-mb-avatar .av{position:relative}
-.hdr-mb-avatar .av-img{width:36px;height:36px;border-radius:50%;border:2px solid var(--b2);transition:transform .15s var(--sp),border-color .15s}
+.hdr-mb-avatar .av-img{width:42px;height:42px;border-radius:50%;border:none;transition:transform .15s var(--sp)}
 .hdr-mb-avatar:active .av-img{transform:scale(.88)}
 .hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
+/* Pill wrapper for mobile header — transparent on desktop */
+.hdr-pill{display:contents}
 
 /* Chat switch animation — only inner content animates, the header shell stays put */
 .chat-switch .msgs         { animation: chatSwitchMsgs .28s cubic-bezier(.34,1.1,.64,1) backwards; }
@@ -674,22 +676,33 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 @container app (max-width: 680px){
   .chat-hdr{
     position:sticky;top:0;
-    padding:0 0;
+    padding:0;
     margin:8px 8px 0 8px;
     margin-top:calc(8px + env(safe-area-inset-top, 0px));
     border:none;
-    border-radius:22px;
+    border-radius:0;
+    background:transparent;
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+    gap:0;
+    box-shadow:none;
+    z-index:15;
+  }
+  /* Pill — only covers back button + name area, NOT the avatar */
+  .hdr-pill{
+    display:flex;align-items:center;flex:1;min-width:0;
     background:rgba(var(--bg-rgb),.82);
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-    gap:0;
+    border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
+    padding:4px 6px 4px 2px;
+    gap:0;
   }
   /* Show back button on mobile */
   .back-btn-mb{
     display:flex !important;
     flex-shrink:0;
-    width:36px;height:36px;
-    margin-left:4px;
+    width:38px;height:38px;
+    margin-left:2px;
     background:transparent !important;
     border:none !important;
     color:var(--t1) !important;
@@ -697,15 +710,27 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   }
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Show mobile avatar on right */
-  .hdr-mb-avatar{display:flex !important;align-items:center;justify-content:center;flex-shrink:0;margin-right:6px}
+  /* Mobile avatar — separate circle, outside the pill */
+  .hdr-mb-avatar{
+    display:flex !important;
+    align-items:center;justify-content:center;
+    flex-shrink:0;
+    margin-left:8px;
+  }
+  .hdr-mb-avatar .av-img{
+    width:42px !important;
+    height:42px !important;
+    font-size:16px !important;
+    border-radius:50%;
+    border:none !important;
+  }
   /* Hide desktop action buttons (call/more) on mobile — replaced by long-press menu */
   .hdr-call-btn,.hdr-more-btn{display:none !important}
-  /* Center the info area */
+  /* Info area */
   .hdr-clickable{
     flex:1;min-width:0;
     cursor:default;
-    padding:6px 4px 6px 2px;
+    padding:6px 8px 6px 2px;
     gap:0;
   }
   .hdr-clickable:hover .hdr-info{background:transparent}
@@ -715,7 +740,38 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   .chat-hdr .hdr-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
   .chat-hdr .hdr-st{font-size:12px;margin-top:0}
   /* Adjust msgs padding for pill header */
-  .msgs{padding-top:calc(68px + env(safe-area-inset-top, 0px))}
+  .msgs{padding-top:calc(70px + env(safe-area-inset-top, 0px))}
+}
+
+/* Classic header toggle — only visible on mobile */
+.hdr-classic-row{display:none}
+.hdr-classic-divider{display:none}
+@container app (max-width: 680px){
+  #row-hdr-center{display:none !important}
+  .hdr-classic-row{display:flex !important}
+  .hdr-classic-divider{display:block !important}
+}
+/* Classic header mode — disable pill, show inline header */
+.mobile-classic-hdr .chat-hdr{
+  border-radius:0 !important;
+  margin:0 !important;
+  background:rgba(var(--bg-rgb),.78) !important;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--b) !important;
+  box-shadow:none !important;
+}
+.mobile-classic-hdr .hdr-pill{
+  background:transparent !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+.mobile-classic-hdr .hdr-mb-avatar{display:none !important}
+.mobile-classic-hdr .hdr-desktop-av{display:flex !important}
+.mobile-classic-hdr .chat-hdr .av-img{
+  width:34px !important;height:34px !important;font-size:14px !important;
+  border-radius:50%;border:none !important;
 }
 
 .chat-wrap{position:relative}
@@ -2662,8 +2718,8 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 @container app (max-width: 680px){
   /* Use dynamic viewport height — browser address bar collapses on scroll */
   #scr-app,.layout{height:100dvh;min-height:100dvh}
-  .sidebar{position:fixed;inset:0;width:100%!important;z-index:100;transition:transform .3s cubic-bezier(.4,0,.2,1)}
-  .sidebar.hidden{transform:translateX(-100%);pointer-events:none}
+  .sidebar{position:fixed;inset:0;width:100%!important;z-index:100;transition:transform .42s cubic-bezier(.32,.72,0,1),opacity .35s ease}
+  .sidebar.hidden{transform:translateX(-100%);pointer-events:none;opacity:0}
   .chat-welcome{display:none!important}
   /* Hide desktop-only controls on mobile */
   #btn-collapse-sb,#btn-sb-expand,.resize-handle{display:none!important}
@@ -2675,26 +2731,23 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .msgs{padding:calc(76px + env(safe-area-inset-top, 0px)) 8px 140px}
   .input-zone{padding:8px 8px 16px}
   .input-zone, .system-mute-zone{padding:8px 8px 16px}
+  /* Bigger input placeholder on mobile */
+  .mfield{font-size:16px !important;min-height:48px !important}
+  .mfield:empty::before{font-weight:600 !important}
   .chat-hdr .av-img{
     width:38px !important;
     height:38px !important;
     font-size:15px !important;
   }
-  .hdr-mb-avatar .av-img{
-    width:36px !important;
-    height:36px !important;
-    font-size:14px !important;
-    border-radius:50%;
-    border:2px solid var(--b2);
-  }
+
   .chat-hdr .hdr-name{font-size:14.5px}
   .chat-hdr .hdr-st{font-size:11.5px}
   /* Chat area slides in from the right */
   #chat-area{position:relative;overflow:hidden}
   #active-chat{
     position:absolute;inset:0;
-    transform:translateX(100%);
-    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    transform:translateX(100%) scale(.96);
+    transition:transform .42s cubic-bezier(.32,.72,0,1);
     display:flex!important;
     flex-direction:column;
     background:transparent;
@@ -3261,6 +3314,15 @@ body[data-theme="light"] {
   --chat-bg: #ffffff;
   --pattern-color: rgba(0, 0, 0, 0.04);
   --msg-bg: #f0f0f2;
+}
+
+/* Search bar — slightly grayer in light theme */
+body[data-theme="light"] .srch-new {
+  background: rgba(0,0,0,.05);
+  border-color: rgba(0,0,0,.08);
+}
+body[data-theme="light"] .srch-new:focus-within {
+  background: rgba(0,0,0,.07);
 }
 
 /* Nav-rail — lighter in light theme */
@@ -4417,8 +4479,8 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   /* Shared icon-button style for title bar actions (gear, plus) */
   .sb-title-action {
     position: absolute;
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border: none;
     border-radius: 50%;
     background: transparent;
@@ -4440,10 +4502,10 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     color: var(--t1);
   }
   .sb-title-action--left {
-    left: -4px;
+    left: 0;
   }
   .sb-title-action--right {
-    right: -4px;
+    right: 0;
   }
   .mobile-bottom-nav {
     display: flex;
@@ -4502,9 +4564,9 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     transition: transform .3s cubic-bezier(.34,1.56,.64,1);
   }
   .mobile-nav-btn span {
-    font-size: 9.5px;
+    font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     font-family: var(--font);
     transition: color .2s, opacity .2s;
     opacity: .6;
@@ -4526,9 +4588,9 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
   /* Sliding accent indicator on mobile nav */
   .mobile-nav-indicator {
     position: absolute;
-    top: 4px;
-    height: calc(100% - 8px);
-    width: 40px;
+    top: 2px;
+    height: calc(100% - 4px);
+    width: 44px;
     border-radius: 100px;
     background: var(--ybg);
     transition: left .35s cubic-bezier(.32,.72,0,1), width .25s cubic-bezier(.32,.72,0,1);
