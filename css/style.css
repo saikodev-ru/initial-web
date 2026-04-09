@@ -819,9 +819,9 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     gap:0;
     flex:0 1 auto;
     min-width:0;
-    height:52px;
+    height:58px;
     width:fit-content;
-    max-width:calc(100% - 60px);
+    max-width:calc(100% - 64px);
   }
   /* Show back button on mobile — styled like tg-hero-close for unification */
   .back-btn-mb{
@@ -853,8 +853,8 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
     padding:5px;
-    width:52px;
-    height:52px;
+    width:58px;
+    height:58px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -2085,7 +2085,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 }
 
 /* Text */
-.mtxt{font-size:var(--chat-font-size, 14.5px);font-weight:450;line-height:1.55;white-space:pre-wrap;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
+.mtxt{font-size:var(--chat-font-size, 14.5px);font-weight:450;line-height:1.55;white-space:pre-wrap;word-spacing:normal;color:var(--t1);font-family:var(--font);position:relative}.me .mtxt{color:#fff}
 .mtxt strong{font-weight:900}.mtxt em{font-style:italic}.mtxt del{opacity:.6}.mtxt u{text-decoration:underline;text-underline-offset:2px}
 .mtxt code{background:rgba(255,255,255,.15);border-radius:5px;padding:1px 5px;font-family:ui-monospace,'SF Mono','Menlo',monospace;font-size:12.5px}
 .me .mtxt code{background:rgba(255,255,255,.15)}
@@ -2869,7 +2869,7 @@ body[data-theme="light"] .msgs-top-fade {
 .fctx-btn:disabled{opacity:.35;cursor:default}
 .fctx-btn:disabled:hover{background:transparent}
 .mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;transition:margin-right .25s var(--ease),height .2s var(--ease),min-height .2s var(--ease),max-height .2s var(--ease)}
-.mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:15px;font-weight:500;padding:10px 42px 10px 42px;outline:none;min-height:42px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
+.mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:15px;font-weight:500;padding:10px 42px 10px 42px;outline:none;min-height:42px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap;word-spacing:normal}
 .mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);font-weight:400;pointer-events:none}
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
 .emo-btn-in:hover{background:rgba(255,255,255,.14);color:#fff;transform:scale(1.08)}.emo-btn-in:active{transform:scale(.88)}.emo-btn-in.active{color:var(--y);background:var(--ybg)}
@@ -3118,7 +3118,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .ci { gap: 12px; padding: 10px 10px; }
   .av-img { width: 52px !important; height: 52px !important; font-size: 18px !important; }
   .av-dot { width: 11px !important; height: 11px !important; border-width: 2px !important; }
-  .ci-name { font-size: 15.5px; }
+  .ci-name { font-size: 15.5px; max-width: calc(100% - 60px); }
   .ci-name>span{max-width:160px}
   .ci-prev { font-size: 13.5px; }
   .ci-ts { font-size: 12px; }
@@ -3635,9 +3635,10 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 
 /* 1. White chat background with subtle pattern */
 body[data-theme="light"] {
-  --chat-bg: #fbfbfb;
+  --chat-bg: #ffffff;
   --pattern-color: rgba(0, 0, 0, 0.04);
   --msg-bg: #f0f0f0;
+  --msg-in-pill: #3390ec;
 }
 
 /* Search bar — slightly grayer in light theme */
@@ -3647,6 +3648,20 @@ body[data-theme="light"] .srch-new {
 }
 body[data-theme="light"] .srch-new:focus-within {
   background: rgba(0,0,0,.10);
+}
+
+/* Search row — solid background in light theme */
+body[data-theme="light"] .sb-search-row {
+  background: #f0f0f0;
+}
+
+/* Incoming message reply pill — use outgoing accent color in light theme */
+body[data-theme="light"] .rply {
+  border-left-color: var(--msg-in-pill, #3390ec);
+  background: rgba(51,144,236,.06);
+}
+body[data-theme="light"] .rply:hover {
+  background: rgba(51,144,236,.10);
 }
 
 /* Nav-rail — lighter in light theme */
