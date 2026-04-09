@@ -3612,11 +3612,12 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .no-blur .mfield-wrap,.no-blur .unified-input-wrap{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--solid2);}
 /* no-blur no longer hides the pattern — only no-pattern does */
 
-/* Mobile: force-blur on pill header and input row even in no-blur mode */
+/* Mobile: no-blur keeps chat-hdr transparent, blur stays on pills and input */
 @container app (max-width: 680px){
   .no-blur .chat-hdr{
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-    background:rgba(var(--bg-rgb),.82);
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+    background:transparent !important;
+    box-shadow:none !important;
   }
   .no-blur .hdr-pill,
   .no-blur .hdr-av-pill{
