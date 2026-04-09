@@ -1465,6 +1465,8 @@ function _applyAccentColor(hex) {
     if (_accentCustomSwatch) { _accentCustomSwatch.classList.add('active'); _accentCustomSwatch.style.background = hex; }
   }
   try { localStorage.setItem(ACCENT_KEY, hex); } catch {}
+  try { localStorage.removeItem(ACCENT_AUTO_KEY); } catch {}
+  if (_accentAutoSwatch) _accentAutoSwatch.classList.remove('active');
 }
 // Restore saved accent
 const _savedAccent = (() => { try { return localStorage.getItem(ACCENT_KEY); } catch { return null; } })();
@@ -1474,12 +1476,13 @@ document.querySelectorAll('.accent-swatch').forEach(s => {
   s.onclick = () => _applyAccentColor(s.dataset.color);
 });
 
-// Auto accent button
-const _accentAutoBtn = $('btn-accent-auto');
-if (_accentAutoBtn) {
-  _accentAutoBtn.onclick = () => {
+// Auto accent swatch
+const _accentAutoSwatch = $('accent-auto-swatch');
+const ACCENT_AUTO_KEY = 'sg_accent_auto';
+if (_accentAutoSwatch) {
+  _accentAutoSwatch.onclick = () => {
     const cached = localStorage.getItem(BG_IMG_KEY);
-    if (!cached) return;
+    if (!cached) { toast('Сначала установите фон чата', 'info'); return; }
     // Extract dominant color from center of image
     try {
       const img = new Image();
@@ -1494,12 +1497,11 @@ if (_accentAutoBtn) {
         ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size);
         const data = ctx.getImageData(0, 0, size, size).data;
         let r = 0, g = 0, b = 0, count = 0;
-        for (let i = 0; i < data.length; i += 4 * 4) { // sample every 4th pixel
+        for (let i = 0; i < data.length; i += 4 * 4) {
           r += data[i]; g += data[i+1]; b += data[i+2]; count++;
         }
         if (count > 0) {
           r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
-          // Saturate for more vivid color
           const max = Math.max(r, g, b), min = Math.min(r, g, b);
           const boost = 1.5;
           if (max > 0) {
@@ -1509,13 +1511,21 @@ if (_accentAutoBtn) {
           }
           const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
           _applyAccentColor(hex);
-          // Remove active from preset swatches
           document.querySelectorAll('.accent-swatch').forEach(s => s.classList.remove('active'));
+          _accentAutoSwatch.classList.add('active');
+          try { localStorage.setItem(ACCENT_AUTO_KEY, '1'); } catch {}
         }
       };
       img.src = cached;
     } catch {}
   };
+}
+// Restore auto state
+if (_accentAutoSwatch) {
+  try {
+    const wasAuto = localStorage.getItem(ACCENT_AUTO_KEY);
+    if (wasAuto === '1') _accentAutoSwatch.classList.add('active');
+  } catch {}
 }
 
 /* ── ST-SUB-HDR SCROLL BACKDROP + TITLE SCROLL-TO-TOP ───────── */
@@ -1589,7 +1599,77 @@ function _applyAccentColorCustom(hex) {
   _accentCustomSwatch.classList.add('active');
   if (_accentCustomSwatch) _accentCustomSwatch.style.background = hex;
   try { localStorage.setItem(ACCENT_KEY, hex); } catch {}
+  try { localStorage.removeItem(ACCENT_AUTO_KEY); } catch {}
+  if (_accentAutoSwatch) _accentAutoSwatch.classList.remove('active');
 }
+
+/* ── MOBILE EMULATION (Developer) ───────── */
+const _togMobileEmulate = $('tog-mobile-emulate');
+const _inpMobileEmulateW = $('inp-mobile-emulate-width');
+const MOBILE_EMULATE_KEY = 'sg_mobile_emulate';
+function _applyMobileEmulation(on, w) {
+  const el = document.getElementById('scr-app');
+  if (!el) return;
+  if (on && w) {
+    el.style.maxWidth = w + 'px';
+    el.style.margin = '0 auto';
+    el.style.boxShadow = '0 0 0 1px rgba(255,255,255,.08), 0 8px 40px rgba(0,0,0,.4)';
+    el.style.borderRadius = '12px';
+    el.style.overflow = 'hidden';
+    el.style.height = '100dvh';
+  } else {
+    el.style.maxWidth = '';
+    el.style.margin = '';
+    el.style.boxShadow = '';
+    el.style.borderRadius = '';
+    el.style.overflow = '';
+    el.style.height = '';
+  }
+}
+// Restore
+try {
+  const saved = JSON.parse(localStorage.getItem(MOBILE_EMULATE_KEY) || '{}');
+  if (saved.on) {
+    _applyMobileEmulation(true, saved.w || 390);
+    if (_togMobileEmulate) _togMobileEmulate.classList.add('on');
+    if (_inpMobileEmulateW) _inpMobileEmulateW.value = saved.w || 390;
+  }
+} catch {}
+if (_togMobileEmulate) {
+  _togMobileEmulate.onclick = () => {
+    const isOn = _togMobileEmulate.classList.toggle('on');
+    const w = parseInt(_inpMobileEmulateW ? _inpMobileEmulateW.value : '390', 10) || 390;
+    _applyMobileEmulation(isOn, w);
+    try { localStorage.setItem(MOBILE_EMULATE_KEY, JSON.stringify({ on: isOn, w })); } catch {}
+  };
+}
+if (_inpMobileEmulateW) {
+  _inpMobileEmulateW.oninput = () => {
+    if (_togMobileEmulate && _togMobileEmulate.classList.contains('on')) {
+      const w = parseInt(_inpMobileEmulateW.value, 10) || 390;
+      _applyMobileEmulation(true, w);
+      try { localStorage.setItem(MOBILE_EMULATE_KEY, JSON.stringify({ on: true, w })); } catch {}
+    }
+  };
+}
+
+/* ── MOBILE NAV SLIDING INDICATOR ───────── */
+function _updateNavIndicator() {
+  const nav = document.getElementById('mobile-bottom-nav');
+  const indicator = document.getElementById('mobile-nav-indicator');
+  const activeBtn = nav ? nav.querySelector('.mobile-nav-btn.active') : null;
+  if (!nav || !indicator || !activeBtn) return;
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = activeBtn.getBoundingClientRect();
+  indicator.style.left = (btnRect.left - navRect.left + (btnRect.width - 40) / 2) + 'px';
+  indicator.style.width = '40px';
+}
+// Run on load and on nav clicks
+setTimeout(_updateNavIndicator, 100);
+window.addEventListener('resize', _updateNavIndicator);
+document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => setTimeout(_updateNavIndicator, 50));
+});
 
 /* ── CHAT FONT SIZE ──────────────────────────────── */
 const _chatFontSizeRange = $('chat-font-size-range');
@@ -1616,7 +1696,7 @@ _applyChatFontSize(_chatFontSizePx);
 const _installObserver = new MutationObserver(() => {
   const pwa = $('btn-install-pwa');
   const sep = $('install-sep');
-  if (pwa && sep) sep.style.display = pwa.style.display === 'none' ? 'none' : '';
+  if (pwa && sep) sep.style.display = (pwa.style.display === 'none') ? 'none' : '';
 });
 const _pwaBtn = $('btn-install-pwa');
 if (_pwaBtn) _installObserver.observe(_pwaBtn, { attributes: true, attributeFilter: ['style'] });
@@ -2033,9 +2113,10 @@ const _isStandalone = window.navigator.standalone === true || window.matchMedia(
 // Show install button for iOS if not standalone
 if (_isIOS && !_isStandalone) {
   const installBtn = $('btn-install-pwa');
-  if (installBtn) {
-    installBtn.style.display = 'flex';
-    installBtn.onclick = () => {
+  const installInner = $('btn-install-pwa-inner');
+  if (installBtn && installInner) {
+    installBtn.style.display = '';
+    installInner.onclick = () => {
       toast('Нажмите "Поделиться" и выберите "На экран «Домой»"', 'info');
     };
   }
@@ -2044,10 +2125,11 @@ if (_isIOS && !_isStandalone) {
 window.addEventListener('beforeinstallprompt', (e) => {
   deferredPrompt = e;
   const installBtn = $('btn-install-pwa');
-  if (installBtn) {
+  const installInner = $('btn-install-pwa-inner');
+  if (installBtn && installInner) {
     e.preventDefault();
-    installBtn.style.display = 'flex';
-    installBtn.onclick = async () => {
+    installBtn.style.display = '';
+    installInner.onclick = async () => {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
