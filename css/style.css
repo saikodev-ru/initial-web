@@ -816,9 +816,11 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
     padding:4px 8px 4px 2px;
     gap:0;
-    flex:1;
+    flex:0 1 auto;
     min-width:0;
     height:52px;
+    width:fit-content;
+    max-width:calc(100% - 60px);
   }
   /* Show back button on mobile — styled like tg-hero-close for unification */
   .back-btn-mb{
@@ -838,7 +840,7 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
   .back-btn-mb svg{width:20px;height:20px}
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Avatar pill — wraps avatar in its own pill */
+  /* Avatar pill — wraps avatar in its own pill (padding=5px → 42+10=52 = circle) */
   .hdr-av-pill{
     display:flex;align-items:center;justify-content:center;
     flex-shrink:0;
@@ -846,7 +848,7 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px;
+    padding:5px;
     height:52px;
   }
   .hdr-mb-avatar{
@@ -1412,7 +1414,7 @@ body[data-theme="light"] .st-sub-hdr.scrolled {
   background: rgba(var(--bg-rgb),.88);
 }
 .st-sub-back {
-  position: absolute; top: 14px; left: 14px;
+  position: absolute; top: 50%; left: 14px; transform: translateY(-50%);
   width: 36px; height: 36px; border-radius: 50%;
   background: rgba(255,255,255,.07); border: none;
   display: flex; align-items: center; justify-content: center;
@@ -1446,7 +1448,7 @@ body[data-theme="light"] .st-sub-hdr.scrolled {
 
 /* ── Sub-view body ── */
 .sb-prof-body {
-  padding: 8px 20px 40px;
+  padding: 16px 20px 40px;
   flex: 1; display: flex; flex-direction: column; gap: 8px;
 }
 
@@ -2549,6 +2551,34 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 
 /* INPUT AREA */
 .msgs{position:absolute;inset:0;overflow-y:auto;padding:80px 160px 140px;display:flex;flex-direction:column;gap:2px;z-index:1;overscroll-behavior:contain}
+
+/* ── Custom background: use mask-image fade instead of color overlays ── */
+.no-pattern .msgs {
+  -webkit-mask-image: linear-gradient(to bottom,
+    transparent 0px,
+    rgba(0,0,0,.15) 25px,
+    rgba(0,0,0,.5) 45px,
+    black 60px,
+    black calc(100% - 90px),
+    rgba(0,0,0,.5) calc(100% - 70px),
+    rgba(0,0,0,.15) calc(100% - 50px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom,
+    transparent 0px,
+    rgba(0,0,0,.15) 25px,
+    rgba(0,0,0,.5) 45px,
+    black 60px,
+    black calc(100% - 90px),
+    rgba(0,0,0,.5) calc(100% - 70px),
+    rgba(0,0,0,.15) calc(100% - 50px),
+    transparent 100%
+  );
+}
+.no-pattern .msgs-top-fade,
+.no-pattern .msgs-bottom-fade {
+  display: none;
+}
 .input-zone{
   padding:8px 160px 20px;
   position:absolute;
