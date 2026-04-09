@@ -682,7 +682,7 @@ if (window._swSupported) {
 
             <div class="sb-prof-section-title" style="padding:10px 0 4px">Шапка чата</div>
             <div class="sb-prof-section">
-              <div class="sb-notif-row">
+              <div class="sb-notif-row" id="row-hdr-center">
                 <div>
                   <div class="sb-notif-label">По центру</div>
                   <div class="sb-notif-sub">Никнейм и статус по центру</div>
@@ -690,6 +690,14 @@ if (window._swSupported) {
                 <button class="toggle" id="tog-hdr-center"></button>
               </div>
               <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row hdr-classic-row">
+                <div>
+                  <div class="sb-notif-label">Классическая шапка</div>
+                  <div class="sb-notif-sub">Старый стиль заголовка чата</div>
+                </div>
+                <button class="toggle" id="tog-hdr-classic"></button>
+              </div>
+              <div class="sb-prof-divider hdr-classic-divider"></div>
               <div class="sb-notif-row">
                 <div>
                   <div class="sb-notif-label">Скрыть аватар</div>
@@ -874,10 +882,12 @@ if (window._swSupported) {
         <div class="chat-welcome" id="chat-welcome"><div class="welc-content"><h2 id="welc-title"></h2><p id="welc-sub"></p></div></div>
         <div id="active-chat" style="display:none;flex-direction:column;height:100%;position:relative">
           <div class="chat-hdr" id="chat-hdr">
-            <button class="ico-btn back-btn-mb" id="btn-back-mb"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+            <div class="hdr-pill">
+            <button class="ico-btn back-btn-mb" id="btn-back-mb"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
             <div class="hdr-clickable" id="hdr-clickable">
                 <div class="av hdr-desktop-av"><div class="av-img" id="hdr-av"></div></div>
               <div class="hdr-info hdr-info-center" id="hdr-info-el"><div class="hdr-name" id="hdr-name">—</div><div class="hdr-st" id="hdr-st"></div></div>
+            </div>
             </div>
             <button class="hdr-mb-avatar" id="hdr-mb-avatar" aria-label="Профиль собеседника">
               <div class="av"><div class="av-img" id="hdr-av-mb"></div></div>
@@ -1560,6 +1570,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const hdrAv   = document.querySelector('.chat-hdr .av');
     if (hdrInfo) hdrInfo.classList.toggle('hdr-info-center', center);
     if (hdrAv)   hdrAv.style.display = hideAv ? 'none' : '';
+    const isClassic = localStorage.getItem('sg_hdr_classic') === 'true';
+    document.body.classList.toggle('mobile-classic-hdr', isClassic);
+    const togHdrClassic = document.getElementById('tog-hdr-classic');
+    if (togHdrClassic) togHdrClassic.classList.toggle('on', isClassic);
   }
   applyHdrSettings();
 
@@ -1583,6 +1597,21 @@ document.addEventListener('DOMContentLoaded', () => {
       togHdrHideAv.classList.toggle('on');
       localStorage.setItem('sg_hdr_hide_av', togHdrHideAv.classList.contains('on'));
       applyHdrSettings();
+    };
+  }
+
+  // Переключатель: классическая шапка (мобильная)
+  const togHdrClassic = document.getElementById('tog-hdr-classic');
+  if (togHdrClassic) {
+    if (localStorage.getItem('sg_hdr_classic') === 'true') {
+      togHdrClassic.classList.add('on');
+      document.body.classList.add('mobile-classic-hdr');
+    }
+    togHdrClassic.onclick = () => {
+      togHdrClassic.classList.toggle('on');
+      const isOn = togHdrClassic.classList.contains('on');
+      localStorage.setItem('sg_hdr_classic', isOn);
+      document.body.classList.toggle('mobile-classic-hdr', isOn);
     };
   }
 
