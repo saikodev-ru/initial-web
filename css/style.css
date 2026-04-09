@@ -2704,7 +2704,7 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 .msgs-bottom-fade {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  height: 80px;
+  height: 50px;
   background: linear-gradient(to top,
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
     rgba(var(--chat-bg-rgb), .88) 10%,
@@ -2721,7 +2721,7 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 .msgs-top-fade {
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 60px;
+  height: 90px;
   background: linear-gradient(to bottom,
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
     rgba(var(--chat-bg-rgb), .85) 15%,
@@ -3041,9 +3041,9 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Reduce sidebar head padding on mobile */
   .sb-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 6px !important; }
   .sb-top { margin-bottom: 10px !important; }
-  .msgs{padding:calc(78px + env(safe-area-inset-top, 0px)) 8px 140px}
-  .input-zone{padding:8px 8px 16px}
-  .input-zone, .system-mute-zone{padding:8px 8px 16px}
+  .msgs{padding:calc(78px + env(safe-area-inset-top, 0px)) 8px 110px}
+  .input-zone{padding:4px 8px 10px}
+  .input-zone, .system-mute-zone{padding:4px 8px 10px}
   /* Bigger input on mobile — keep balanced height */
   .mfield{font-size:16px !important;min-height:42px !important}
   .mfield:empty::before{font-weight:500 !important}
@@ -3612,12 +3612,21 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .no-blur .mfield-wrap,.no-blur .unified-input-wrap{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--solid2);}
 /* no-blur no longer hides the pattern — only no-pattern does */
 
-/* Mobile: no-blur also applies to pills (hdr-pill, hdr-av-pill have own backdrop) */
+/* Mobile: force-blur on pill header and input row even in no-blur mode */
 @container app (max-width: 680px){
+  .no-blur .chat-hdr{
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    background:rgba(var(--bg-rgb),.82);
+  }
   .no-blur .hdr-pill,
   .no-blur .hdr-av-pill{
-    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
-    background:var(--bg) !important;
+    backdrop-filter:blur(24px) !important;-webkit-backdrop-filter:blur(24px) !important;
+    background:rgba(var(--bg-rgb),.82) !important;
+  }
+  .no-blur .mfield-wrap,
+  .no-blur .unified-input-wrap{
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    background:rgba(var(--bg-rgb),.65);
   }
 }
 
@@ -3632,11 +3641,11 @@ body[data-theme="light"] {
 
 /* Search bar — slightly grayer in light theme */
 body[data-theme="light"] .srch-new {
-  background: rgba(0,0,0,.05);
-  border-color: rgba(0,0,0,.08);
+  background: rgba(0,0,0,.08);
+  border-color: rgba(0,0,0,.10);
 }
 body[data-theme="light"] .srch-new:focus-within {
-  background: rgba(0,0,0,.07);
+  background: rgba(0,0,0,.10);
 }
 
 /* Nav-rail — lighter in light theme */
@@ -4907,7 +4916,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     position: absolute;
     top: 2px;
     height: calc(100% - 4px);
-    width: 44px;
+    width: 56px;
     border-radius: 100px;
     background: var(--ybg);
     transition: left .35s cubic-bezier(.32,.72,0,1), width .25s cubic-bezier(.32,.72,0,1);
