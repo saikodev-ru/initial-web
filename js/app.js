@@ -438,7 +438,7 @@ async function sendDocumentFiles(docFiles) {
 
 
 /* ══ POLLING ══════════════════════════════════════════════════ */
-function pollNow() { if (S.chatId) fetchMsgs(S.chatId); else loadChats(); }
+function pollNow() { loadChats(); if (S.chatId) fetchMsgs(S.chatId); }
 
 /* ══ BACKGROUND SYNC ══════════════════════════════════════════ */
 // Every 30s: silently check all non-active chats for edits/deletes
