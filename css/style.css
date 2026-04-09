@@ -2650,7 +2650,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .epicker{max-height:55dvh}
   .emo-grid-wrap{max-height:calc(55dvh - 120px)}
 
-  /* Settings panel slides from the left on mobile — full screen, no shadow */
+  /* Settings panel — glass on mobile, same as desktop */
   .sb-profile-panel {
     left: 0;
     right: auto;
@@ -2663,6 +2663,10 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   }
   .sb-profile-panel.open {
     box-shadow: none !important;
+  }
+  .panel-backdrop {
+    background: rgba(0,0,0,.45) !important;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   }
 
   /* Search bar on mobile: full width, centered */
