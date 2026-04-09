@@ -2327,12 +2327,12 @@ $('btn-emo-in').onclick=e=>{
   if(p.classList.contains('on')&&emoMode==='input'){
     p.classList.remove('on');
     $('btn-emo-in').classList.remove('active');
-    if(window.innerWidth>680) mfield.focus();
+    if(!__isMobileView()) mfield.focus();
   } else {
     const r=$('btn-emo-in').getBoundingClientRect();
     openEmoPicker(r.right, r.top,'input',null);
     $('btn-emo-in').classList.add('active');
-    if(window.innerWidth>680) mfield.focus();
+    if(!__isMobileView()) mfield.focus();
   }
 };
 
@@ -2352,7 +2352,7 @@ async function sendText(){
   }
 
   // ── Normal send ────────────────────────────────────────────
-  clearField();updateSendBtn();if(window.innerWidth<=680){mfield.focus();}const replyId=S.replyTo?.id||null;if(S.replyTo){S.replyTo=null;hideRbar();}stopTyping();
+  clearField();updateSendBtn();if(__isMobileView()){mfield.focus();}const replyId=S.replyTo?.id||null;if(S.replyTo){S.replyTo=null;hideRbar();}stopTyping();
   const toSid=S.partner.partner_signal_id;
   if(!S.chatId){const res=await api('send_message','POST',{to_signal_id:toSid,body,reply_to:replyId||undefined});if(!res.ok){toast('Ошибка: '+res.message,'err');return;}S.chatId=res.chat_id;S.lastId[res.chat_id]=res.message_id;S.msgs[res.chat_id]=[];await loadChats();const nc=S.chats.find(c=>c.chat_id===res.chat_id);if(nc){S.partner=nc;$$('.ci').forEach(e=>e.classList.remove('active'));document.querySelector(`.ci[data-chat-id="${res.chat_id}"]`)?.classList.add('active');}$('msgs').innerHTML='';await fetchMsgs(res.chat_id,true);return;}
   const tid='t'+Date.now();
@@ -2483,7 +2483,7 @@ document.getElementById('panel-backdrop')?.addEventListener('click', function() 
   if(!msgs) return;
   
   msgs.addEventListener('touchstart', e => {
-    if(window.innerWidth > 680 || e.touches.length > 1) return;
+    if(!__isMobileView() || e.touches.length > 1) return;
     const t = e.touches[0];
     sx = t.clientX; sy = t.clientY;
     row = e.target.closest('.mrow');

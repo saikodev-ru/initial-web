@@ -631,6 +631,7 @@ if (prevCtxSpoiler) {
 document.addEventListener('click', e => {
   if (!e.target.closest('.ctxmenu')) hideCtx();
   if (!e.target.closest('#chat-ctxmenu')) hideChatCtx();
+  if (!e.target.closest('#hdr-mb-ctxmenu')) hideHdrMbCtx();
   if (fieldCtx && !fieldCtx.contains(e.target)) hideFieldCtx();
   if (prevCtx && !prevCtx.contains(e.target) && e.target.closest('#btn-prev-opts') == null) hidePrevCtx();
 });
@@ -641,5 +642,187 @@ document.addEventListener('keydown', e => {
     hideCtx();
     hideChatCtx();
     hidePrevCtx();
+    hideHdrMbCtx();
   }
 });
+
+/* ── 4. МОБИЛЬНЫЙ АВАТАР ШАПКИ ЧАТА (long-press контекстное меню) ── */
+const hdrMbCtx = $('hdr-mb-ctxmenu');
+
+function showHdrMbCtx(e) {
+  hideCtx();
+  hideChatCtx();
+  hideFieldCtx();
+  hidePrevCtx();
+
+  const c = S.partner;
+  if (!c) return;
+
+  // Hide call/delete for saved msgs and system chats
+  const callBtn = $('hdr-mb-ctx-call');
+  if (callBtn) callBtn.style.display = (isSavedMsgs(c) || isSystemChat(c)) ? 'none' : '';
+  const delBtn = $('hdr-mb-ctx-delete');
+  if (delBtn) delBtn.style.display = (c.is_protected || c.is_saved_msgs) ? 'none' : '';
+  const clearBtn = $('hdr-mb-ctx-clear');
+  if (clearBtn) clearBtn.style.display = (c.is_saved_msgs) ? 'none' : '';
+
+  hdrMbCtx.style.display = 'block';
+  hdrMbCtx.style.transition = 'none';
+  hdrMbCtx.classList.remove('on');
+  hdrMbCtx.style.visibility = 'hidden';
+
+  // Position — center above the avatar button
+  const btn = $('hdr-mb-avatar');
+  const btnRect = btn.getBoundingClientRect();
+  hdrMbCtx.style.left = '0px';
+  hdrMbCtx.style.top = '0px';
+  hdrMbCtx.style.transform = 'none';
+
+  const rect = hdrMbCtx.getBoundingClientRect();
+  const menuW = rect.width || 200;
+  const menuH = rect.height || 200;
+  const W = document.documentElement.clientWidth;
+  const H = document.documentElement.clientHeight;
+
+  let left = btnRect.right - menuW - 4;
+  let top = btnRect.top - menuH - 8;
+  if (left < 6) left = 6;
+  if (top < 6) top = btnRect.bottom + 8;
+  if (left + menuW > W - 6) left = W - menuW - 6;
+  if (top + menuH > H - 6) top = H - menuH - 6;
+
+  hdrMbCtx.style.left = left + 'px';
+  hdrMbCtx.style.top = top + 'px';
+  hdrMbCtx.style.transform = '';
+  hdrMbCtx.style.visibility = '';
+  hdrMbCtx.style.transition = '';
+
+  void hdrMbCtx.offsetWidth; // force reflow
+  hdrMbCtx.classList.add('on');
+}
+
+function hideHdrMbCtx() {
+  if (hdrMbCtx) {
+    hdrMbCtx.classList.remove('on');
+    setTimeout(() => { if (!hdrMbCtx.classList.contains('on')) hdrMbCtx.style.display = 'none'; }, 150);
+  }
+}
+
+// Long-press on mobile avatar
+(function() {
+  const btn = $('hdr-mb-avatar');
+  if (!btn) return;
+
+  let timer = null;
+  let fired = false;
+  let startX = 0, startY = 0;
+
+  function onStart(e) {
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX;
+    startY = touch.clientY;
+    fired = false;
+    timer = setTimeout(() => {
+      fired = true;
+      showHdrMbCtx({ clientX: startX, clientY: startY });
+    }, 400);
+  }
+
+  function onMove(e) {
+    if (timer === null) return;
+    const touch = e.touches ? e.touches[0] : e;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  }
+
+  function onEnd(e) {
+    clearTimeout(timer);
+    timer = null;
+    if (fired) {
+      e.preventDefault();
+      return;
+    }
+    // Tap — open partner modal
+    if (S.partner && !isSystemChat(S.partner) && !isSavedMsgs(S.partner)) {
+      openPartnerModal();
+    }
+  }
+
+  btn.addEventListener('touchstart', onStart, { passive: true });
+  btn.addEventListener('touchmove', onMove, { passive: true });
+  btn.addEventListener('touchend', onEnd);
+  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; });
+  // Mouse fallback for desktop testing
+  btn.addEventListener('mousedown', onStart);
+  btn.addEventListener('mousemove', onMove);
+  btn.addEventListener('mouseup', onEnd);
+  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; });
+})();
+
+// Context menu item handlers
+$('hdr-mb-ctx-call').onclick = () => {
+  hideHdrMbCtx();
+  if (!S.partner || isSavedMsgs(S.partner) || isSystemChat(S.partner)) return;
+  if (window.startCall) {
+    window.startCall({
+      id: S.partner?.partner_id || S.partner?.id,
+      name: $('hdr-name')?.textContent || '—',
+      avatarHtml: $('hdr-av')?.innerHTML || '',
+      signalId: S.partner?.partner_signal_id || S.partner?.signal_id
+    });
+  }
+};
+
+$('hdr-mb-ctx-profile').onclick = () => {
+  hideHdrMbCtx();
+  if (!S.partner) return;
+  if (isSavedMsgs(S.partner) || isSystemChat(S.partner)) return;
+  openPartnerModal();
+};
+
+$('hdr-mb-ctx-clear').onclick = () => {
+  hideHdrMbCtx();
+  if (!S.partner || isSavedMsgs(S.partner)) return;
+  const chatId = S.partner.chat_id;
+  showConfirm('Очистить историю?', 'Все сообщения будут удалены только у вас.', async () => {
+    const res = await api('clear_chat_history', 'POST', { chat_id: chatId });
+    if (res.ok) {
+      S.msgs[chatId] = [];
+      delete S.lastId[chatId];
+      if (typeof cacheDeleteChat === 'function') cacheDeleteChat(chatId);
+      if (S.chatId === chatId) renderMsgs(chatId);
+      toast('История очищена');
+    } else {
+      toast(res.message || 'Ошибка', 'err');
+    }
+  });
+};
+
+$('hdr-mb-ctx-delete').onclick = () => {
+  hideHdrMbCtx();
+  if (!S.partner) return;
+  if (S.partner.is_protected || S.partner.is_saved_msgs) return;
+  const partnerCopy = S.partner;
+  showConfirm('Удалить чат?', 'История сообщений будет удалена для обоих участников.', async () => {
+    const res = await api('delete_chat', 'POST', { chat_id: partnerCopy.chat_id });
+    if (res.ok) {
+      S.chats = S.chats.filter(c => c.chat_id !== partnerCopy.chat_id);
+      if (S.chatId === partnerCopy.chat_id) {
+        S.partner = null;
+        goBackToList();
+      }
+      delete S.msgs[partnerCopy.chat_id];
+      delete S.lastId[partnerCopy.chat_id];
+      if (typeof cacheDeleteChat === 'function') cacheDeleteChat(partnerCopy.chat_id);
+      if (typeof cacheWriteChats === 'function') cacheWriteChats(S.chats);
+      if (typeof sbSearchActive !== 'undefined' && !sbSearchActive) renderChats('');
+      toast('Чат удалён');
+    } else {
+      toast(res.message || 'Ошибка удаления чата', 'err');
+    }
+  });
+};
