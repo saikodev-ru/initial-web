@@ -3,7 +3,7 @@
   src:url('../assets/emoji.ttf') format('truetype');
   font-display:swap;
 }
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;height:100dvh;overflow:hidden}
 @media(max-width:680px){html,body{min-height:100dvh}}
 :root{
@@ -679,8 +679,8 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .inapp-push{
   position:fixed;top:-200px;left:50%;transform:translateX(-50%);
   z-index:9999;
-  width:calc(100% - 24px);
-  max-width:460px;
+  width:auto;
+  max-width:calc(100% - 24px);
   transition:top .45s cubic-bezier(.34,1.3,.64,1);
   pointer-events:none;
   padding-top:8px;
@@ -690,45 +690,47 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   pointer-events:auto;
 }
 .inapp-push-inner{
-  display:flex;align-items:flex-start;gap:10px;
-  background:rgba(var(--bg-rgb),.92);
+  display:flex;align-items:center;gap:8px;
+  background:rgba(var(--bg-rgb),.82);
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  border:1px solid var(--b2);
-  border-radius:16px;
-  padding:12px;
-  box-shadow:0 8px 32px rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.15);
+  border:none;
+  border-radius:9999px;
+  padding:6px 8px 6px 6px;
+  box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
   position:relative;
   overflow:hidden;
 }
 .inapp-push-av{
-  width:40px;height:40px;
+  width:38px;height:38px;
   border-radius:50%;overflow:hidden;
   flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
   background:var(--solid2);
   font-size:14px;font-weight:900;color:var(--t2);
 }
-.inapp-push-av img{width:100%;height:100%;object-fit:cover;display:block}
+.inapp-push-av img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .25s ease}
+.inapp-push-av img.loaded{opacity:1}
 .inapp-push-content{
   flex:1;min-width:0;
-  display:flex;flex-direction:column;gap:2px;
+  display:flex;flex-direction:column;gap:0px;
+  padding-right:4px;
 }
 .inapp-push-name{
-  font-size:14px;font-weight:700;color:var(--t1);
+  font-size:13px;font-weight:700;color:var(--t1);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.3;
 }
 .inapp-push-msg{
-  font-size:13px;color:var(--t2);
+  font-size:12.5px;color:var(--t2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  line-height:1.4;
+  line-height:1.3;
 }
 .inapp-push-acts{
-  display:flex;align-items:center;gap:4px;
+  display:flex;align-items:center;gap:2px;
   flex-shrink:0;
-  margin-top:2px;
 }
 .inapp-push-act-btn{
-  width:32px;height:32px;
+  width:30px;height:30px;
   border:none;border-radius:50%;
   background:rgba(255,255,255,.06);
   color:var(--t2);
@@ -742,7 +744,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .inapp-push-reply-wrap{
   display:none;
   align-items:center;gap:6px;
-  margin-top:8px;
+  margin-top:6px;
 }
 .inapp-push-reply-wrap.open{display:flex}
 .inapp-push-reply-wrap .mfield{
@@ -768,20 +770,13 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 }
 .inapp-push-reply-send:hover{opacity:.85}
 .inapp-push-reply-send:active{transform:scale(.85)}
-/* Accent line at top */
-.inapp-push-inner::before{
-  content:'';position:absolute;top:0;left:16px;right:16px;
-  height:2px;background:var(--y);border-radius:0 0 2px 2px;
-}
 /* Light theme */
 body[data-theme="light"] .inapp-push-inner{
-  background:rgba(var(--bg-rgb),.96);
-  border-color:rgba(0,0,0,.08);
+  background:rgba(var(--bg-rgb),.88);
 }
 body[data-theme="light"] .inapp-push-act-btn{background:rgba(0,0,0,.04)}
 body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
-body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
-/* Mobile: full width, adjust safe area */
+/* Mobile: full width */
 @container app (max-width: 680px){
   .inapp-push{
     width:calc(100% - 16px);
@@ -789,6 +784,14 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     padding-top:calc(8px + env(safe-area-inset-top, 0px));
   }
   .inapp-push.visible{top:4px}
+  .inapp-push-inner{
+    border-radius:9999px;
+    padding:5px 6px 5px 5px;
+  }
+  .inapp-push-av{width:34px;height:34px}
+  .inapp-push-name{font-size:13px}
+  .inapp-push-msg{font-size:12px}
+  .inapp-push-act-btn{width:28px;height:28px}
 }
 
 /* ══ MOBILE PILL HEADER ══ */
@@ -853,8 +856,8 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
     padding:6px;
-    width:62px;
-    height:62px;
+    width:64px;
+    height:64px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -867,9 +870,9 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     touch-action:none;
   }
   .hdr-mb-avatar .av-img{
-    width:46px !important;
-    height:46px !important;
-    font-size:17px !important;
+    width:52px !important;
+    height:52px !important;
+    font-size:18px !important;
     border-radius:50%;
     border:none !important;
     -webkit-touch-callout:none;
@@ -3627,20 +3630,8 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 }
 
 /* ══ LIGHT THEME FIXES ═══════════════════════════════════════ */
-
-/* 1. Light theme base variables — sidebar, header, panels, text */
-body[data-theme="light"] {
-  --bg: #f0f0f0; --bg-rgb: 240, 240, 240;
-  --bg2: #e6e6e6;
-  --chat-bg: #ffffff; --chat-bg-rgb: 255, 255, 255;
-  --pattern-color: rgba(0, 0, 0, 0.04);
-  --msg-bg: #f0f0f0;
-  --msg-in-pill: #8b5cf6;
-  --s0: rgba(0,0,0,.03); --s1: rgba(0,0,0,.05); --s2: rgba(0,0,0,.08); --s3: rgba(0,0,0,.14);
-  --solid1: #e8e8ec; --solid2: #f5f5f5; --solid3: #eaeaec;
-  --b: rgba(0,0,0,.08); --b2: rgba(0,0,0,.12); --b3: rgba(0,0,0,.18);
-  --t1: #1a1a1a; --t2: rgba(0,0,0,.55); --t3: rgba(0,0,0,.25);
-}
+/* CSS custom properties are set by js/theme.js via inline styles on <html>. */
+/* This section contains only non-custom-property CSS rules for light theme. */
 
 /* Search bar — slightly grayer in light theme */
 body[data-theme="light"] .srch-new {

@@ -15,16 +15,17 @@ const THEMES = {
     '--chat-btn-bg': 'transparent', '--chat-btn-b': 'transparent'
   },
   light: {
-    '--bg': '#ffffff', '--bg-rgb': '255, 255, 255',
-    '--bg2': '#f4f4f5',
-    '--chat-bg': '#bac2cc', '--chat-bg-rgb': '186, 194, 204',
-    '--pattern-color': '#9ea9b8',
-    '--solid1': '#f0f2f5', '--solid2': '#e4e6e9', '--solid3': '#d8dadf',
-    '--msg-bg': '#e1e9f1',
+    '--bg': '#f0f0f0', '--bg-rgb': '240, 240, 240',
+    '--bg2': '#e6e6e6',
+    '--chat-bg': '#ffffff', '--chat-bg-rgb': '255, 255, 255',
+    '--pattern-color': 'rgba(0,0,0,0.04)',
+    '--solid1': '#e8e8ec', '--solid2': '#f5f5f5', '--solid3': '#eaeaec',
+    '--msg-bg': '#f0f0f0',
+    '--msg-in-pill': '#8b5cf6',
     '--s0': 'rgba(0,0,0,.03)', '--s1': 'rgba(0,0,0,.05)', '--s2': 'rgba(0,0,0,.08)', '--s3': 'rgba(0,0,0,.14)',
     '--b': 'rgba(0,0,0,.08)', '--b2': 'rgba(0,0,0,.12)', '--b3': 'rgba(0,0,0,.18)',
-    '--y': '#3390ec', '--y2': '#4ea4f5', '--ybg': 'rgba(51,144,236,.12)', '--yb': 'rgba(51,144,236,.36)',
-    '--t1': '#000000', '--t2': 'rgba(0,0,0,.55)', '--t3': 'rgba(0,0,0,.35)',
+    '--y': '#8b5cf6', '--y2': '#a78bfa', '--ybg': 'rgba(139,92,246,.13)', '--yb': 'rgba(139,92,246,.36)',
+    '--t1': '#1a1a1a', '--t2': 'rgba(0,0,0,.55)', '--t3': 'rgba(0,0,0,.25)',
     '--blur-op': '0.3',
     '--msg-me-bg': 'var(--y)',
     '--chat-btn-bg': 'rgba(255,255,255,0.75)', '--chat-btn-b': 'rgba(0,0,0,0.12)'
@@ -50,7 +51,8 @@ function applyTheme(name) {
   const vars = THEMES[name] || THEMES.dark;
   const r = document.documentElement;
   for (const [k, v] of Object.entries(vars)) r.style.setProperty(k, v);
-  
+  // Set data-theme on body so CSS selectors like body[data-theme="light"] work
+  document.body.setAttribute('data-theme', name);
   document.querySelectorAll('.tg-theme-card').forEach(c => c.classList.toggle('active', c.dataset.theme === name));
   try { localStorage.setItem('sg_theme', name); } catch {}
   const metaTheme = document.querySelector('meta[name="theme-color"]');
