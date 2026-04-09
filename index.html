@@ -358,6 +358,30 @@ if (window._swSupported) {
 </div>
 
 <div id="scr-app" class="screen hidden">
+  <!-- In-app push notification banner -->
+  <div class="inapp-push" id="inapp-push">
+    <div class="inapp-push-inner">
+      <div class="inapp-push-av" id="inapp-push-av"></div>
+      <div class="inapp-push-content">
+        <div class="inapp-push-name" id="inapp-push-name"></div>
+        <div class="inapp-push-msg" id="inapp-push-msg"></div>
+        <div class="inapp-push-reply-wrap" id="inapp-push-reply-wrap">
+          <div class="mfield" id="inapp-push-reply-input" contenteditable="true" role="textbox" spellcheck="false" data-placeholder="Быстрый ответ..."></div>
+          <button class="inapp-push-reply-send" id="inapp-push-reply-send" title="Отправить">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="inapp-push-acts">
+        <button class="inapp-push-act-btn inapp-push-reply-btn" id="inapp-push-reply-btn" title="Ответить">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </button>
+        <button class="inapp-push-act-btn inapp-push-close-btn" id="inapp-push-close-btn" title="Закрыть">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><path stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
   <div class="layout">
     <!-- Left navigation rail -->
     <nav class="nav-rail" id="nav-rail">
