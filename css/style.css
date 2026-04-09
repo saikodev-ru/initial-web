@@ -643,6 +643,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-info{flex:1;min-width:0;padding:4px 10px;margin:-4px -10px;border-radius:10px;transition:background .15s}
 .hdr-info.hdr-info-center{display:flex;flex-direction:column;align-items:center;text-align:center}
 .hdr-name{display:flex;align-items:center;gap:4px;min-width:0;max-width:100%;font-weight:900;font-size:15.5px;letter-spacing:-.2px;overflow:hidden;white-space:nowrap}.hdr-name .marquee-inner{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.hdr-name:has(.is-scrolling){-webkit-mask-image:linear-gradient(to right,transparent 0%,#000 12%,#000 88%,transparent 100%);mask-image:linear-gradient(to right,transparent 0%,#000 12%,#000 88%,transparent 100%)}
 .hdr-st{font-size:12px;color:var(--t2);margin-top:1px}.hdr-st.on{color:var(--green)}.hdr-st.typ{color:var(--y);font-style:italic}
 .hdr-acts{display:flex;gap:4px;flex-shrink:0;align-items:center}
 /* Chat header action buttons */
@@ -814,11 +815,13 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px 4px 4px 2px;
+    padding:4px 8px 4px 2px;
     gap:0;
-    flex:1;
+    flex:0 1 auto;
     min-width:0;
     height:52px;
+    width:fit-content;
+    max-width:calc(100% - 60px);
   }
   /* Show back button on mobile — styled like tg-hero-close for unification */
   .back-btn-mb{
@@ -839,7 +842,7 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
   .back-btn-mb svg{width:20px;height:20px}
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Avatar pill — absolute bottom-right, wraps avatar in its own pill (44+8=52 = circle) */
+  /* Avatar pill — absolute bottom-right, wraps avatar in its own pill (42+10=52 = circle) */
   .hdr-av-pill{
     position:absolute;
     bottom:0;right:0;
@@ -849,7 +852,8 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px;
+    padding:5px;
+    width:52px;
     height:52px;
     z-index:16;
   }
@@ -863,8 +867,8 @@ body[data-theme="light"] .inapp-push-inner::before{opacity:.6}
     touch-action:none;
   }
   .hdr-mb-avatar .av-img{
-    width:44px !important;
-    height:44px !important;
+    width:42px !important;
+    height:42px !important;
     font-size:16px !important;
     border-radius:50%;
     border:none !important;
@@ -3608,13 +3612,13 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .no-blur .mfield-wrap,.no-blur .unified-input-wrap{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--solid2);}
 /* no-blur no longer hides the pattern — only no-pattern does */
 
-/* Mobile: always keep blur on chat-hdr and input-row regardless of no-blur setting */
+/* Mobile: no-blur also applies to pills (hdr-pill, hdr-av-pill have own backdrop) */
 @container app (max-width: 680px){
-  .no-blur .chat-hdr{
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-    background:rgba(var(--bg-rgb),.78);
+  .no-blur .hdr-pill,
+  .no-blur .hdr-av-pill{
+    backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+    background:var(--bg) !important;
   }
-  .no-blur .mfield-wrap,.no-blur .unified-input-wrap{backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);background:rgba(var(--bg-rgb),.65);}
 }
 
 /* ══ LIGHT THEME FIXES ═══════════════════════════════════════ */
@@ -3750,10 +3754,10 @@ body[data-theme="light"] .tg-session-icon{background:rgba(139,92,246,.1)}
 body[data-theme="light"] .tg-session-icon-phone{background:rgba(52,199,89,.1)}
 body[data-theme="light"] .tg-session-icon-web{background:rgba(14,165,233,.1)}
 body[data-theme="light"] .tg-session-term:hover{background:rgba(255,69,58,.08)}
-body[data-theme="light"] .st-sub-back{background:rgba(0,0,0,.08)}
-body[data-theme="light"] .st-sub-back:hover{background:rgba(0,0,0,.12)}
-body[data-theme="light"] .back-btn-mb{background:rgba(0,0,0,.10) !important}
-body[data-theme="light"] .back-btn-mb:hover{background:rgba(0,0,0,.14) !important}
+body[data-theme="light"] .st-sub-back{background:rgba(0,0,0,.10)}
+body[data-theme="light"] .st-sub-back:hover{background:rgba(0,0,0,.16)}
+body[data-theme="light"] .back-btn-mb{background:rgba(0,0,0,.15) !important}
+body[data-theme="light"] .back-btn-mb:hover{background:rgba(0,0,0,.22) !important}
 body[data-theme="light"] .pwa-install-banner {
   border-color: rgba(139,92,246,.25);
 }
