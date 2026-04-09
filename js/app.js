@@ -1196,12 +1196,35 @@ function closeSettingsSubView() {
   $('st-view-main').style.transform = '';
   _stActiveSub.classList.remove('active');
   $('st-view-main').classList.remove('faded');
+  // On mobile: go back in history to remove our pushed sub-view state
+  if (window.innerWidth <= 680 && history.state?.settingsSub) {
+    _closingProfile = true; // prevent popstate from double-firing
+    history.back();
+  }
   setTimeout(() => { _stActiveSub = null; }, 250);
 }
 
 $('prof-row').onclick = (e) => { e.stopPropagation(); _handleOpenProfile(); };
 $('sb-prof-back').onclick = closeProfile;
 if ($('tg-hero-info-wrap')) $('tg-hero-info-wrap').onclick = openSelfModal;
+
+/* ── POPSTATE: system back gesture on mobile ── */
+window.addEventListener('popstate', (e) => {
+  if (_closingProfile) {
+    _closingProfile = false;
+    return;
+  }
+  if (window.innerWidth > 680) return;
+  const panel = $('sb-profile-panel');
+  if (!panel || !panel.classList.contains('open')) return;
+  // If sub-view is open, close it first
+  if (_stActiveSub) {
+    closeSettingsSubView();
+    return;
+  }
+  // Otherwise close the entire settings panel
+  closeProfile();
+});
 
 /* ── BG PATTERN TOGGLE ────────────────────────────────── */
 const BG_PAT_KEY = 'sg_bg_pattern';
@@ -1437,6 +1460,8 @@ const ACCENT_DEFAULTS = {
   '#6366f1': { y2: '#818cf8', ybg: 'rgba(99,102,241,.13)', yb: 'rgba(99,102,241,.36)' },
 };
 const _accentCustomSwatch = $('accent-custom-swatch');
+const _accentAutoSwatch = $('accent-auto-swatch');
+const ACCENT_AUTO_KEY = 'sg_accent_auto';
 function _applyAccentColor(hex) {
   const root = document.documentElement;
   root.style.setProperty('--y', hex);
@@ -1477,8 +1502,6 @@ document.querySelectorAll('.accent-swatch').forEach(s => {
 });
 
 // Auto accent swatch
-const _accentAutoSwatch = $('accent-auto-swatch');
-const ACCENT_AUTO_KEY = 'sg_accent_auto';
 if (_accentAutoSwatch) {
   _accentAutoSwatch.onclick = () => {
     const cached = localStorage.getItem(BG_IMG_KEY);
