@@ -379,7 +379,7 @@ window.CallUI = (() => {
     }
   }
 
-  const _isMobile = () => window.matchMedia('(max-width: 680px)').matches;
+  const _isMobile = () => window.__isMobileView ? window.__isMobileView() : window.matchMedia('(max-width: 680px)').matches;
 
   /* ── UI State ── */
   function _setUIState(name, avHtml, isRinging, isVideo) {

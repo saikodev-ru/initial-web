@@ -206,7 +206,7 @@ function openChat(c){
   void ac.offsetWidth;
   ac.classList.add('chat-switch');
 
-  if(window.innerWidth<=680){
+  if(__isMobileView()){
     $('sidebar').classList.add('hidden');
     // Use class-based slide animation
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
@@ -960,7 +960,7 @@ async function startChat(u){
   $('chat-welcome').style.display='none';
   $('active-chat').style.display='flex';
   
-  if(window.innerWidth<=680){
+  if(__isMobileView()){
     $('sidebar').classList.add('hidden');
     requestAnimationFrame(()=>$('active-chat').classList.add('mb-visible'));
     history.pushState({chat:0},'','');
@@ -977,7 +977,7 @@ $$('.overlay').forEach(o=>o.onclick=e=>{if(e.target===o)closeMod(o.id);});
 function goBackToList(){
   if(S.chatId)saveScrollPos(S.chatId);
   try{localStorage.removeItem('sg_last_chat');}catch(e){}
-  if(window.innerWidth<=680){
+  if(__isMobileView()){
     // Slide chat out to the right, slide sidebar in from left
     $('active-chat').classList.remove('mb-visible');
     $('sidebar').classList.remove('hidden');
@@ -1040,7 +1040,7 @@ document.addEventListener('keydown', e => {
 // System back (Android hardware button, browser back gesture)
 window.addEventListener('popstate',e=>{
   // Don't close chat if settings panel or a modal is handling the back gesture
-  if(window.innerWidth<=680&&$('active-chat').classList.contains('mb-visible')){
+  if(__isMobileView()&&$('active-chat').classList.contains('mb-visible')){
     const panel = $('sb-profile-panel');
     if (panel && panel.classList.contains('open')) return;
     // Check if any modal is open

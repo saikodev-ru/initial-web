@@ -600,7 +600,7 @@ function openEmoPicker(x,y,mode,msgId){
   const p=$('epicker');
   
 
-  const isMobile=window.innerWidth<=680;
+  const isMobile=__isMobileView();
   if(isMobile){
     if (mode === 'input') {
       const IZ=$('input-zone');
@@ -656,7 +656,7 @@ document.addEventListener('click',e=>{
       ep.classList.remove('on');
       ep.style.cssText = '';
       // On desktop restore fixed positioning context (move back to body)
-      if(window.innerWidth>680 && ep.parentNode !== document.body){
+      if(!__isMobileView() && ep.parentNode !== document.body){
         document.body.appendChild(ep);
       }
     }
@@ -680,14 +680,14 @@ document.addEventListener('click',e=>{
     if (ep.classList.contains('on') && emoMode === tgtMode) {
       ep.classList.remove('on');
       ep.style.cssText = '';
-      if (window.innerWidth > 680 && ep.parentNode !== document.body) document.body.appendChild(ep);
-      if (f && window.innerWidth > 680) f.focus();
+      if (!__isMobileView() && ep.parentNode !== document.body) document.body.appendChild(ep);
+      if (f && !__isMobileView()) f.focus();
       return;
     }
 
     const r = t.getBoundingClientRect();
     openEmoPicker(r.right, r.bottom, tgtMode, null);
-    if (f && window.innerWidth > 680) f.focus();
+    if (f && !__isMobileView()) f.focus();
   }
 });
 buildEmoPicker();
