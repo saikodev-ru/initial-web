@@ -266,10 +266,10 @@
     nameEl.textContent = opts.senderName || 'Initial';
     // Set message body
     msgEl.textContent = truncate(stripHtml(opts.body || ''), 80);
-    // Set avatar
+    // Set avatar using aviHtml() for proper URL resolution, shimmer loading, and fallback
     if (avEl) {
-      if (opts.senderAvatar) {
-        avEl.innerHTML = '<img src="' + opts.senderAvatar + '" alt="" onerror="this.parentElement.textContent=\'' + (opts.senderName || '?').charAt(0).toUpperCase() + '\'">';
+      if (typeof aviHtml === 'function') {
+        avEl.innerHTML = aviHtml(opts.senderName || 'Initial', opts.senderAvatar || null);
       } else {
         avEl.textContent = (opts.senderName || '?').charAt(0).toUpperCase();
       }
