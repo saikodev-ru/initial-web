@@ -1,5 +1,9 @@
 /* ══ APP — Медиа · SSE · Polling · Просмотрщик · Профиль · Boot ══ */
 
+/* ── Mobile view detection (real mobile OR emulation) ── */
+window.__mobileEmulated = false;
+window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
+
 /* ══ WELCOME SCREEN — static text with fade-in ════════════════ */
 function showWelcomeScreen() {
   const titleEl = $('welc-title');
@@ -945,7 +949,7 @@ function openProfile() {
   _showPanelBackdrop();
 
   // On mobile: push history state so system back gesture works
-  if (window.innerWidth <= 680) {
+  if (__isMobileView()) {
     history.pushState({ settingsPanel: true }, '');
   }
 
@@ -1141,7 +1145,7 @@ function closeProfile() {
   $('sb-profile-panel').classList.remove('open');
   _hidePanelBackdrop();
   // On mobile: go back in history to remove our pushed state (without triggering popstate handler)
-  if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+  if (__isMobileView() && history.state?.settingsPanel) {
     _closingProfile = true;
     history.back();
   }
@@ -1176,7 +1180,7 @@ document.querySelectorAll('.st-nav-btn[data-goto], .tg-row[data-goto]').forEach(
     $('st-view-main').classList.add('faded');
     target.classList.add('active');
     // On mobile: push history for sub-view so back gesture returns to main settings
-    if (window.innerWidth <= 680 && history.state?.settingsPanel) {
+    if (__isMobileView() && history.state?.settingsPanel) {
       history.pushState({ settingsPanel: true, settingsSub: true }, '');
     }
   };
@@ -1197,7 +1201,7 @@ function closeSettingsSubView() {
   _stActiveSub.classList.remove('active');
   $('st-view-main').classList.remove('faded');
   // On mobile: go back in history to remove our pushed sub-view state
-  if (window.innerWidth <= 680 && history.state?.settingsSub) {
+  if (__isMobileView() && history.state?.settingsSub) {
     _closingProfile = true; // prevent popstate from double-firing
     history.back();
   }
@@ -1214,7 +1218,7 @@ window.addEventListener('popstate', (e) => {
     _closingProfile = false;
     return;
   }
-  if (window.innerWidth > 680) return;
+  if (!__isMobileView()) return;
   const panel = $('sb-profile-panel');
   if (!panel || !panel.classList.contains('open')) return;
   // If sub-view is open, close it first
@@ -1633,6 +1637,7 @@ const MOBILE_EMULATE_KEY = 'sg_mobile_emulate';
 function _applyMobileEmulation(on, w) {
   const el = document.getElementById('scr-app');
   if (!el) return;
+  window.__mobileEmulated = !!on;
   if (on && w) {
     el.style.maxWidth = w + 'px';
     el.style.margin = '0 auto';
@@ -1640,6 +1645,7 @@ function _applyMobileEmulation(on, w) {
     el.style.borderRadius = '12px';
     el.style.overflow = 'hidden';
     el.style.height = '100dvh';
+    el.style.willChange = 'transform';
   } else {
     el.style.maxWidth = '';
     el.style.margin = '';
@@ -1647,6 +1653,7 @@ function _applyMobileEmulation(on, w) {
     el.style.borderRadius = '';
     el.style.overflow = '';
     el.style.height = '';
+    el.style.willChange = '';
   }
 }
 // Restore
@@ -2069,7 +2076,7 @@ function _boot() {
         const _lastChatId = parseInt(localStorage.getItem('sg_last_chat') || '0', 10) || null;
         loadChats().then(() => {
           // Restore last chat (desktop)
-          if (_lastChatId && window.innerWidth > 680) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); }
+          if (_lastChatId && !__isMobileView()) { const c = (S.chats || []).find(x => x.chat_id === _lastChatId); if (c) openChat(c); }
           // Process any pending notification action that arrived before chats loaded
           if (_pendingNotifAction) _handleNotifAction(_pendingNotifAction.action, _pendingNotifAction.chatId);
           // Push avatar data URLs to SW cache so background notifications show real avatars
@@ -2359,7 +2366,7 @@ function _switchNav(nav) {
 
 /* ══ PANEL BACKDROP — blur + dim behind panels (desktop only) ════ */
 function _showPanelBackdrop() {
-  if (window.innerWidth <= 680) return; // no backdrop on mobile
+  if (__isMobileView()) return; // no backdrop on mobile
   const el = $('panel-backdrop');
   if (el) el.classList.add('visible');
 }
