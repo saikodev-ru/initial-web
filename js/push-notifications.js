@@ -388,6 +388,8 @@
     if (isTabFocused) {
       // Only show banner if user is NOT in the chat that received the message
       if (opts.chatId && opts.chatId == S.chatId) return;
+      // Check in-app push toggle
+      if (S.notif && S.notif.inappPush === false) return;
       _showInappPush(opts);
       // Play sound if enabled
       if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
