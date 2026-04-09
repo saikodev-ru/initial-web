@@ -657,6 +657,8 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 /* Pill wrapper for mobile header — transparent on desktop */
 .hdr-pill{display:contents}
+/* Avatar pill wrapper — transparent on desktop */
+.hdr-av-pill{display:contents}
 
 /* Chat switch animation — only inner content animates, the header shell stays put */
 .chat-switch .msgs         { animation: chatSwitchMsgs .28s cubic-bezier(.34,1.1,.64,1) backwards; }
@@ -683,25 +685,30 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
     border-radius:0;
     background:transparent;
     backdrop-filter:none;-webkit-backdrop-filter:none;
-    gap:0;
+    gap:10px;
     box-shadow:none;
     z-index:15;
+    align-items:flex-end;
+    padding-bottom:2px;
   }
-  /* Pill — only covers back button + name area, NOT the avatar */
+  /* Pill — content-based width, wraps back button + name */
   .hdr-pill{
-    display:flex;align-items:center;flex:1;min-width:0;
+    display:flex;align-items:center;
     background:rgba(var(--bg-rgb),.82);
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px 6px 4px 2px;
+    padding:4px 8px 4px 2px;
     gap:0;
+    flex:1;
+    min-width:0;
+    height:52px;
   }
   /* Show back button on mobile */
   .back-btn-mb{
     display:flex !important;
     flex-shrink:0;
-    width:38px;height:38px;
+    width:40px;height:40px;
     margin-left:2px;
     background:transparent !important;
     border:none !important;
@@ -710,12 +717,21 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   }
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Mobile avatar — separate circle, outside the pill */
+  /* Avatar pill — wraps avatar in its own pill */
+  .hdr-av-pill{
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    background:rgba(var(--bg-rgb),.82);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    border-radius:9999px;
+    box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
+    padding:4px;
+    height:52px;
+  }
   .hdr-mb-avatar{
     display:flex !important;
     align-items:center;justify-content:center;
     flex-shrink:0;
-    margin-left:8px;
   }
   .hdr-mb-avatar .av-img{
     width:42px !important;
@@ -730,7 +746,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   .hdr-clickable{
     flex:1;min-width:0;
     cursor:default;
-    padding:6px 8px 6px 2px;
+    padding:6px 6px 6px 2px;
     gap:0;
   }
   .hdr-clickable:hover .hdr-info{background:transparent}
@@ -739,8 +755,6 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   .hdr-info.hdr-info-center{align-items:flex-start;text-align:left}
   .chat-hdr .hdr-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
   .chat-hdr .hdr-st{font-size:12px;margin-top:0}
-  /* Adjust msgs padding for pill header */
-  .msgs{padding-top:calc(70px + env(safe-area-inset-top, 0px))}
 }
 
 /* Classic header toggle — only visible on mobile */
@@ -759,6 +773,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
   border-bottom:1px solid var(--b) !important;
   box-shadow:none !important;
+  align-items:center !important;
 }
 .mobile-classic-hdr .hdr-pill{
   background:transparent !important;
@@ -766,6 +781,15 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   border-radius:0 !important;
   box-shadow:none !important;
   padding:0 !important;
+  height:auto !important;
+}
+.mobile-classic-hdr .hdr-av-pill{
+  background:transparent !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+  height:auto !important;
 }
 .mobile-classic-hdr .hdr-mb-avatar{display:none !important}
 .mobile-classic-hdr .hdr-desktop-av{display:flex !important}
@@ -952,7 +976,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   display: flex; flex-direction: column;
   background: transparent;
   overflow-y: auto; overflow-x: hidden;
-  transition: opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.32,.72,0,1);
+  transition: opacity .42s cubic-bezier(.22,1,.36,1), transform .42s cubic-bezier(.32,.72,0,1);
   will-change: transform, opacity;
 }
 .sb-settings-view.st-main {
@@ -962,17 +986,17 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   z-index: 2;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(70px);
+  transform: translateX(60px) scale(.97);
 }
 .sb-settings-view.st-sub.active {
   opacity: 1;
   pointer-events: auto;
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
 }
 .sb-settings-view.st-main.faded {
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-70px) scale(.94);
+  transform: translateX(-60px) scale(.97);
 }
 .st-sub.anim-none, .st-main.anim-none { transition: none !important; }
 
@@ -2413,16 +2437,30 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 .msgs-bottom-fade {
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  height: 100px;
+  height: 80px;
   background: linear-gradient(to top,
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .95) 8%,
-    rgba(var(--chat-bg-rgb), .85) 18%,
-    rgba(var(--chat-bg-rgb), .70) 30%,
-    rgba(var(--chat-bg-rgb), .50) 45%,
-    rgba(var(--chat-bg-rgb), .30) 60%,
-    rgba(var(--chat-bg-rgb), .15) 75%,
-    rgba(var(--chat-bg-rgb), .05) 88%,
+    rgba(var(--chat-bg-rgb), .88) 10%,
+    rgba(var(--chat-bg-rgb), .70) 25%,
+    rgba(var(--chat-bg-rgb), .45) 45%,
+    rgba(var(--chat-bg-rgb), .20) 65%,
+    rgba(var(--chat-bg-rgb), .05) 85%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
+  pointer-events: none;
+  z-index: 5;
+}
+/* Message fade at top — gradient mask on msgs container */
+.msgs-top-fade {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom,
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
+    rgba(var(--chat-bg-rgb), .85) 15%,
+    rgba(var(--chat-bg-rgb), .60) 35%,
+    rgba(var(--chat-bg-rgb), .30) 55%,
+    rgba(var(--chat-bg-rgb), .10) 75%,
     rgba(var(--chat-bg-rgb), 0) 100%
   );
   pointer-events: none;
@@ -2431,13 +2469,21 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 body[data-theme="light"] .msgs-bottom-fade {
   background: linear-gradient(to top,
     var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .95) 8%,
-    rgba(var(--chat-bg-rgb), .85) 18%,
-    rgba(var(--chat-bg-rgb), .70) 30%,
+    rgba(var(--chat-bg-rgb), .90) 10%,
+    rgba(var(--chat-bg-rgb), .75) 25%,
     rgba(var(--chat-bg-rgb), .50) 45%,
-    rgba(var(--chat-bg-rgb), .30) 60%,
-    rgba(var(--chat-bg-rgb), .15) 75%,
-    rgba(var(--chat-bg-rgb), .05) 88%,
+    rgba(var(--chat-bg-rgb), .25) 65%,
+    rgba(var(--chat-bg-rgb), .08) 85%,
+    rgba(var(--chat-bg-rgb), 0) 100%
+  );
+}
+body[data-theme="light"] .msgs-top-fade {
+  background: linear-gradient(to bottom,
+    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
+    rgba(var(--chat-bg-rgb), .88) 15%,
+    rgba(var(--chat-bg-rgb), .65) 35%,
+    rgba(var(--chat-bg-rgb), .35) 55%,
+    rgba(var(--chat-bg-rgb), .12) 75%,
     rgba(var(--chat-bg-rgb), 0) 100%
   );
 }
@@ -2728,11 +2774,11 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Reduce sidebar head padding on mobile */
   .sb-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 6px !important; }
   .sb-top { margin-bottom: 10px !important; }
-  .msgs{padding:calc(76px + env(safe-area-inset-top, 0px)) 8px 140px}
+  .msgs{padding:calc(78px + env(safe-area-inset-top, 0px)) 8px 140px}
   .input-zone{padding:8px 8px 16px}
   .input-zone, .system-mute-zone{padding:8px 8px 16px}
-  /* Bigger input placeholder on mobile */
-  .mfield{font-size:16px !important;min-height:48px !important}
+  /* Bigger input on mobile — keep balanced height */
+  .mfield{font-size:16px !important;min-height:44px !important}
   .mfield:empty::before{font-weight:600 !important}
   .chat-hdr .av-img{
     width:38px !important;
