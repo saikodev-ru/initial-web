@@ -2425,6 +2425,36 @@ function hideSBBtn(){
       area._scrollSaveTimer=setTimeout(()=>{if(S.chatId)saveScrollPos(S.chatId);},200);
     });
   },{passive:true});
+
+  // ── Sticky date pill: shows current visible date while scrolling ──
+  const stickyPill=$('sticky-date-pill');
+  if(stickyPill){
+    const stickySpan=stickyPill.querySelector('span');
+    const datePills=()=>area.querySelectorAll('.date-pill');
+    let _stickyTimer;
+    area.addEventListener('scroll',()=>{
+      if(_stickyTimer)return;
+      _stickyTimer=requestAnimationFrame(()=>{
+        _stickyTimer=0;
+        const pills=datePills();
+        if(!pills.length){stickyPill.classList.remove('visible');return;}
+        const aTop=area.scrollTop;
+        const aBot=aTop+area.clientHeight;
+        let visible=null;
+        for(let i=pills.length-1;i>=0;i--){
+          const r=pills[i].getBoundingClientRect();
+          const aRect=area.getBoundingClientRect();
+          if(r.top<=aRect.top+40){visible=pills[i].querySelector('span')?.textContent;break;}
+        }
+        if(visible&&visible!==stickySpan.textContent){
+          stickySpan.textContent=visible;
+          stickyPill.classList.add('visible');
+        }else if(!visible){
+          stickyPill.classList.remove('visible');
+        }
+      });
+    },{passive:true});
+  }
 })();
 
 // Spoiler reveal on click (delegated)

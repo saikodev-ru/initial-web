@@ -1196,6 +1196,7 @@ function syncNotifUI() {
   $('tog-notif').classList.toggle('on', n.enabled);
   $('tog-sound').classList.toggle('on', n.sound);
   $('tog-anon').classList.toggle('on',  n.anon);
+  $('tog-inapp-push').classList.toggle('on', n.inappPush !== false);
 }
 
 initStepsWrap();

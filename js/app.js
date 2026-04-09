@@ -1810,6 +1810,7 @@ $('tog-notif').onclick = async () => {
 };
 $('tog-sound').onclick = () => { S.notif.sound = !S.notif.sound; saveNotif(); syncNotifUI(); };
 $('tog-anon').onclick = () => { S.notif.anon = !S.notif.anon; saveNotif(); syncNotifUI(); };
+$('tog-inapp-push').onclick = () => { S.notif.inappPush = !S.notif.inappPush; saveNotif(); syncNotifUI(); };
 
 function syncEnterUI() {
   // Single toggle: ON = Ctrl+Enter sends (enterSend=false), OFF = Enter sends (enterSend=true)

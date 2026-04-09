@@ -613,6 +613,8 @@ if (window._swSupported) {
               <div class="sb-prof-divider"></div>
               <div class="sb-notif-row"><div><div class="sb-notif-label">Звук</div><div class="sb-notif-sub">Звуковой сигнал</div></div><button class="toggle" id="tog-sound"></button></div>
               <div class="sb-prof-divider"></div>
+              <div class="sb-notif-row"><div><div class="sb-notif-label">Внутри приложения</div><div class="sb-notif-sub">Баннер при новом сообщении</div></div><button class="toggle" id="tog-inapp-push"></button></div>
+              <div class="sb-prof-divider"></div>
               <div class="sb-notif-row"><div><div class="sb-notif-label">Анонимно</div><div class="sb-notif-sub">Скрыть имя в уведомлении</div></div><button class="toggle" id="tog-anon"></button></div>
             </div>
           </div>
@@ -1060,7 +1062,7 @@ if (window._swSupported) {
           <!-- Hidden PiP video -->
           <video id="call-pip-video" style="display:none" muted playsinline></video>
 
-          <div class="msgs" id="msgs"></div>
+          <div class="msgs" id="msgs"><div class="sticky-date-pill" id="sticky-date-pill"><span></span></div></div>
           <div class="msgs-top-fade" id="msgs-top-fade"></div>
           <!-- Select toolbar -->
           <div class="select-bar" id="select-bar">
@@ -1111,13 +1113,14 @@ if (window._swSupported) {
 
 <!-- PARTNER PROFILE MODAL -->
 <div class="overlay" id="modal-partner">
-  <div class="modal modal-partner">
+  <div class="pm-panel" id="pm-panel">
     <div class="pm-hero-bg" id="pm-hero-bg"></div>
     <button class="pm-close" data-close="modal-partner">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>
 
-    <div class="pm-content">
+    <div class="pm-scroll">
+      <div class="pm-header-zone">
       <div class="pm-avi-wrap">
         <div class="pm-hero-avi" id="pm-hero-avi"></div>
       </div>
@@ -1151,7 +1154,9 @@ if (window._swSupported) {
           <span id="pm-mute-txt">Звук</span>
         </button>
       </div>
+      </div><!-- /pm-header-zone -->
 
+      <div class="pm-body-zone">
       <!-- Info block (Telegram K style rows) -->
       <div class="tg-section pm-info-section" id="pm-info-section">
         <div class="tg-row pm-sid-row" id="pm-row-sid" style="display:none; cursor:pointer; align-items:center;" title="Нажмите чтобы скопировать">
@@ -1176,6 +1181,14 @@ if (window._swSupported) {
         </div>
       </div>
 
+      <!-- Media history section -->
+      <div class="pm-media-section" id="pm-media-section">
+        <div class="pm-media-header"><span>Медиа, файлы и ссылки</span></div>
+        <div class="pm-media-grid" id="pm-media-grid">
+          <div class="pm-media-empty">Нет общего контента</div>
+        </div>
+      </div>
+
       <!-- Block / Report buttons — only shown for other users -->
       <div class="pm-danger-actions" id="pm-danger-actions" style="display:none;">
         <div class="pm-danger-group">
@@ -1194,7 +1207,8 @@ if (window._swSupported) {
           </button>
         </div>
       </div>
-    </div>
+      </div><!-- /pm-body-zone -->
+    </div><!-- /pm-scroll -->
   </div>
 </div>
 
