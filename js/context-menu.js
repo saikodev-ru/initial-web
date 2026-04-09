@@ -628,10 +628,13 @@ if (prevCtxSpoiler) {
 }
 
 /* ── ОБЩИЕ ОБРАБОТЧИКИ ЗАКРЫТИЯ ── */
+let _hdrMbCtxOpenTime = 0;
 document.addEventListener('click', e => {
+  // Prevent immediate close of hdr-mb context menu right after long-press
+  if (Date.now() - _hdrMbCtxOpenTime < 400 && e.target.closest('#hdr-mb-avatar')) return;
   if (!e.target.closest('.ctxmenu')) hideCtx();
   if (!e.target.closest('#chat-ctxmenu')) hideChatCtx();
-  if (!e.target.closest('#hdr-mb-ctxmenu')) hideHdrMbCtx();
+  if (Date.now() - _hdrMbCtxOpenTime > 400 && !e.target.closest('#hdr-mb-ctxmenu')) hideHdrMbCtx();
   if (fieldCtx && !fieldCtx.contains(e.target)) hideFieldCtx();
   if (prevCtx && !prevCtx.contains(e.target) && e.target.closest('#btn-prev-opts') == null) hidePrevCtx();
 });
@@ -699,6 +702,7 @@ function showHdrMbCtx(e) {
 
   void hdrMbCtx.offsetWidth; // force reflow
   hdrMbCtx.classList.add('on');
+  _hdrMbCtxOpenTime = Date.now();
 }
 
 function hideHdrMbCtx() {
@@ -718,6 +722,7 @@ function hideHdrMbCtx() {
   let startX = 0, startY = 0;
 
   function onStart(e) {
+    e.preventDefault(); // prevent native long-press menu / save-image popup
     const touch = e.touches ? e.touches[0] : e;
     startX = touch.clientX;
     startY = touch.clientY;
@@ -744,6 +749,7 @@ function hideHdrMbCtx() {
     timer = null;
     if (fired) {
       e.preventDefault();
+      e.stopPropagation();
       return;
     }
     // Tap — open partner modal
@@ -752,7 +758,7 @@ function hideHdrMbCtx() {
     }
   }
 
-  btn.addEventListener('touchstart', onStart, { passive: true });
+  btn.addEventListener('touchstart', onStart, { passive: false });
   btn.addEventListener('touchmove', onMove, { passive: true });
   btn.addEventListener('touchend', onEnd);
   btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; });
@@ -761,6 +767,8 @@ function hideHdrMbCtx() {
   btn.addEventListener('mousemove', onMove);
   btn.addEventListener('mouseup', onEnd);
   btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; });
+  // Prevent native context menu on right-click / long-press
+  btn.addEventListener('contextmenu', e => e.preventDefault());
 })();
 
 // Context menu item handlers
