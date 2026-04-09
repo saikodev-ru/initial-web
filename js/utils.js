@@ -426,8 +426,13 @@ function countEmoji(text){
 /* ── Marquee for long nicknames ── */
 function checkMarquee(innerEl) {
   if (!innerEl) return;
+  const wasOverflow = innerEl.style.overflow;
+  const wasTextOverflow = innerEl.style.textOverflow;
   innerEl.classList.remove('is-scrolling');
   innerEl.style.removeProperty('--overflow-w');
+  // Restore non-scrolling fallback styles
+  if (wasOverflow) innerEl.style.overflow = wasOverflow;
+  if (wasTextOverflow) innerEl.style.textOverflow = wasTextOverflow;
   const parent = innerEl.parentElement;
   if (!parent) return;
   
@@ -436,6 +441,9 @@ function checkMarquee(innerEl) {
     if (diff > 2) {
       innerEl.style.setProperty('--overflow-w', diff + 'px');
       innerEl.classList.add('is-scrolling');
+      // Remove inline overflow styles so CSS .is-scrolling rules take effect
+      innerEl.style.removeProperty('overflow');
+      innerEl.style.removeProperty('text-overflow');
     }
   });
 }
