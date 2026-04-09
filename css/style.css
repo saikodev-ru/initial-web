@@ -648,6 +648,13 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-call-btn svg,.hdr-more-btn svg{width:18px;height:18px}
 .hdr-close-btn svg{width:16px;height:16px}
 
+/* Mobile-only avatar button (right side of pill header) */
+.hdr-mb-avatar{display:none;position:relative;background:none;border:none;cursor:pointer;padding:0;z-index:2;-webkit-tap-highlight-color:transparent}
+.hdr-mb-avatar .av{position:relative}
+.hdr-mb-avatar .av-img{width:36px;height:36px;border-radius:50%;border:2px solid var(--b2);transition:transform .15s var(--sp),border-color .15s}
+.hdr-mb-avatar:active .av-img{transform:scale(.88)}
+.hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
+
 /* Chat switch animation — only inner content animates, the header shell stays put */
 .chat-switch .msgs         { animation: chatSwitchMsgs .28s cubic-bezier(.34,1.1,.64,1) backwards; }
 .chat-switch .hdr-clickable,
@@ -661,6 +668,54 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 
 /* Hide close button on mobile */
 @media(max-width:680px){.hdr-close-btn{display:none!important}}
+
+/* ══ MOBILE PILL HEADER ══ */
+@media(max-width:680px){
+  .chat-hdr{
+    position:sticky;top:0;
+    padding:0 0;
+    margin:8px 8px 0 8px;
+    margin-top:calc(8px + env(safe-area-inset-top, 0px));
+    border:none;
+    border-radius:22px;
+    background:rgba(var(--bg-rgb),.82);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    gap:0;
+    box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
+  }
+  /* Show back button on mobile */
+  .back-btn-mb{
+    display:flex !important;
+    flex-shrink:0;
+    width:36px;height:36px;
+    margin-left:4px;
+    background:transparent !important;
+    border:none !important;
+    color:var(--t1) !important;
+    box-shadow:none !important;
+  }
+  /* Hide desktop avatar in clickable area on mobile */
+  .hdr-desktop-av{display:none !important}
+  /* Show mobile avatar on right */
+  .hdr-mb-avatar{display:flex !important;align-items:center;justify-content:center;flex-shrink:0;margin-right:6px}
+  /* Hide desktop action buttons (call/more) on mobile — replaced by long-press menu */
+  .hdr-call-btn,.hdr-more-btn{display:none !important}
+  /* Center the info area */
+  .hdr-clickable{
+    flex:1;min-width:0;
+    cursor:default;
+    padding:6px 4px 6px 2px;
+    gap:0;
+  }
+  .hdr-clickable:hover .hdr-info{background:transparent}
+  .hdr-clickable:active .hdr-info{background:transparent}
+  .hdr-info{text-align:left}
+  .hdr-info.hdr-info-center{align-items:flex-start;text-align:left}
+  .chat-hdr .hdr-name{font-size:15px;font-weight:700;letter-spacing:-.2px}
+  .chat-hdr .hdr-st{font-size:12px;margin-top:0}
+  /* Adjust msgs padding for pill header */
+  .msgs{padding-top:calc(68px + env(safe-area-inset-top, 0px))}
+}
 
 .chat-wrap{position:relative}
 
@@ -2444,8 +2499,8 @@ body[data-theme="light"] .msgs-bottom-fade {
 .fctx-btn:disabled{opacity:.35;cursor:default}
 .fctx-btn:disabled:hover{background:transparent}
 .mfield-wrap{flex:1;position:relative;z-index:1;display:flex;align-items:flex-end;background:rgba(var(--bg-rgb),.65);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:22px;transition:margin-right .25s var(--ease),height .2s var(--ease),min-height .2s var(--ease),max-height .2s var(--ease)}
-.mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:14.5px;font-weight:400;padding:11px 42px 11px 42px;outline:none;min-height:44px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
-.mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);pointer-events:none}
+.mfield{width:100%;background:var(--solid2);border:1px solid var(--b);border-radius:22px;color:var(--t1);font-family:var(--font),'Apple Color Emoji','Segoe UI Emoji';font-size:15px;font-weight:500;padding:11px 42px 11px 42px;outline:none;min-height:44px;max-height:140px;line-height:1.5;transition:border-color .2s,background .2s;overflow-y:auto;word-break:break-word;white-space:pre-wrap}
+.mfield:focus{border-color:var(--yb);background:var(--solid1)}.mfield:empty::before{content:attr(data-placeholder);color:var(--t3);font-weight:500;pointer-events:none}
 .emo-btn-in{position:absolute;right:9px;bottom:9px;width:26px;height:26px;background:var(--chat-btn-bg, rgba(255,255,255,.08));border:1px solid var(--chat-btn-b, transparent);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.7);transition:color .15s,background .15s,transform .12s var(--sp)}
 .emo-btn-in:hover{background:rgba(255,255,255,.14);color:#fff;transform:scale(1.08)}.emo-btn-in:active{transform:scale(.88)}.emo-btn-in.active{color:var(--y);background:var(--ybg)}
 .attach-btn-in{position:absolute;left:9px;bottom:9px;width:26px;height:26px;z-index:2}
@@ -2610,7 +2665,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .sidebar.hidden{transform:translateX(-100%);pointer-events:none}
   .chat-welcome{display:none!important}
   /* Hide desktop-only controls on mobile */
-  #btn-collapse-sb,#btn-sb-expand,.resize-handle,.back-btn-mb{display:none!important}
+  #btn-collapse-sb,#btn-sb-expand,.resize-handle{display:none!important}
   /* Hide create-chat button inside search bar on mobile (moved to title) */
   #btn-create-chat { display: none !important; }
   /* Reduce sidebar head padding on mobile */
@@ -2619,15 +2674,17 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .msgs{padding:calc(76px + env(safe-area-inset-top, 0px)) 8px 140px}
   .input-zone{padding:8px 8px 16px}
   .input-zone, .system-mute-zone{padding:8px 8px 16px}
-  .chat-hdr{
-    padding-top:max(6px,env(safe-area-inset-top));
-    padding-bottom:6px;
-    gap:10px;
-  }
   .chat-hdr .av-img{
     width:38px !important;
     height:38px !important;
     font-size:15px !important;
+  }
+  .hdr-mb-avatar .av-img{
+    width:36px !important;
+    height:36px !important;
+    font-size:14px !important;
+    border-radius:50%;
+    border:2px solid var(--b2);
   }
   .chat-hdr .hdr-name{font-size:14.5px}
   .chat-hdr .hdr-st{font-size:11.5px}
@@ -3230,6 +3287,9 @@ body[data-theme="light"] .sidebar::before {
 body[data-theme="light"] .chat-hdr {
   background: rgba(var(--bg-rgb),.95);
 }
+body[data-theme="light"] .hdr-mb-avatar .av-img {
+  border-color: rgba(0,0,0,.1);
+}
 
 /* Resize handle — lighter color for light theme */
 body[data-theme="light"] .resize-handle {
@@ -3270,13 +3330,13 @@ body[data-theme="light"] .mfield-wrap .emo-btn-in,
 body[data-theme="light"] .mfield-wrap .attach-btn-in {
   background-color: transparent;
   border: 1px solid transparent;
-  color: var(--t2);
+  color: rgba(0,0,0,.4);
 }
 body[data-theme="light"] .mfield-wrap .emo-btn-in:hover,
 body[data-theme="light"] .mfield-wrap .attach-btn-in:hover {
   background-color: rgba(0,0,0,.06);
   border-color: transparent;
-  color: var(--t1);
+  color: rgba(0,0,0,.6);
 }
 body[data-theme="light"] .mfield-wrap .emo-btn-in.active {
   color: var(--y);

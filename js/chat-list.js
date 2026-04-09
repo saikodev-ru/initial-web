@@ -1125,7 +1125,7 @@ function updateHeaderUI(c, name) {
         setTimeout(() => checkMarquee(span), 50);
   }
 
-  // 2. Avatar
+  // 2. Avatar (desktop)
   const hdrAv = $('hdr-av');
   if(hdrAv) {
     if(isSavedMsgs(c)){
@@ -1137,6 +1137,21 @@ function updateHeaderUI(c, name) {
     } else {
       hdrAv.className='av-img';
       hdrAv.innerHTML=aviHtml(name, c.partner_avatar || c.avatar_url);
+    }
+  }
+
+  // 3. Avatar (mobile — same content)
+  const hdrAvMb = $('hdr-av-mb');
+  if(hdrAvMb) {
+    if(isSavedMsgs(c)){
+      hdrAvMb.className='av-img av-saved';
+      hdrAvMb.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M17 3H7a2 2 0 00-2 2v16l7-3 7 3V5a2 2 0 00-2-2z"/></svg>';
+    } else if(isSystemChat(c)){
+      hdrAvMb.className='av-img';
+      hdrAvMb.innerHTML=aviHtml(c.partner_name||'Initial', c.partner_avatar || c.avatar_url);
+    } else {
+      hdrAvMb.className='av-img';
+      hdrAvMb.innerHTML=aviHtml(name, c.partner_avatar || c.avatar_url);
     }
   }
   
