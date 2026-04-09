@@ -1691,8 +1691,8 @@ function _updateNavIndicator() {
   if (!nav || !indicator || !activeBtn) return;
   const navRect = nav.getBoundingClientRect();
   const btnRect = activeBtn.getBoundingClientRect();
-  indicator.style.left = (btnRect.left - navRect.left + (btnRect.width - 40) / 2) + 'px';
-  indicator.style.width = '40px';
+  indicator.style.left = (btnRect.left - navRect.left) + 'px';
+  indicator.style.width = btnRect.width + 'px';
 }
 // Run on load and on nav clicks
 setTimeout(_updateNavIndicator, 100);
@@ -2294,7 +2294,7 @@ if (_btnCreateChat) {
 }
 
 /* ══ NAV RAIL ═══════════════════════════════════════════════ */
-const NAV_TITLES = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+const NAV_TITLES = { chats: 'Сообщения', feed: 'Лента', servers: 'Хабы' };
 function updateMobilePageTitle(nav) {
   const el = document.getElementById('sb-page-title');
   if (el) el.textContent = NAV_TITLES[nav] || 'Сообщения';

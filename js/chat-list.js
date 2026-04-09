@@ -782,7 +782,7 @@ function exitSearch(){
   const mobTitle = document.getElementById('sb-page-title');
   if (mobTitle) {
     const activeNav = document.querySelector('.mobile-nav-btn.active[data-nav], .nav-rail-btn.active[data-nav]');
-    const navMap = { chats: 'Сообщения', feed: 'Лента', servers: 'Серверы' };
+    const navMap = { chats: 'Сообщения', feed: 'Лента', servers: 'Хабы' };
     mobTitle.textContent = navMap[activeNav?.dataset.nav] || 'Сообщения';
   }
   renderChats('');
