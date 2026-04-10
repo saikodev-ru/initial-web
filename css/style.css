@@ -56,8 +56,11 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 /* ══ AUTH ════════════════════════════════════════════════════ */
 #scr-auth{
   background:var(--bg);
-  flex-direction:column;overflow:auto;
-  align-items:center;justify-content:flex-start;padding:32px 0 40px;
+  flex-direction:column;overflow-y:auto;
+  align-items:center;justify-content:flex-start;
+  padding:32px 0 40px;
+  min-height:100dvh;
+  min-height:100vh;
 }
 
 /* Card — wide, no background box */
@@ -66,6 +69,8 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   width:380px;max-width:calc(100vw - 40px);
   animation:authIn .4s cubic-bezier(.16,1,.3,1) both;
   padding:0 2px;
+  flex:1 0 auto;
+  display:flex;flex-direction:column;
 }
 @keyframes authIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
@@ -77,11 +82,11 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .logo-name{font-size:52px;font-weight:900;letter-spacing:-2px;color:var(--t1)}
 
 /* Steps wrap */
-.auth-steps-wrap{position:relative;overflow:visible;width:100%;min-height:380px}
+.auth-steps-wrap{position:relative;overflow:visible;width:100%;flex:1 0 auto;display:flex;flex-direction:column}
 .auth-step{position:absolute;top:0;left:0;right:0;opacity:0;pointer-events:none}
 .auth-step.on{opacity:1;pointer-events:auto}
-#st-qr,#st-email{min-height:380px}
-#qr-desktop,#qr-mobile{display:flex;flex-direction:column;align-items:center;min-height:320px}
+#st-qr,#st-email{min-height:auto}
+#qr-desktop,#qr-mobile{display:flex;flex-direction:column;align-items:center;min-height:auto}
 
 /* Typography */
 .auth-title{font-size:28px;font-weight:700;letter-spacing:-.4px;margin-bottom:12px;text-align:center;color:var(--t1)}
@@ -140,15 +145,17 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .qr-frame {
   position: relative;
   background: #fff;
-  aspect-ratio: 1 / 1; 
+  aspect-ratio: 1 / 1;
   border-radius: 25px;
   padding: 15px;
   box-shadow: 0 6px 40px rgba(0,0,0,.4);
   /* overflow: hidden; удаляем */
   transition: transform .3s ease;
+  width: min(300px, calc(100vw - 80px));
+  max-width: 300px;
 }
 
-.qr-canvas-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0;aspect-ratio: 1 / 1;}
+.qr-canvas-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0;flex-shrink:0}
 .qr-hint{font-size:13px;color:var(--t3);text-align:center;margin-top:0;transition:opacity .3s}
 .qr-loading{display:flex;justify-content:center;padding:0}
 /* ── Link Device modal QR container ── */
@@ -229,6 +236,73 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   stroke-dashoffset: 0;
   transition: stroke-dashoffset linear;
 }
+
+/* ── QR state overlay (scanned / approved) ── */
+.qr-state-overlay{
+  position:absolute;inset:0;z-index:3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border-radius:22px;overflow:hidden;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;pointer-events:none;
+  transition:opacity .3s ease;
+}
+.qr-state-overlay.visible{opacity:1;pointer-events:auto}
+
+/* Scanned state — three bouncing dots */
+.qr-state-overlay.scanned{background:rgba(255,255,255,.92)}
+.qr-scanned-dots{display:flex;gap:8px;margin-bottom:14px}
+.qr-scanned-dots span{
+  width:10px;height:10px;border-radius:50%;
+  background:rgba(139,92,246,.6);
+  animation:qrDotBounce 1.2s ease-in-out infinite;
+}
+.qr-scanned-dots span:nth-child(2){animation-delay:.15s}
+.qr-scanned-dots span:nth-child(3){animation-delay:.3s}
+@keyframes qrDotBounce{
+  0%,80%,100%{transform:scale(.7);opacity:.4}
+  40%{transform:scale(1.1);opacity:1}
+}
+.qr-scanned-text{font-size:15px;font-weight:700;color:#1a1a1a;text-align:center}
+
+/* Approved state — animated checkmark */
+.qr-state-overlay.approved{background:rgba(255,255,255,.95)}
+.qr-check-wrap{
+  position:relative;width:80px;height:80px;
+  display:flex;align-items:center;justify-content:center;
+}
+.qr-check-ring{
+  position:absolute;inset:0;border-radius:50%;
+  border:2.5px solid rgba(139,92,246,.2);
+  animation:qrRingPulse 1.5s ease-out infinite;
+}
+@keyframes qrRingPulse{
+  0%{transform:scale(.8);opacity:.6}
+  100%{transform:scale(1.4);opacity:0}
+}
+.qr-check-svg{width:80px;height:80px;display:block}
+.circ-bg{fill:none;stroke:rgba(139,92,246,.12);stroke-width:3}
+.circ-fill{
+  fill:none;stroke:#8b5cf6;stroke-width:3;
+  stroke-linecap:round;
+  stroke-dasharray:201;stroke-dashoffset:201;
+  animation:qrCircDraw .6s .1s ease forwards;
+}
+@keyframes qrCircDraw{to{stroke-dashoffset:0}}
+.check-path{
+  fill:none;stroke:#8b5cf6;stroke-width:3.5;
+  stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:40;stroke-dashoffset:40;
+  animation:qrCheckDraw .35s .55s ease forwards;
+}
+@keyframes qrCheckDraw{to{stroke-dashoffset:0}}
+.qr-approved-text{
+  margin-top:14px;font-size:16px;font-weight:800;
+  color:#1a1a1a;letter-spacing:-.2px;
+  animation:qrTextFade .3s .7s ease both;
+}
+@keyframes qrTextFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
 /* ── Mobile QR scan camera prompt ── */
 .qr-cam-prompt{
   position:absolute;inset:0;display:flex;flex-direction:column;
