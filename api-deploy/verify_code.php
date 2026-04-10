@@ -62,18 +62,41 @@ if ($existRow) {
     $userId = (int) $existRow['id'];
     $db->prepare('UPDATE users SET last_seen = NOW() WHERE id = ?')->execute([$userId]);
 } else {
-    // Пытаемся создать — INSERT IGNORE на случай race condition
-    $db->prepare('INSERT IGNORE INTO users (email, last_seen) VALUES (?, NOW())')
-       ->execute([$email]);
-    // Всегда перечитываем — не полагаемся на lastInsertId()
+    // Новый пользователь — пробуем INSERT
+    $inserted = false;
+    try {
+        $db->prepare('INSERT INTO users (email, last_seen) VALUES (?, NOW())')
+           ->execute([$email]);
+        $inserted = true;
+    } catch (\PDOException $e) {
+        if (!str_contains($e->getMessage(), '1062')) throw $e; // не Duplicate — пробрасываем
+
+        // Duplicate entry — проверяем: это concurrent INSERT по email или сломанный AUTO_INCREMENT?
+        $stmt = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+        $stmt->execute([$email]);
+        $existRow = $stmt->fetch();
+        if ($existRow) {
+            // Concurrent request уже создал пользователя
+            $userId = (int) $existRow['id'];
+        } else {
+            // AUTO_INCREMENT сломан (id=0) — вставляем с явным id
+            $maxRow = $db->query('SELECT COALESCE(MAX(id), 0) + 1 AS nid FROM users')->fetch();
+            $nextId = (int) $maxRow['nid'];
+            $db->prepare('INSERT INTO users (id, email, last_seen) VALUES (?, ?, NOW())')
+               ->execute([$nextId, $email]);
+            $inserted = true;
+        }
+    }
+
+    // Всегда перечитываем чтобы получить точный ID
     $stmt = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
     $existRow = $stmt->fetch();
     if ($existRow) {
         $userId = (int) $existRow['id'];
-        $isNewUser = true;
+        $isNewUser = $inserted;
     } else {
-        error_log("verify_code: INSERT IGNORE + SELECT не нашли пользователя для email={$email}");
+        error_log("verify_code: не удалось создать/найти пользователя email={$email}");
         json_err('server_error', 'Ошибка при создании аккаунта. Попробуйте ещё раз.', 500);
     }
 }
