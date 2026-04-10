@@ -1,15 +1,8 @@
 # ═══════════════════════════════════════════════════════════════════════════════
-#  .htaccess — Security & Performance для Initial API
+#  .htaccess — Minimal safe version for Initial API
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Включить RewriteEngine ──────────────────────────────────────
 RewriteEngine On
-
-# ── Безопасность: Запретить доступ к скрытым файлам ─────────────
-<FilesMatch "^\.">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
 
 # ── Запретить доступ к критичным файлам ─────────────────────────
 <FilesMatch "^(config\.php|pulse_db\.php|push_config\.php|db\.php|\.env|security\.php|s3_helper\.php|helpers\.php)$">
@@ -22,52 +15,3 @@ RewriteEngine On
     Order allow,deny
     Deny from all
 </FilesMatch>
-
-# ── Запретить директорию (без index.php) ────────────────────────
-Options -Indexes
-
-# ── Запретить выполнение PHP в writable директориях ──────────────────
-# NOTE: <DirectoryMatch> запрещён в .htaccess — используем RewriteRule
-RewriteRule ^(uploads|cache|temp|sessions)/.*\.php$ - [F,L]
-
-# ── Security Headers (дублируют security.php для надёжности) ─────
-<IfModule mod_headers.c>
-    # Убираем информацию о сервере
-    Header always unset X-Powered-By
-    ServerSignature Off
-
-    # HSTS
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=!HTTPS
-
-    # Anti-clickjacking
-    Header always set X-Frame-Options "DENY"
-
-    # Anti-MIME-sniffing
-    Header always set X-Content-Type-Options "nosniff"
-
-    # XSS Protection
-    Header always set X-XSS-Protection "1; mode=block"
-
-    # Referrer Policy
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-
-    # Permissions Policy
-    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
-</IfModule>
-
-# ── Ограничение размера запроса (защита от DoS) ─────────────────
-<IfModule mod_security2.c>
-    SecRequestBodyLimit 10485760
-    SecRequestBodyNoFilesLimit 131072
-</IfModule>
-
-# ── ETag (отключаем для API — всё через кэш-контроль) ──────────
-<IfModule mod_headers.c>
-    Header unset ETag
-</IfModule>
-FileETag None
-
-# ── Защита отslowloris атак ─────────────────────────────────────
-<IfModule mod_reqtimeout.c>
-    RequestReadTimeout header=20-40,MinRate=500 body=20,MinRate=500
-</IfModule>
