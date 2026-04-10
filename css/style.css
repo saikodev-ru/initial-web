@@ -867,7 +867,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   .back-btn-mb svg{width:20px;height:20px}
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Avatar pill — absolute bottom-right, wraps avatar in its own pill (42+10=52 = circle) */
+  /* Avatar pill — absolute bottom-right, wraps avatar in its own pill (58+8=66 = circle) */
   .hdr-av-pill{
     position:absolute;
     bottom:0;right:0;
@@ -878,8 +878,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
     padding:4px;
-    width:60px;
-    height:60px;
+    width:66px;
+    height:66px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -892,9 +892,9 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     touch-action:none;
   }
   .hdr-mb-avatar .av-img{
-    width:52px !important;
-    height:52px !important;
-    font-size:18px !important;
+    width:58px !important;
+    height:58px !important;
+    font-size:20px !important;
     border-radius:50%;
     border:none !important;
     -webkit-touch-callout:none;
@@ -2124,6 +2124,19 @@ body[data-theme="light"] .st-sub-hdr.scrolled {
 .selectable .msg-checkbox{display:flex}
 .mrow.selected .msg-checkbox{border-color:var(--y);background:var(--y)}
 .mrow.selected .msg-checkbox::after{content:'';width:5px;height:9px;border:2px solid #000;border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px)}
+
+/* ── Message dim on tap (mobile context) ── */
+.msg-dim-active .mrow{opacity:.4;transition:opacity .18s ease}
+.msg-dim-active .mrow.msg-ctx-target{opacity:1}
+
+/* ── Dim overlay behind context menu ── */
+.msg-ctx-dim{
+  position:fixed;inset:0;z-index:1090;
+  background:rgba(0,0,0,.45);
+  opacity:0;pointer-events:none;
+  transition:opacity .18s ease;
+}
+.msg-ctx-dim.on{opacity:1;pointer-events:auto}
 .mavi{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:var(--solid1);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--t2);position:relative}
 .mavi img{width:100%;height:100%;object-fit:cover}.mavi.ghost{visibility:hidden}
 .mbub{max-width:min(460px, 85%);display:flex;flex-direction:column;align-items:flex-start;position:relative;min-width:0}.me .mbub{align-items:flex-end}

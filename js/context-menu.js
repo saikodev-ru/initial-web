@@ -9,6 +9,11 @@ function showCtx(e, m) {
   hideFieldCtx();
   hidePrevCtx();
   ctxMsg = m;
+
+  // Show dim overlay (mobile context)
+  const dimEl = $('msg-ctx-dim');
+  if(dimEl && _isTouch()) dimEl.classList.add('on');
+
   const isMe = m.sender_id == S.user?.id;
   $('ctx-edit').style.display = isMe && m.body ? 'flex' : 'none';
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
@@ -113,6 +118,11 @@ function hideCtx() {
   const bar = $('ctx-rxn-bar');
   if(bar) bar.scrollLeft = 0;
   hideCtxEmoPanel();
+  // Remove dim overlay and message dimming
+  const dimEl = $('msg-ctx-dim');
+  if(dimEl) dimEl.classList.remove('on');
+  document.querySelectorAll('.msg-dim-active').forEach(el => el.classList.remove('msg-dim-active'));
+  document.querySelectorAll('.msg-ctx-target').forEach(el => el.classList.remove('msg-ctx-target'));
 }
 
 /* ── Inline emoji panel inside ctx menu ── */
@@ -629,6 +639,17 @@ if (prevCtxSpoiler) {
 
 /* ── ОБЩИЕ ОБРАБОТЧИКИ ЗАКРЫТИЯ ── */
 let _hdrMbCtxOpenTime = 0;
+const _isTouch=()=>'ontouchstart' in window;
+
+// Mobile: tap dim overlay → close context menu immediately
+const _dimEl = $('msg-ctx-dim');
+if(_dimEl){
+  _dimEl.addEventListener('touchstart', e => {
+    e.preventDefault();
+    hideCtx();
+  }, {passive:false});
+}
+
 document.addEventListener('click', e => {
   // Prevent immediate close of hdr-mb context menu right after long-press
   if (Date.now() - _hdrMbCtxOpenTime < 400 && e.target.closest('#hdr-mb-avatar')) return;
