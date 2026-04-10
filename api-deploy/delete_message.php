@@ -14,6 +14,7 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
+require_rate_limit('delete_message', 30, 60);
 $data = input();
 
 $messageId = (int) ($data['message_id'] ?? 0);

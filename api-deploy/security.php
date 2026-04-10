@@ -174,26 +174,28 @@ function check_csrf_origin(bool $strict = false): void {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     if (!$strict && in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) return;
 
+    // Разрешённый хост (без протокола и порта)
+    $allowedHost = strtolower(parse_url($allowedOrigin, PHP_URL_HOST) ?: '');
+    if (empty($allowedHost)) return;
+
     // Проверяем Origin
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
     if (!empty($origin)) {
-        if ($origin !== $allowedOrigin && !str_ends_with($origin, parse_url($allowedOrigin, PHP_URL_HOST))) {
-            error_log("CSRF: Origin mismatch. Origin={$origin}, Allowed={$allowedOrigin}");
-            json_err('forbidden', 'CSRF: некорректный Origin', 403);
-        }
-        return; // Origin есть и валиден
+        $originHost = strtolower(parse_url($origin, PHP_URL_HOST) ?: '');
+        if ($originHost === $allowedHost) return; // Точное совпадение хостов
+
+        error_log("CSRF: Origin mismatch. Origin={$origin}, Allowed={$allowedOrigin}");
+        json_err('forbidden', 'CSRF: некорректный Origin', 403);
     }
 
     // Fallback: проверяем Referer
     $referer = $_SERVER['HTTP_REFERER'] ?? '';
     if (!empty($referer)) {
-        $refHost = parse_url($referer, PHP_URL_HOST);
-        $allowedHost = parse_url($allowedOrigin, PHP_URL_HOST);
-        if ($refHost !== $allowedHost) {
-            error_log("CSRF: Referer mismatch. Referer={$referer}, Allowed={$allowedOrigin}");
-            json_err('forbidden', 'CSRF: некорректный Referer', 403);
-        }
-        return;
+        $refHost = strtolower(parse_url($referer, PHP_URL_HOST) ?: '');
+        if ($refHost === $allowedHost) return;
+
+        error_log("CSRF: Referer mismatch. Referer={$referer}, Allowed={$allowedOrigin}");
+        json_err('forbidden', 'CSRF: некорректный Referer', 403);
     }
 
     // Если strict и нет ни Origin ни Referer — блокируем

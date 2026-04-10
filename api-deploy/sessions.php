@@ -6,6 +6,7 @@ require_once __DIR__ . '/helpers.php';
 
 set_cors_headers();
 $me = auth_user();
+require_rate_limit('sessions', 20, 60);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     // Убедись, что таблица называется sessions и в ней есть нужные поля

@@ -14,6 +14,7 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me = auth_user();
+require_rate_limit('upload_file', 30, 60);
 
 if (empty($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
     $code = $_FILES['file']['error'] ?? -1;
@@ -24,6 +25,11 @@ $file    = $_FILES['file'];
 $tmpPath = $file['tmp_name'];
 $origName = $file['name'] ?? 'file';
 $size    = (int) $file['size'];
+
+if (!is_uploaded_file($tmpPath)) {
+    error_log("SECURITY: upload_file attempted local file access: {$tmpPath}");
+    json_err('invalid_upload', 'Некорректный файл');
+}
 
 // ── 50 МБ максимум ──────────────────────────────────────────
 if ($size > 50 * 1024 * 1024) {
