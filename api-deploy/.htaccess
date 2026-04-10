@@ -1,15 +1,77 @@
-<IfModule mod_rewrite.c>
-    RewriteEngine On
+# ═══════════════════════════════════════════════════════════════════════════════
+#  .htaccess — Security & Performance для Initial API
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    # Отключаем MultiViews, чтобы Apache не делал самовольных 301 редиректов,
-    # которые "теряют" заголовок Authorization.
-    Options -MultiViews
+# ── Включить RewriteEngine ──────────────────────────────────────
+RewriteEngine On
 
-    # Принудительно передаем заголовок авторизации в PHP-скрипт.
-    # Это критически важно для многих хостингов.
-    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+# ── Безопасность: Запретить доступ к скрытым файлам ─────────────
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
 
-    # Внутренне (незаметно для браузера) перенаправляем /endpoint на /endpoint.php
-    RewriteCond %{REQUEST_FILENAME}.php -f
-    RewriteRule ^(.*)$ $1.php [L]
+# ── Запретить доступ к критичным файлам ─────────────────────────
+<FilesMatch "^(config\.php|pulse_db\.php|push_config\.php|db\.php|\.env)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ── Запретить доступ к логам и временным файлам ─────────────────
+<FilesMatch "\.(log|tmp|bak|swp|old)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ── Запретить директорию (без index.php) ────────────────────────
+Options -Indexes
+
+# ── Запретить выполнение PHP в uploads/ и других writable директориях ──
+<DirectoryMatch "(uploads|cache|temp|sessions)">
+    <FilesMatch "\.php$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</DirectoryMatch>
+
+# ── Security Headers (дублируют security.php для надёжности) ─────
+<IfModule mod_headers.c>
+    # Убираем информацию о сервере
+    Header always unset X-Powered-By
+    ServerSignature Off
+
+    # HSTS
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=!HTTPS
+
+    # Anti-clickjacking
+    Header always set X-Frame-Options "DENY"
+
+    # Anti-MIME-sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # XSS Protection
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Permissions Policy
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+</IfModule>
+
+# ── Ограничение размера запроса (защита от DoS) ─────────────────
+<IfModule mod_security2.c>
+    SecRequestBodyLimit 10485760
+    SecRequestBodyNoFilesLimit 131072
+</IfModule>
+
+# ── ETag (отключаем для API — всё через кэш-контроль) ──────────
+<IfModule mod_headers.c>
+    Header unset ETag
+</IfModule>
+FileETag None
+
+# ── Защита отslowloris атак ─────────────────────────────────────
+<IfModule mod_reqtimeout.c>
+    RequestReadTimeout header=20-40,MinRate=500 body=20,MinRate=500
 </IfModule>
