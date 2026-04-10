@@ -43,6 +43,10 @@ if (!empty($bearerToken)) {
     $exp = (int)($_GET['exp'] ?? 0);
     if (verify_media_signature($key, $sig, $exp)) {
         $authed = true;
+    } elseif (!empty($_GET['token'])) {
+        // Legacy fallback: ?token= в URL для <img> тегов (deprecated)
+        check_media_auth();
+        $authed = true;
     }
 }
 
