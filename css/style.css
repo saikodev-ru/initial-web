@@ -56,11 +56,8 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 /* ══ AUTH ════════════════════════════════════════════════════ */
 #scr-auth{
   background:var(--bg);
-  flex-direction:column;overflow-y:auto;
-  align-items:center;justify-content:flex-start;
-  padding:32px 0 40px;
-  min-height:100dvh;
-  min-height:100vh;
+  flex-direction:column;overflow-y:auto;overflow-x:hidden;
+  align-items:center;justify-content:flex-start;padding:32px 0 40px;
 }
 
 /* Card — wide, no background box */
@@ -69,8 +66,6 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   width:380px;max-width:calc(100vw - 40px);
   animation:authIn .4s cubic-bezier(.16,1,.3,1) both;
   padding:0 2px;
-  flex:1 0 auto;
-  display:flex;flex-direction:column;
 }
 @keyframes authIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
@@ -82,11 +77,11 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
 .logo-name{font-size:52px;font-weight:900;letter-spacing:-2px;color:var(--t1)}
 
 /* Steps wrap */
-.auth-steps-wrap{position:relative;overflow:visible;width:100%;flex:1 0 auto;display:flex;flex-direction:column}
+.auth-steps-wrap{position:relative;overflow:visible;width:100%;min-height:380px}
 .auth-step{position:absolute;top:0;left:0;right:0;opacity:0;pointer-events:none}
 .auth-step.on{opacity:1;pointer-events:auto}
-#st-qr,#st-email{min-height:auto}
-#qr-desktop,#qr-mobile{display:flex;flex-direction:column;align-items:center;min-height:auto}
+#st-qr,#st-email{min-height:380px}
+#qr-desktop,#qr-mobile{display:flex;flex-direction:column;align-items:center;min-height:320px}
 
 /* Typography */
 .auth-title{font-size:28px;font-weight:700;letter-spacing:-.4px;margin-bottom:12px;text-align:center;color:var(--t1)}
@@ -151,11 +146,13 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   box-shadow: 0 6px 40px rgba(0,0,0,.4);
   /* overflow: hidden; удаляем */
   transition: transform .3s ease;
-  width: min(300px, calc(100vw - 80px));
-  max-width: 300px;
+  width: 260px;
 }
+/* Scale QR canvas to fit frame (JS renders at 300x300) */
+#qr-canvas{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+#qr-canvas svg,#qr-canvas canvas{width:100%!important;height:100%!important;display:block!important;max-width:100%;max-height:100%}
 
-.qr-canvas-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0;flex-shrink:0}
+.qr-canvas-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:8px 0}
 .qr-hint{font-size:13px;color:var(--t3);text-align:center;margin-top:0;transition:opacity .3s}
 .qr-loading{display:flex;justify-content:center;padding:0}
 /* ── Link Device modal QR container ── */
@@ -184,7 +181,7 @@ body,input,textarea,button{font-family:var(--font),'Apple Color Emoji','Segoe UI
   backdrop-filter:blur(2px);
   transition:opacity .45s cubic-bezier(.4,0,.2,1);
 }
-.qr-skel-canvas{width:300px;height:300px;display:block;overflow:hidden;flex-shrink:0}
+.qr-skel-canvas{width:100%;height:100%;display:block;overflow:hidden;flex-shrink:0;aspect-ratio:1/1}
 .qr-skel-canvas svg,.qr-skel-canvas canvas{display:block;width:100%!important;height:100%!important}
 .qr-skel-shimmer{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:25px}
 .qr-skel-shimmer::after{content:'';position:absolute;inset:0;
