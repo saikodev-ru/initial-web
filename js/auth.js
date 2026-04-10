@@ -193,7 +193,7 @@ function _ensureSkelQr() {
   try {
     skelEl.innerHTML = '';
     const qr = new QRCodeStyling({
-      width: 300, height: 300, type: 'svg', data: 'https://initial.su',
+      width: 230, height: 230, type: 'svg', data: 'https://initial.su',
       dotsOptions: { color: '#afafaf', type: 'extra-rounded' },
       backgroundOptions: { color: '#ffffff' },
       cornersSquareOptions: { type: 'extra-rounded' },
@@ -287,7 +287,7 @@ async function startQrFlow() {
 
     try {
       const qrCodeStylingInstance = new QRCodeStyling({
-        width: 300, height: 300, type: "svg", data: res.url,
+        width: 230, height: 230, type: "svg", data: res.url,
         dotsOptions: { color: "#000000", type: "extra-rounded" },
         backgroundOptions: { color: "#ffffff" },
         cornersSquareOptions: { type: "extra-rounded" },

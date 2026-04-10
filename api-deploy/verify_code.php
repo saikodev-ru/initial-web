@@ -49,70 +49,50 @@ if (!password_verify($code, $row['code_hash'])) {
 // ── Код верный — инвалидируем ────────────────────────────────
 $db->prepare('UPDATE auth_codes SET used = 1 WHERE id = ?')->execute([$row['id']]);
 
-// ── Найти или создать пользователя (race-condition-safe) ──────
-// Используем INSERT IGNORE + повторный SELECT чтобы избежать
-// Duplicate entry при конкурентных запросах одного email.
-$db->beginTransaction();
-try {
-    $stmt = $db->prepare('SELECT * FROM users WHERE email = ? LIMIT 1 FOR UPDATE');
+// ── Найти или создать пользователя ───────────────────────────
+$isNewUser = false;
+$userId    = 0;
+
+// Сначала пытаемся найти существующего
+$stmt = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+$stmt->execute([$email]);
+$existRow = $stmt->fetch();
+
+if ($existRow) {
+    $userId = (int) $existRow['id'];
+    $db->prepare('UPDATE users SET last_seen = NOW() WHERE id = ?')->execute([$userId]);
+} else {
+    // Пытаемся создать — INSERT IGNORE на случай race condition
+    $db->prepare('INSERT IGNORE INTO users (email, last_seen) VALUES (?, NOW())')
+       ->execute([$email]);
+    // Всегда перечитываем — не полагаемся на lastInsertId()
+    $stmt = $db->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $stmt->execute([$email]);
-    $user      = $stmt->fetch();
-    $isNewUser = !$user;
-
-    if ($isNewUser) {
-        // INSERT IGNORE — если уже вставлен конкурентным запросом, просто молча пропускаем
-        $insStmt = $db->prepare('INSERT IGNORE INTO users (email, last_seen) VALUES (?, NOW())');
-        $insStmt->execute([$email]);
-
-        // Если INSERT не вставил (email уже существовал) — перечитаем
-        if ($db->lastInsertId() == 0 || $insStmt->rowCount() === 0) {
-            $stmt = $db->prepare('SELECT * FROM users WHERE email = ? LIMIT 1');
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-            if ($user) {
-                $isNewUser = false;
-                $userId = (int) $user['id'];
-                $db->prepare('UPDATE users SET last_seen = NOW() WHERE id = ?')
-                   ->execute([$userId]);
-            } else {
-                // Страховка: если записи всё ещё нет
-                $db->rollBack();
-                json_err('server_error', 'Ошибка при создании аккаунта. Попробуйте ещё раз.', 500);
-            }
-        } else {
-            $userId = (int) $db->lastInsertId();
-            if ($userId === 0) {
-                $db->rollBack();
-                error_log("verify_code: lastInsertId() вернул 0 для email={$email}");
-                json_err('server_error', 'Ошибка при создании аккаунта. Попробуйте ещё раз.', 500);
-            }
-        }
+    $existRow = $stmt->fetch();
+    if ($existRow) {
+        $userId = (int) $existRow['id'];
+        $isNewUser = true;
     } else {
-        $db->prepare('UPDATE users SET last_seen = NOW() WHERE id = ?')
-           ->execute([$user['id']]);
-        $userId = (int) $user['id'];
+        error_log("verify_code: INSERT IGNORE + SELECT не нашли пользователя для email={$email}");
+        json_err('server_error', 'Ошибка при создании аккаунта. Попробуйте ещё раз.', 500);
     }
-
-    $db->commit();
-} catch (\PDOException $e) {
-    $db->rollBack();
-    error_log("verify_code PDO: " . $e->getMessage());
-    json_err('server_error', 'Ошибка базы данных. Попробуйте ещё раз.', 500);
 }
 
 if ($isNewUser) {
-    if (!isset($user) || !$user) {
-        $user = [
-            'id'         => $userId,
-            'email'      => $email,
-            'nickname'   => null,
-            'signal_id'  => null,
-            'avatar_url' => null,
-            'bio'        => null,
-        ];
-    }
+    $user = [
+        'id'         => $userId,
+        'email'      => $email,
+        'nickname'   => null,
+        'signal_id'  => null,
+        'avatar_url' => null,
+        'bio'        => null,
+    ];
     bootstrapNewUser($userId);
 } else {
+    // Подгружаем все поля пользователя для ответа
+    $stmt = $db->prepare('SELECT email, nickname, signal_id, avatar_url, bio FROM users WHERE id = ? LIMIT 1');
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch() ?: ['email' => $email, 'nickname' => null, 'signal_id' => null, 'avatar_url' => null, 'bio' => null];
     sendLoginNotification($userId);
 }
 
