@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Тол
 
 $me = auth_user();
 
-$stmt = db()->prepare('SELECT * FROM users WHERE id = ? LIMIT 1');
+$stmt = db()->prepare('SELECT id, email, nickname, signal_id, avatar_url, bio, is_verified, is_team_signal, last_seen FROM users WHERE id = ? LIMIT 1');
 $stmt->execute([$me['id']]);
 $dbUser = $stmt->fetch() ?: $me;
 

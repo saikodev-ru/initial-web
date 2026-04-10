@@ -8,6 +8,7 @@ require_once __DIR__ . '/helpers.php';
 set_cors_headers();
 
 $me   = auth_user();
+require_rate_limit('react_message', 60, 60);
 $data = input();
 
 $messageId = (int) ($data['message_id'] ?? 0);
