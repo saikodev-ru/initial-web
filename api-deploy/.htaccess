@@ -26,13 +26,9 @@ RewriteEngine On
 # ── Запретить директорию (без index.php) ────────────────────────
 Options -Indexes
 
-# ── Запретить выполнение PHP в uploads/ и других writable директориях ──
-<DirectoryMatch "(uploads|cache|temp|sessions)">
-    <FilesMatch "\.php$">
-        Order allow,deny
-        Deny from all
-    </FilesMatch>
-</DirectoryMatch>
+# ── Запретить выполнение PHP в writable директориях ──────────────────
+# NOTE: <DirectoryMatch> запрещён в .htaccess — используем RewriteRule
+RewriteRule ^(uploads|cache|temp|sessions)/.*\.php$ - [F,L]
 
 # ── Security Headers (дублируют security.php для надёжности) ─────
 <IfModule mod_headers.c>
