@@ -28,10 +28,13 @@ register_shutdown_function(function () {
 
 require_once __DIR__ . '/config.php';
 
-// Load Web Push VAPID config if the file exists
-if (file_exists(__DIR__ . '/push_config.php')) {
-    require_once __DIR__ . '/push_config.php';
-}
+// Load security module
+require_once __DIR__ . '/security.php';
+
+
+
+// ── Инициализация безопасности при первой загрузке ──────────────
+security_init();
 
 // ── PDO-соединение (singleton) ───────────────────────────────
 function db(): PDO {
@@ -64,16 +67,19 @@ function json_err(string $code, string $message, int $status = 400): never {
     exit;
 }
 
-// ── Заголовки CORS ───────────────────────────────────────────
+// ── Заголовки CORS + CSRF ────────────────────────────────────
 function set_cors_headers(): void {
     header('Content-Type: application/json; charset=UTF-8');
     header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+    header('Access-Control-Max-Age: ' . (defined('SESSION_DAYS') ? SESSION_DAYS * 86400 : 2592000));
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit;
     }
+    // CSRF-защита для state-changing запросов (POST/DELETE)
+    check_csrf_origin();
 }
 
 // ── Входящий JSON ────────────────────────────────────────────
@@ -188,7 +194,7 @@ function create_session(int $userId): string {
     $token     = bin2hex(random_bytes(32));
     $expiresAt = date('Y-m-d H:i:s', strtotime('+' . SESSION_DAYS . ' days'));
     $device    = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200);
-    $ip        = $_SERVER['REMOTE_ADDR'] ?? '';
+    $ip        = get_real_ip(); // Безопасное получение IP (с учётом Cloudflare)
 
     $stmt = db()->prepare(
         'INSERT INTO sessions (user_id, token, device, ip, expires_at)
