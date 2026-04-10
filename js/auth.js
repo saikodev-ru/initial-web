@@ -84,10 +84,14 @@ function initStepsWrap() {
   const wrap = document.querySelector('.auth-steps-wrap');
   if (!wrap) return;
   const steps = [...$$('.auth-step')];
+  // Measure all steps to find the tallest, then set as min-height
+  // so shorter steps still work and the container doesn't collapse
   steps.forEach(s => { s.style.cssText = 'position:absolute;top:0;left:0;right:0;opacity:0;pointer-events:none;'; });
   void wrap.offsetHeight;
   const maxH = steps.reduce((m, s) => Math.max(m, s.scrollHeight), 0);
-  wrap.style.height = maxH + 'px';
+  // Use max-height instead of fixed height so content can still overflow and scroll
+  wrap.style.minHeight = maxH + 'px';
+  wrap.style.height = '';
   steps.forEach(s => s.style.cssText = '');
   _syncAuthTabs();
 }
