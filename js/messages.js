@@ -1346,7 +1346,7 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: short press (300ms) → ctx menu | long press (700ms) → select ──
+      // ── Mobile: short press (300ms) → dim + ctx menu | long press (700ms) → select ──
       let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false;
 
       body.addEventListener('touchstart',e=>{
@@ -1358,14 +1358,22 @@ function makeMsgEl(m,newSender=true){
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
 
-        // Stage 1: short press → context menu
+        // Stage 1: short press → dim other messages + context menu
         _ctxTimer=setTimeout(()=>{
           _ctxTimer=null;
           if(_moved||_blocked)return;
           // Prevent the touchend from firing a click on the media
           e.preventDefault&&e.preventDefault();
           const t=e.touches[0]||e.changedTouches?.[0];
-          if(t)showCtx({clientX:t.clientX,clientY:t.clientY},m);
+          if(t){
+            // Dim all other messages, highlight the tapped one
+            const msgsEl=row.closest('.msgs');
+            if(msgsEl){
+              msgsEl.classList.add('msg-dim-active');
+              row.classList.add('msg-ctx-target');
+            }
+            showCtx({clientX:t.clientX,clientY:t.clientY},m);
+          }
         },300);
 
         // Stage 2: long press → selection mode
@@ -1755,6 +1763,11 @@ function patchRxnDom(msgId,rxns){
 function enterSelectMode(msgId){
   S.selectMode=true;S.selected.clear();if(msgId)S.selected.add(msgId);
   $('select-bar').classList.add('on');$('input-zone').style.display='none';
+  // Clear any message dimming from context menu
+  document.querySelectorAll('.msg-dim-active').forEach(el=>el.classList.remove('msg-dim-active'));
+  document.querySelectorAll('.msg-ctx-target').forEach(el=>el.classList.remove('msg-ctx-target'));
+  const dimEl=$('msg-ctx-dim');if(dimEl)dimEl.classList.remove('on');
+  hideCtx&&hideCtx();
   // Re-render all messages to show checkboxes
   if(S.chatId)renderMsgsSelect();updateSelBar();
 }
