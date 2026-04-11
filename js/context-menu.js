@@ -19,6 +19,14 @@ function showCtx(e, m) {
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
   $('ctx-del-partner').style.display = !isMe ? 'flex' : 'none';
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
+  // Mute user button: only show for other people's messages
+  const muteBtn = $('ctx-mute-user');
+  const muteLabel = $('ctx-mute-user-label');
+  if (muteBtn) {
+    const muted = isUserMuted(m.sender_id);
+    muteBtn.style.display = !isMe ? 'flex' : 'none';
+    if (muteLabel) muteLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
+  }
   
   const bar = $('ctx-rxn-bar');
   bar.innerHTML = '';
@@ -689,6 +697,15 @@ function showHdrMbCtx(e) {
   if (delBtn) delBtn.style.display = (c.is_protected || c.is_saved_msgs) ? 'none' : '';
   const clearBtn = $('hdr-mb-ctx-clear');
   if (clearBtn) clearBtn.style.display = (c.is_saved_msgs) ? 'none' : '';
+  // Mute user button
+  const muteMbBtn = $('hdr-mb-ctx-mute');
+  const muteMbLabel = $('hdr-mb-ctx-mute-label');
+  if (muteMbBtn) {
+    const partnerId = c.partner_id || c.id;
+    const muted = isUserMuted(partnerId);
+    muteMbBtn.style.display = (c.is_saved_msgs || c.is_protected || isSystemChat(c)) ? 'none' : '';
+    if (muteMbLabel) muteMbLabel.textContent = muted ? 'Разглушить' : 'Заглушить';
+  }
 
   hdrMbCtx.style.display = 'block';
   hdrMbCtx.style.transition = 'none';
@@ -855,3 +872,45 @@ $('hdr-mb-ctx-delete').onclick = () => {
     }
   });
 };
+
+/* ══ MUTED USERS ═══════════════════════════════════════════════ */
+const MUTED_KEY = 'sg_muted_users';
+
+function getMutedUsers() {
+  try { return new Set(JSON.parse(localStorage.getItem(MUTED_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveMutedUsers(set) {
+  try { localStorage.setItem(MUTED_KEY, JSON.stringify([...set])); } catch {}
+}
+function isUserMuted(userId) {
+  if (!userId) return false;
+  return getMutedUsers().has(+userId);
+}
+function toggleMuteUser(userId) {
+  if (!userId) return false;
+  const set = getMutedUsers();
+  const id = +userId;
+  if (set.has(id)) { set.delete(id); saveMutedUsers(set); return false; }
+  set.add(id); saveMutedUsers(set); return true;
+}
+
+// Mute from message context menu
+document.addEventListener('DOMContentLoaded', function() {
+  var ctxMuteBtn = $('ctx-mute-user');
+  if (ctxMuteBtn) ctxMuteBtn.addEventListener('click', function() {
+    hideCtx();
+    if (!ctxMsg || !ctxMsg.sender_id) return;
+    var nowMuted = toggleMuteUser(ctxMsg.sender_id);
+    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+  });
+
+  var hdrMuteBtn = $('hdr-mb-ctx-mute');
+  if (hdrMuteBtn) hdrMuteBtn.addEventListener('click', function() {
+    hideHdrMbCtx();
+    if (!S.partner) return;
+    var partnerId = S.partner.partner_id || S.partner.id;
+    if (!partnerId) return;
+    var nowMuted = toggleMuteUser(partnerId);
+    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+  });
+});

@@ -816,7 +816,8 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .inapp-push-reply-wrap{
   display:none;
   align-items:center;gap:6px;
-  margin-top:6px;
+  margin-top:8px;
+  width:100%;
 }
 .inapp-push-reply-wrap.open{display:flex}
 .inapp-push-reply-wrap .mfield{
@@ -829,6 +830,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   padding:6px 10px;
   outline:none;line-height:1.4;
   overflow-y:auto;word-break:break-word;white-space:pre-wrap;
+  width:100%;
 }
 .inapp-push-reply-wrap .mfield:focus{border-color:var(--yb);background:var(--solid1)}
 .inapp-push-reply-wrap .mfield:empty::before{content:attr(data-placeholder);color:var(--t3);pointer-events:none}
@@ -848,22 +850,68 @@ body[data-theme="light"] .inapp-push-inner{
 }
 body[data-theme="light"] .inapp-push-act-btn{background:rgba(0,0,0,.04)}
 body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
-/* Mobile: full width */
+/* Mobile: narrower, taller, more top margin */
 @media (max-width: 680px){
   .inapp-push{
-    width:calc(100% - 16px);
+    width:calc(100% - 40px);
     max-width:none;
-    padding-top:calc(8px + env(safe-area-inset-top, 0px));
+    padding-top:calc(12px + env(safe-area-inset-top, 0px));
   }
   .inapp-push.visible{top:4px}
   .inapp-push-inner{
     border-radius:9999px;
-    padding:5px 6px 5px 5px;
+    padding:7px 8px 7px 6px;
+    transition: border-radius .28s cubic-bezier(.34,1.3,.64,1), padding .28s cubic-bezier(.34,1.3,.64,1);
   }
-  .inapp-push-av{width:34px;height:34px}
-  .inapp-push-name{font-size:13px}
-  .inapp-push-msg{font-size:12px}
+  .inapp-push-av{width:38px;height:38px}
+  .inapp-push-name{font-size:13.5px}
+  .inapp-push-msg{font-size:12.5px}
   .inapp-push-act-btn{width:28px;height:28px}
+  /* ── Reply mode: rounded rect, stretch vertically ── */
+  .inapp-push-inner.reply-open{
+    border-radius:18px;
+    padding:10px 10px 8px 8px;
+    align-items:flex-start;
+  }
+  .inapp-push-inner.reply-open .inapp-push-content{
+    width:100%;
+    flex:1;
+  }
+  .inapp-push-inner.reply-open .inapp-push-reply-wrap{
+    width:100%;
+    flex:1;
+  }
+  .inapp-push-inner.reply-open .inapp-push-reply-wrap .mfield{
+    flex:1;
+    width:100%;
+    min-height:36px;
+    max-height:80px;
+    border-radius:14px;
+    padding:8px 12px;
+    font-size:14px;
+  }
+  .inapp-push-inner.reply-open .inapp-push-reply-send{
+    width:36px;height:36px;
+    border-radius:12px;
+    flex-shrink:0;
+  }
+  .inapp-push-inner.reply-open .inapp-push-acts{
+    position:absolute;
+    top:10px;right:8px;
+  }
+  .inapp-push-inner.reply-open .inapp-push-reply-btn{
+    display:none;
+  }
+  /* ── Swipe-up dismiss transition ── */
+  .inapp-push.swiping{
+    transition: transform .08s linear, opacity .08s linear !important;
+    pointer-events:none !important;
+  }
+  .inapp-push.swipe-out{
+    transition: transform .28s cubic-bezier(.4,0,1,1), opacity .28s ease !important;
+    transform: translateX(-50%) translateY(-120%) !important;
+    opacity:0 !important;
+  }
 }
 
 /* ══ STICKY DATE PILL (below chat header) ═════════════════════ */
@@ -1143,6 +1191,26 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .mobile-classic-hdr .chat-hdr .av-img{
   width:34px !important;height:34px !important;font-size:14px !important;
   border-radius:50%;border:none !important;
+}
+
+/* ── Mobile press feedback (modern press-down feel) ── */
+@container app (max-width: 680px){
+  .hdr-back-pill:active,
+  .hdr-pill:active,
+  .hdr-av-pill:active{
+    transform: scale(.96);
+    filter: brightness(.92);
+    transition: transform .1s ease, filter .1s ease;
+  }
+  .hdr-back-pill,
+  .hdr-pill,
+  .hdr-av-pill{
+    transition: transform .25s var(--sp), filter .2s ease;
+  }
+  .voice-mini-player:active{
+    transform: scale(.98) !important;
+    filter: brightness(.94);
+  }
 }
 
 .chat-wrap{position:relative}
@@ -2325,7 +2393,7 @@ body[data-theme="light"] .st-sub-hdr.scrolled {
 .mavi{width:26px;height:26px;flex-shrink:0;border-radius:50%;background:var(--solid1);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--t2);position:relative}
 .mavi img{width:100%;height:100%;object-fit:cover}.mavi.ghost{visibility:hidden}
 .mbub{max-width:min(460px, 85%);display:flex;flex-direction:column;align-items:flex-start;position:relative;min-width:0}.me .mbub{align-items:flex-end}
-.mbody{background:var(--msg-bg);border:1px solid var(--b);border-radius:18px;padding:5px 11px 5px;position:relative;word-break:break-word;transition:background .12s,border-color .12s;min-width:0;max-width:100%;box-sizing:border-box}
+.mbody{background:var(--msg-bg);border:none;border-radius:18px;padding:5px 11px 5px;position:relative;word-break:break-word;transition:background .12s;min-width:0;max-width:100%;box-sizing:border-box}
 .me .mbody{background:var(--y);border:none;border-radius:18px;color:#fff;overflow:visible;position:relative}
 .mbody > *{position:relative;z-index:1}
 /* Disable per-message ::before gradient */
@@ -5930,13 +5998,15 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.08);
   max-height: 0; opacity: 0; overflow: hidden;
   margin: 0 6px;
-  transition: max-height .25s var(--ease), opacity .25s var(--ease), margin .25s var(--ease), padding .25s var(--ease);
+  transform: translateY(-8px) scale(.96);
+  transition: max-height .35s cubic-bezier(.34,1.3,.64,1), opacity .3s var(--ease), margin .3s var(--ease), padding .3s var(--ease), transform .35s cubic-bezier(.34,1.3,.64,1);
   pointer-events: none;
 }
 .voice-mini-player.visible {
-  max-height: 44px; opacity: 1;
-  padding: 4px 10px;
+  max-height: 52px; opacity: 1;
+  padding: 5px 10px;
   margin: 4px 6px;
+  transform: translateY(0) scale(1);
   pointer-events: auto;
 }
 .voice-mini-player .vmp-avatar {
@@ -5975,7 +6045,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   flex-shrink: 0; transition: color .12s, background .12s, transform .12s var(--sp);
 }
 .voice-mini-player .vmp-btn:hover { color: var(--y); background: rgba(255,255,255,.13); }
-.voice-mini-player .vmp-btn:active { transform: scale(.85); }
+.voice-mini-player .vmp-btn:active { transform: scale(.88); filter: brightness(.85); }
 .voice-mini-player .vmp-btn svg { width: 14px; height: 14px; }
 .voice-mini-player .vmp-close {
   width: 22px; height: 22px; border-radius: 50%;
@@ -5985,7 +6055,7 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   flex-shrink: 0; transition: color .12s, background .12s, transform .12s var(--sp);
 }
 .voice-mini-player .vmp-close:hover { color: var(--t1); background: rgba(255,255,255,.1); }
-.voice-mini-player .vmp-close:active { transform: scale(.85); }
+.voice-mini-player .vmp-close:active { transform: scale(.88); filter: brightness(.85); }
 .voice-mini-player .vmp-close svg { width: 12px; height: 12px; }
 
 
