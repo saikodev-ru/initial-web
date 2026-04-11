@@ -4,38 +4,20 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Keyboard-aware header: keep chat at full screen height on mobile ── */
-(function initKbdHeader(){
+/* ── Mobile keyboard: keep #active-chat sized to visual viewport ──
+   container-type on #scr-app creates contain: layout, so position:fixed
+   inside is relative to #scr-app, not viewport. We exploit this:
+   #active-chat is fixed relative to #scr-app (fills viewport).
+   visualViewport sets --vv-h so height tracks keyboard in real-time. */
+(function initMobileLayout(){
   if(!window.visualViewport)return;
-  const vv=window.visualViewport;
-  let kbdOpen=false;
-  let prevHeight=vv.height;
-
-  function onResize(){
-    const ac=document.getElementById('active-chat');
-    if(!ac)return;
-    const diff=prevHeight-vv.height;
-    if(diff>100&&!kbdOpen){
-      kbdOpen=true;
-      ac.classList.add('kbd-open');
-    }else if(diff<-80&&kbdOpen){
-      kbdOpen=false;
-      ac.classList.remove('kbd-open');
-    }
-    prevHeight=vv.height;
+  var vv=window.visualViewport;
+  function sync(){
+    document.documentElement.style.setProperty('--vv-h',vv.height+'px');
   }
-
-  vv.addEventListener('resize',onResize);
-  vv.addEventListener('scroll',()=>{
-    if(!kbdOpen)return;
-    if(vv.offsetTop===0){
-      const ac=document.getElementById('active-chat');
-      if(ac){
-        kbdOpen=false;
-        ac.classList.remove('kbd-open');
-      }
-    }
-  },{passive:true});
+  vv.addEventListener('resize',sync);
+  vv.addEventListener('scroll',sync);
+  sync();
 })();
 
 /* ══ WELCOME SCREEN — static text with fade-in ════════════════ */

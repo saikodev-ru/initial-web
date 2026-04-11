@@ -941,12 +941,11 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 /* ══ MOBILE PILL HEADER ══ */
 
 /* ── Status bar seamless gradient (mobile PWA) ──
-   Creates a tiny gradient from the OS status bar color
-   into the app background for a seamless feel. */
+   absolute inside #active-chat (which is fixed) */
 @container app (max-width: 680px){
   #active-chat::after{
     content:'';
-    position:fixed;
+    position:absolute;
     top:0;left:0;right:0;
     height:calc(env(safe-area-inset-top, 0px) + 28px);
     background:linear-gradient(
@@ -974,9 +973,26 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   }
 }
 
+/* ── Mobile: lock #active-chat to viewport via fixed positioning ──
+   container-type: inline-size on #scr-app creates contain: layout,
+   which makes all position:fixed children relative to #scr-app instead
+   of viewport. We exploit this: #active-chat becomes fixed relative to
+   #scr-app (fills viewport), then header/input are absolute inside it.
+   visualViewport JS sets --vv-h for real-time height tracking. */
+@container app (max-width: 680px){
+  html,body{position:fixed !important;width:100% !important;height:100% !important}
+  #active-chat{
+    position:fixed !important;
+    top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;
+    width:100% !important;
+    height:var(--vv-h, 100dvh) !important;
+    z-index:10 !important;
+  }
+}
+
 @container app (max-width: 680px){
   .chat-hdr{
-    position:fixed;top:0;left:0;right:0;
+    position:absolute;top:0;left:0;right:0;
     padding:0 54px 0 0;
     margin:0 6px;
     padding-top:calc(14px + env(safe-area-inset-top, 0px));
@@ -4179,30 +4195,6 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .no-blur .unified-input-wrap{
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     background:rgba(var(--bg-rgb),.65);
-  }
-
-  /* ── Keyboard open: chat stays visible, header already fixed via mobile rule ── */
-  .kbd-open #active-chat{
-    position:fixed !important;
-    top:0;left:0;right:0;
-    height:100vh !important;
-    min-height:100vh !important;
-    width:100vw !important;
-    z-index:50 !important;
-    transform:none !important;
-  }
-  .kbd-open .chat-hdr{
-    /* position already fixed via mobile container rule — don't override */
-    margin:0 !important;
-    padding-left:8px !important;
-    padding-right:8px !important;
-  }
-  .kbd-open .sticky-date-pill{
-    top:calc(60px + env(safe-area-inset-top, 0px)) !important;
-  }
-  .kbd-open .msgs{
-    padding-top:calc(82px + env(safe-area-inset-top, 0px)) !important;
-    flex:1;
   }
 }
 
