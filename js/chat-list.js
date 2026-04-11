@@ -462,6 +462,16 @@ function openSelfModal(){
 function updateTitle(){
   const total=(S.chats||[]).reduce((s,c)=>s+(+c.unread_count||0),0);
   document.title=total>0?`(${total}) Сообщения — Initial`:'Сообщения — Initial';
+  // Update header unread badge (mobile)
+  const badge=document.getElementById('hdr-unread-badge');
+  if(badge){
+    if(total>0){
+      badge.textContent=total>99?'99+':total;
+      badge.style.display='';
+    }else{
+      badge.style.display='none';
+    }
+  }
 }
 
 /* ── Sort chats: pinned on top, then by last_time desc ── */
