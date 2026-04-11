@@ -70,10 +70,16 @@ foreach ($stmtChats->fetchAll(PDO::FETCH_COLUMN) as $cid) {
 // If chat_id specified, also return messages for that specific chat
 $checkChatId = ($chatId > 0 && in_array($chatId, $chatIds, true)) ? $chatId : 0;
 
-// Pre-load current call_signals max ID
-$stmtMaxCall = $db->prepare('SELECT COALESCE(MAX(id), 0) FROM call_signals WHERE target_id = ?');
-$stmtMaxCall->execute([$uid]);
-$currentMaxCallId = (int) $stmtMaxCall->fetchColumn();
+// Pre-load current call_signals max ID (graceful — table may not exist yet)
+$currentMaxCallId = 0;
+try {
+    $stmtMaxCall = $db->prepare('SELECT COALESCE(MAX(id), 0) FROM call_signals WHERE target_id = ?');
+    $stmtMaxCall->execute([$uid]);
+    $currentMaxCallId = (int) $stmtMaxCall->fetchColumn();
+} catch (\Throwable $e) {
+    error_log("poll_updates: call_signals table missing or error: " . $e->getMessage());
+    $currentMaxCallId = 0;
+}
 
 // ── Main long-polling loop ──────────────────────────────────
 while (true) {
@@ -93,112 +99,124 @@ while (true) {
 
     // ── 1. New messages in user's chats ──────────────────────
     if (!empty($chatIds)) {
-        $ph = implode(',', array_fill(0, count($chatIds), '?'));
-        $params = $chatIds;
+        try {
+            $ph = implode(',', array_fill(0, count($chatIds), '?'));
+            $params = $chatIds;
 
-        if ($checkChatId > 0) {
-            // Specific chat mode: only messages from that chat
-            $msgStmt = $db->prepare(
-                "SELECT m.id, m.chat_id, m.sender_id, m.body, m.reply_to, m.is_edited,
-                        m.media_url, m.media_type, m.media_spoiler, m.batch_id,
-                        m.voice_duration, m.voice_waveform,
-                        UNIX_TIMESTAMP(m.sent_at) AS sent_at,
-                        u.nickname, u.signal_id, u.avatar_url, u.is_team_signal
-                 FROM messages m
-                 JOIN users u ON u.id = m.sender_id
-                 WHERE m.chat_id = ? AND m.is_deleted = 0
-                   AND UNIX_TIMESTAMP(m.sent_at) > ?
-                 ORDER BY m.sent_at ASC LIMIT 50"
-            );
-            $msgStmt->execute([$checkChatId, $cursor]);
-        } else {
-            // All chats mode
-            $msgStmt = $db->prepare(
-                "SELECT m.id, m.chat_id, m.sender_id, m.body, m.reply_to, m.is_edited,
-                        m.media_url, m.media_type, m.media_spoiler, m.batch_id,
-                        m.voice_duration, m.voice_waveform,
-                        UNIX_TIMESTAMP(m.sent_at) AS sent_at,
-                        u.nickname, u.signal_id, u.avatar_url, u.is_team_signal
-                 FROM messages m
-                 JOIN users u ON u.id = m.sender_id
-                 WHERE m.chat_id IN ($ph) AND m.is_deleted = 0
-                   AND UNIX_TIMESTAMP(m.sent_at) > ?
-                 ORDER BY m.sent_at ASC LIMIT 50"
-            );
-            $msgStmt->execute(array_merge($params, [$cursor]));
-        }
+            if ($checkChatId > 0) {
+                // Specific chat mode: only messages from that chat
+                $msgStmt = $db->prepare(
+                    "SELECT m.id, m.chat_id, m.sender_id, m.body, m.reply_to, m.is_edited,
+                            m.media_url, m.media_type, m.media_spoiler, m.batch_id,
+                            m.voice_duration, m.voice_waveform,
+                            UNIX_TIMESTAMP(m.sent_at) AS sent_at,
+                            u.nickname, u.signal_id, u.avatar_url, u.is_team_signal
+                     FROM messages m
+                     JOIN users u ON u.id = m.sender_id
+                     WHERE m.chat_id = ? AND m.is_deleted = 0
+                       AND UNIX_TIMESTAMP(m.sent_at) > ?
+                     ORDER BY m.sent_at ASC LIMIT 50"
+                );
+                $msgStmt->execute([$checkChatId, $cursor]);
+            } else {
+                // All chats mode
+                $msgStmt = $db->prepare(
+                    "SELECT m.id, m.chat_id, m.sender_id, m.body, m.reply_to, m.is_edited,
+                            m.media_url, m.media_type, m.media_spoiler, m.batch_id,
+                            m.voice_duration, m.voice_waveform,
+                            UNIX_TIMESTAMP(m.sent_at) AS sent_at,
+                            u.nickname, u.signal_id, u.avatar_url, u.is_team_signal
+                     FROM messages m
+                     JOIN users u ON u.id = m.sender_id
+                     WHERE m.chat_id IN ($ph) AND m.is_deleted = 0
+                       AND UNIX_TIMESTAMP(m.sent_at) > ?
+                     ORDER BY m.sent_at ASC LIMIT 50"
+                );
+                $msgStmt->execute(array_merge($params, [$cursor]));
+            }
 
-        $msgs = $msgStmt->fetchAll();
-        if (!empty($msgs)) {
-            $hasData = true;
-            $results['messages'] = array_map(fn($m) => [
-                'id'              => (int) $m['id'],
-                'chat_id'         => (int) $m['chat_id'],
-                'sender_id'       => (int) $m['sender_id'],
-                'body'            => $m['body'],
-                'reply_to'        => isset($m['reply_to']) ? (int) $m['reply_to'] : null,
-                'is_edited'       => (int) $m['is_edited'],
-                'media_url'       => $m['media_url'] ?? null,
-                'media_type'      => $m['media_type'] ?? null,
-                'media_spoiler'   => (int) ($m['media_spoiler'] ?? 0),
-                'batch_id'        => $m['batch_id'] ?? null,
-                'voice_duration'  => isset($m['voice_duration']) ? (int) $m['voice_duration'] : null,
-                'voice_waveform'  => $m['voice_waveform'] ?? null,
-                'sent_at'         => (int) $m['sent_at'],
-                'sender_signal_id'=> $m['signal_id'] ?? '',
-                'sender_name'     => $m['nickname'] ?? '',
-                'sender_avatar'   => $m['avatar_url'] ?? '',
-                'is_team_signal'  => (int) ($m['is_team_signal'] ?? 0),
-            ], $msgs);
+            $msgs = $msgStmt->fetchAll();
+            if (!empty($msgs)) {
+                $hasData = true;
+                $results['messages'] = array_map(fn($m) => [
+                    'id'              => (int) $m['id'],
+                    'chat_id'         => (int) $m['chat_id'],
+                    'sender_id'       => (int) $m['sender_id'],
+                    'body'            => $m['body'],
+                    'reply_to'        => isset($m['reply_to']) ? (int) $m['reply_to'] : null,
+                    'is_edited'       => (int) $m['is_edited'],
+                    'media_url'       => $m['media_url'] ?? null,
+                    'media_type'      => $m['media_type'] ?? null,
+                    'media_spoiler'   => (int) ($m['media_spoiler'] ?? 0),
+                    'batch_id'        => $m['batch_id'] ?? null,
+                    'voice_duration'  => isset($m['voice_duration']) ? (int) $m['voice_duration'] : null,
+                    'voice_waveform'  => $m['voice_waveform'] ?? null,
+                    'sent_at'         => (int) $m['sent_at'],
+                    'sender_signal_id'=> $m['signal_id'] ?? '',
+                    'sender_name'     => $m['nickname'] ?? '',
+                    'sender_avatar'   => $m['avatar_url'] ?? '',
+                    'is_team_signal'  => (int) ($m['is_team_signal'] ?? 0),
+                ], $msgs);
 
-            $updatedChatIds = array_unique(array_column($msgs, 'chat_id'));
-            $results['chat_updates'] = array_map('intval', $updatedChatIds);
+                $updatedChatIds = array_unique(array_column($msgs, 'chat_id'));
+                $results['chat_updates'] = array_map('intval', $updatedChatIds);
+            }
+        } catch (\Throwable $e) {
+            error_log("poll_updates: messages query error: " . $e->getMessage());
         }
     }
 
     // ── 2. Typing indicators ────────────────────────────────
     if (!empty($chatIds)) {
-        $ph2 = implode(',', array_fill(0, count($chatIds), '?'));
-        $typStmt = $db->prepare(
-            "SELECT u.id AS user_id, u.signal_id, u.nickname, u.avatar_url, u.typing_chat_id
-             FROM users u
-             WHERE u.typing_chat_id IN ($ph2)
-               AND u.id != ?
-               AND u.typing_at > DATE_SUB(NOW(), INTERVAL 5 SECOND)"
-        );
-        $typStmt->execute(array_merge($chatIds, [$uid]));
-        $typingRows = $typStmt->fetchAll();
-        if (!empty($typingRows)) {
-            $hasData = true;
-            $results['typing'] = array_map(fn($t) => [
-                'user_id'     => (int) $t['user_id'],
-                'chat_id'     => (int) $t['typing_chat_id'],
-                'signal_id'   => $t['signal_id'],
-                'nickname'    => $t['nickname'],
-            ], $typingRows);
+        try {
+            $ph2 = implode(',', array_fill(0, count($chatIds), '?'));
+            $typStmt = $db->prepare(
+                "SELECT u.id AS user_id, u.signal_id, u.nickname, u.avatar_url, u.typing_chat_id
+                 FROM users u
+                 WHERE u.typing_chat_id IN ($ph2)
+                   AND u.id != ?
+                   AND u.typing_at > DATE_SUB(NOW(), INTERVAL 5 SECOND)"
+            );
+            $typStmt->execute(array_merge($chatIds, [$uid]));
+            $typingRows = $typStmt->fetchAll();
+            if (!empty($typingRows)) {
+                $hasData = true;
+                $results['typing'] = array_map(fn($t) => [
+                    'user_id'     => (int) $t['user_id'],
+                    'chat_id'     => (int) $t['typing_chat_id'],
+                    'signal_id'   => $t['signal_id'],
+                    'nickname'    => $t['nickname'],
+                ], $typingRows);
+            }
+        } catch (\Throwable $e) {
+            error_log("poll_updates: typing columns missing or error: " . $e->getMessage());
         }
     }
 
     // ── 3. Call signals ────────────────────────────────────
     if ($currentMaxCallId > $lastCall) {
-        $sigStmt = $db->prepare(
-            'SELECT id, sender_id, type, payload, UNIX_TIMESTAMP(created_at) AS created_at
-             FROM call_signals
-             WHERE target_id = ? AND id > ?
-             AND UNIX_TIMESTAMP(created_at) > ?
-             ORDER BY id ASC LIMIT 10'
-        );
-        $sigStmt->execute([$uid, $lastCall, time() - 120]);
-        $signals = $sigStmt->fetchAll();
-        if (!empty($signals)) {
-            $hasData = true;
-            $results['call_signals'] = array_map(fn($s) => [
-                'id'         => (int) $s['id'],
-                'sender_id'  => (int) $s['sender_id'],
-                'type'       => $s['type'],
-                'payload'    => $s['payload'],
-                'created_at' => (int) $s['created_at'],
-            ], $signals);
+        try {
+            $sigStmt = $db->prepare(
+                'SELECT id, sender_id, type, payload, UNIX_TIMESTAMP(created_at) AS created_at
+                 FROM call_signals
+                 WHERE target_id = ? AND id > ?
+                 AND UNIX_TIMESTAMP(created_at) > ?
+                 ORDER BY id ASC LIMIT 10'
+            );
+            $sigStmt->execute([$uid, $lastCall, time() - 120]);
+            $signals = $sigStmt->fetchAll();
+            if (!empty($signals)) {
+                $hasData = true;
+                $results['call_signals'] = array_map(fn($s) => [
+                    'id'         => (int) $s['id'],
+                    'sender_id'  => (int) $s['sender_id'],
+                    'type'       => $s['type'],
+                    'payload'    => $s['payload'],
+                    'created_at' => (int) $s['created_at'],
+                ], $signals);
+            }
+        } catch (\Throwable $e) {
+            error_log("poll_updates: call_signals query error: " . $e->getMessage());
         }
     }
 
