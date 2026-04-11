@@ -4,29 +4,40 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Mobile keyboard: synced scroll with smooth viewport resize ──
-   interactive-widget=resizes-content makes 100dvh shrink smoothly
-   (via CSS transition on #scr-app/.layout). But .msgs scrollTop
-   stays frozen → messages near bottom get clipped. We track the
-   exact viewport height delta and scrollBy that amount in sync. */
+/* ── Mobile keyboard: scroll to bottom when keyboard opens ──
+   interactive-widget=resizes-content smoothly resizes 100dvh.
+   When user is at chat bottom, viewport shrink hides messages.
+   Detect keyboard open (height drop >80px) → scroll to bottom.
+   On intermediate frames, scrollBy exact delta to stay synced. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
   var prevH=vv.height;
+  var kbdOpen=false;
   var rafId=0;
 
   function sync(){
     var curH=vv.height;
     var delta=prevH-curH;
-    if(Math.abs(delta)>2){
+
+    if(delta>80&&!kbdOpen){
+      kbdOpen=true;
+      cancelAnimationFrame(rafId);
+      rafId=requestAnimationFrame(function(){
+        var msgs=document.getElementById('msgs');
+        if(msgs) msgs.scrollTop=msgs.scrollHeight;
+      });
+    }else if(kbdOpen&&Math.abs(delta)>2){
       cancelAnimationFrame(rafId);
       rafId=requestAnimationFrame(function(){
         var msgs=document.getElementById('msgs');
         if(!msgs)return;
         var atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<60;
-        if(atBottom) msgs.scrollBy(0,delta);
+        if(atBottom) msgs.scrollTop=msgs.scrollHeight;
       });
     }
+
+    if(kbdOpen&&delta<-60) kbdOpen=false;
     prevH=curH;
   }
   vv.addEventListener('resize',sync);
