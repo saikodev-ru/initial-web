@@ -2459,49 +2459,51 @@ function hideSBBtn(){
     pill.innerHTML='<span></span>';
     area.prepend(pill);
   }
-  const stickyPill=$('sticky-date-pill');
-  if(stickyPill){
-    // Dynamically set top offset to match chat header height
-    function _syncStickyTop(){
-      const hdr=document.getElementById('chat-hdr');
-      if(!hdr||!stickyPill)return;
-      const hdrR=hdr.getBoundingClientRect();
-      const areaR=area.getBoundingClientRect();
-      const offset=hdrR.bottom-areaR.top;
-      stickyPill.style.top=Math.max(0,Math.round(offset))+'px';
-    }
-    _syncStickyTop();
-    window.addEventListener('resize',_syncStickyTop,{passive:true});
-    const _resizeObs=new ResizeObserver(_syncStickyTop);
+  // Dynamic top offset: match chat header height
+  function _syncStickyTop(){
     const hdr=document.getElementById('chat-hdr');
-    if(hdr)_resizeObs.observe(hdr);
-
-    const stickySpan=stickyPill.querySelector('span');
-    const datePills=()=>area.querySelectorAll('.date-pill');
-    let _stickyTimer;
-    area.addEventListener('scroll',()=>{
-      if(_stickyTimer)return;
-      _stickyTimer=requestAnimationFrame(()=>{
-        _stickyTimer=0;
-        const pills=datePills();
-        if(!pills.length){stickyPill.classList.remove('visible');return;}
-        const aTop=area.scrollTop;
-        const aBot=aTop+area.clientHeight;
-        let visible=null;
-        for(let i=pills.length-1;i>=0;i--){
-          const r=pills[i].getBoundingClientRect();
-          const aRect=area.getBoundingClientRect();
-          if(r.top<=aRect.top+60){visible=pills[i].querySelector('span')?.textContent;break;}
-        }
-        if(visible&&visible!==stickySpan.textContent){
-          stickySpan.textContent=visible;
-          stickyPill.classList.add('visible');
-        }else if(!visible){
-          stickyPill.classList.remove('visible');
-        }
-      });
-    },{passive:true});
+    const pill=document.getElementById('sticky-date-pill');
+    if(!hdr||!pill)return;
+    const hdrR=hdr.getBoundingClientRect();
+    const areaR=area.getBoundingClientRect();
+    const offset=hdrR.bottom-areaR.top;
+    pill.style.top=Math.max(0,Math.round(offset))+'px';
   }
+  _syncStickyTop();
+  window.addEventListener('resize',_syncStickyTop,{passive:true});
+  const _resizeObs=new ResizeObserver(_syncStickyTop);
+  const hdr=document.getElementById('chat-hdr');
+  if(hdr)_resizeObs.observe(hdr);
+
+  // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
+  const datePills=()=>area.querySelectorAll('.date-pill');
+  let _stickyTimer;
+  area.addEventListener('scroll',()=>{
+    if(_stickyTimer)return;
+    _stickyTimer=requestAnimationFrame(()=>{
+      _stickyTimer=0;
+      const stickyPill=document.getElementById('sticky-date-pill');
+      if(!stickyPill){return;}
+      const stickySpan=stickyPill.querySelector('span');
+      if(!stickySpan)return;
+      const pills=datePills();
+      if(!pills.length){stickyPill.classList.remove('visible');return;}
+      const aTop=area.scrollTop;
+      const aBot=aTop+area.clientHeight;
+      let visible=null;
+      for(let i=pills.length-1;i>=0;i--){
+        const r=pills[i].getBoundingClientRect();
+        const aRect=area.getBoundingClientRect();
+        if(r.top<=aRect.top+60){visible=pills[i].querySelector('span')?.textContent;break;}
+      }
+      if(visible&&visible!==stickySpan.textContent){
+        stickySpan.textContent=visible;
+        stickyPill.classList.add('visible');
+      }else if(!visible){
+        stickyPill.classList.remove('visible');
+      }
+    });
+  },{passive:true});
 })();
 
 // Spoiler reveal on click (delegated)
