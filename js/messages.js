@@ -2317,7 +2317,7 @@ mfield.onkeydown=e=>{
       }
     }
 };
-$('btn-send').onclick=sendText;
+$('btn-send').onclick=function(e){sendText(e);this.blur();};
 
 // ── Send/Voice button toggle ──
 function updateSendBtn(){
