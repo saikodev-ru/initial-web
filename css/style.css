@@ -4143,7 +4143,13 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .no-blur .hdr-back-pill,
   .no-blur .hdr-av-pill{
     backdrop-filter:blur(24px) !important;-webkit-backdrop-filter:blur(24px) !important;
-    background:rgba(var(--bg-rgb),.82) !important;
+    background:rgba(var(--bg-rgb),.50) !important;
+  }
+  /* Light theme: even more transparent pills */
+  body[data-theme="light"] .no-blur .hdr-pill,
+  body[data-theme="light"] .no-blur .hdr-back-pill,
+  body[data-theme="light"] .no-blur .hdr-av-pill{
+    background:rgba(var(--bg-rgb),.30) !important;
   }
   .no-blur .mfield-wrap,
   .no-blur .unified-input-wrap{
@@ -4301,6 +4307,18 @@ body[data-theme="light"] .mfield-wrap .attach-btn-in:hover {
 body[data-theme="light"] .mfield-wrap .emo-btn-in.active {
   color: var(--y);
   background: rgba(139,92,246,.1);
+}
+
+/* ── Light theme: more transparent header pills ── */
+@container app (max-width: 680px){
+  body[data-theme="light"] .hdr-pill,
+  body[data-theme="light"] .hdr-back-pill,
+  body[data-theme="light"] .hdr-av-pill{
+    background:rgba(var(--bg-rgb),.30);
+  }
+  body[data-theme="light"] .mfield-wrap{
+    background:rgba(var(--bg-rgb),.45);
+  }
 }
 /* Format bar buttons — dark icons in light theme */
 body[data-theme="light"] .fmt-btn {
