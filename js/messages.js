@@ -701,6 +701,8 @@ function renderMsgs(chatId){
   applyGroupClasses(area);
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
+  // Re-sync sticky pill top after DOM rebuild
+  if(window._syncStickyTop)requestAnimationFrame(()=>window._syncStickyTop());
 }
 /* ══ SEND ANIMATION — stretch from button, fade-out to real message ══ */
 
@@ -2475,10 +2477,16 @@ function hideSBBtn(){
   const hdr=document.getElementById('chat-hdr');
   if(hdr)_resizeObs.observe(hdr);
 
+  // Expose _syncStickyTop so renderMsgs can call it after rebuilding DOM
+  window._syncStickyTop=_syncStickyTop;
+
   // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
   const datePills=()=>area.querySelectorAll('.date-pill');
   let _stickyTimer;
+  let _scrollEndTimer;
   area.addEventListener('scroll',()=>{
+    // Clear auto-hide timer on every scroll event
+    clearTimeout(_scrollEndTimer);
     if(_stickyTimer)return;
     _stickyTimer=requestAnimationFrame(()=>{
       _stickyTimer=0;
@@ -2502,6 +2510,10 @@ function hideSBBtn(){
       }else if(!visible){
         stickyPill.classList.remove('visible');
       }
+      // Auto-hide pill after scrolling stops (1.5s)
+      _scrollEndTimer=setTimeout(()=>{
+        stickyPill.classList.remove('visible');
+      },1500);
     });
   },{passive:true});
 })();
