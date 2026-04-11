@@ -4,7 +4,7 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Keyboard-aware header: fix header to top of SCREEN on mobile ── */
+/* ── Keyboard-aware header: keep chat at full screen height on mobile ── */
 (function initKbdHeader(){
   if(!window.visualViewport)return;
   const vv=window.visualViewport;
@@ -12,7 +12,6 @@ window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulate
   let prevHeight=vv.height;
 
   function onResize(){
-    // Detect keyboard: viewport shrinks significantly (>100px)
     const ac=document.getElementById('active-chat');
     if(!ac)return;
     const diff=prevHeight-vv.height;
@@ -22,28 +21,18 @@ window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulate
     }else if(diff<-80&&kbdOpen){
       kbdOpen=false;
       ac.classList.remove('kbd-open');
-      // Clear inline marginTop — it was set while keyboard was open
-      const hdr=ac.querySelector('.chat-hdr');
-      if(hdr) hdr.style.marginTop='';
     }
     prevHeight=vv.height;
   }
 
   vv.addEventListener('resize',onResize);
-  // Also listen to scroll to adjust the fixed header position
   vv.addEventListener('scroll',()=>{
     if(!kbdOpen)return;
-    const ac=document.getElementById('active-chat');
-    if(!ac)return;
-    const hdr=ac.querySelector('.chat-hdr');
-    if(hdr){
-      if(vv.offsetTop===0){
-        // Keyboard dismissed via gesture — clear and reset
-        hdr.style.marginTop='';
+    if(vv.offsetTop===0){
+      const ac=document.getElementById('active-chat');
+      if(ac){
         kbdOpen=false;
         ac.classList.remove('kbd-open');
-      }else{
-        hdr.style.marginTop=vv.offsetTop+'px';
       }
     }
   },{passive:true});
