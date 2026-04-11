@@ -7,7 +7,6 @@ require_once __DIR__ . '/helpers.php';
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Только GET', 405);
 $me    = auth_user();
-require_rate_limit('search_user', 30, 60);
 $query = trim($_GET['q'] ?? '');
 
 if (mb_strlen($query) < 2) {

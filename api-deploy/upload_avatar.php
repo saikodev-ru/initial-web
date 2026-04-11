@@ -12,7 +12,6 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me = auth_user();
-require_rate_limit('upload_avatar', 10, 60);
 
 // ── Читаем старый avatar_url ДО загрузки нового (чтобы удалить из S3) ──
 $stmt = db()->prepare('SELECT avatar_url, bio FROM users WHERE id = ? LIMIT 1');
@@ -29,11 +28,6 @@ if (empty($_FILES['avatar']) || $_FILES['avatar']['error'] !== UPLOAD_ERR_OK) {
 $file     = $_FILES['avatar'];
 $tmpPath  = $file['tmp_name'];
 $fileSize = $file['size'];
-
-if (!is_uploaded_file($tmpPath)) {
-    error_log("SECURITY: upload_avatar attempted local file access: {$tmpPath}");
-    json_err('invalid_upload', 'Некорректный файл');
-}
 
 // ── Проверка размера (макс. 5 МБ) ──────────────────────────────
 if ($fileSize > 5 * 1024 * 1024) {

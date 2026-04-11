@@ -15,7 +15,6 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
-require_rate_limit('send_message', 60, 60);
 $data = input();
 
 $toSignalId   = trim($data['to_signal_id']  ?? '');
@@ -39,17 +38,8 @@ if ($hasMedia) {
     if (!in_array($mediaType, ['image', 'video'], true)) {
         json_err('invalid_media_type', 'media_type должен быть "image" или "video"');
     }
-    // media_url должен быть: наш S3 ключ, наш прокси, или подписанный URL
-    $allowedMediaPrefixes = ['media/', 'avatars/', 'music/', 'get_media.php'];
-    $urlOk = false;
-    foreach ($allowedMediaPrefixes as $prefix) {
-        if (str_starts_with($mediaUrl, $prefix)) { $urlOk = true; break; }
-    }
-    // Также разрешаем подписанные URL
-    if (!$urlOk && str_contains($mediaUrl, 'sig=') && str_contains($mediaUrl, 'exp=')) $urlOk = true;
-    // Внешние https:// URL запрещены (XSS/tracking risk)
-    if (!$urlOk) {
-        json_err('invalid_media_url', 'Некорректный media_url');
+    if (!str_starts_with($mediaUrl, 'https://') && !str_starts_with($mediaUrl, 'media/')) {
+        json_err('invalid_media_url', 'media_url должен быть ссылкой (https://) или относительным путем (media/)');
     }
 }
 

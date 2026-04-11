@@ -7,8 +7,6 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me = auth_user();
-require_rate_limit('call_signal', 60, 60);
-check_request_size(65536); // 64KB max
 $in = input();
 
 // Simple auto-migration for call_signals table
@@ -31,24 +29,7 @@ try {
 
 $targetId = (int) ($in['target_id'] ?? 0);
 $type     = trim($in['type'] ?? '');
-$rawPayload = $in['payload'] ?? '';
-
-// ── Валидация type (whitelist) ─────────────────────────────────
-$allowedTypes = ['offer', 'answer', 'candidate', 'hangup', 'call_active', 'call_rejected', 'busy'];
-if (!in_array($type, $allowedTypes, true)) {
-    json_err('invalid_type', 'Некорректный тип сигнала', 400);
-}
-
-// ── Валидация payload ──────────────────────────────────────────
-$payload = '';
-if (is_array($rawPayload)) {
-    $payload = json_encode($rawPayload);
-} elseif (is_string($rawPayload)) {
-    $payload = trim($rawPayload);
-}
-if (mb_strlen($payload) > 65536) {
-    json_err('payload_too_large', 'Payload слишком большой', 413);
-}
+$payload  = trim(is_array($in['payload'] ?? null) ? json_encode($in['payload']) : ($in['payload'] ?? ''));
 
 if (!$targetId || !$type || !$payload) {
     json_err('bad_request', 'Missing parameters', 400);

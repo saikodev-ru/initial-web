@@ -6,13 +6,11 @@
 // Только участник чата может его удалить.
 declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
-require_once __DIR__ . '/s3_helper.php';
 
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me     = auth_user();
-require_rate_limit('delete_chat', 10, 60);
 $data   = input();
 $chatId = (int) ($data['chat_id'] ?? 0);
 
@@ -26,13 +24,6 @@ $stmt = $db->prepare(
 );
 $stmt->execute([$chatId, $me['id'], $me['id']]);
 if (!$stmt->fetch()) json_err('forbidden', 'Нет доступа к этому чату', 403);
-
-// ── Собираем media_url для очистки S3 ──────────────────────
-$mediaStmt = $db->prepare(
-    'SELECT media_url FROM messages WHERE chat_id = ? AND media_url IS NOT NULL AND media_url != ""'
-);
-$mediaStmt->execute([$chatId]);
-$mediaUrls = $mediaStmt->fetchAll(PDO::FETCH_COLUMN);
 
 // Удаляем всё в транзакции
 $db->beginTransaction();
@@ -55,25 +46,6 @@ try {
     $db->rollBack();
     error_log('delete_chat error: ' . $e->getMessage());
     json_err('server_error', 'Ошибка при удалении чата', 500);
-}
-
-// ── Удаляем медиа из S3 (после успешной транзакции) ──────────
-foreach ($mediaUrls as $url) {
-    try {
-        $s3Key = null;
-        if (str_starts_with($url, 'media/') || str_starts_with($url, 'avatars/') || str_starts_with($url, 'music/')) {
-            $s3Key = $url;
-        } elseif (str_contains($url, 'key=')) {
-            $parsed = parse_url($url);
-            if (!empty($parsed['query'])) {
-                parse_str($parsed['query'], $qp);
-                if (!empty($qp['key'])) $s3Key = $qp['key'];
-            }
-        }
-        if ($s3Key) s3_delete($s3Key);
-    } catch (\Throwable) {
-        // S3-ошибка не должна блокировать удаление чата
-    }
 }
 
 json_ok(['chat_id' => $chatId]);

@@ -13,15 +13,3 @@
     RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^(.*)$ $1.php [L]
 </IfModule>
-
-# ── Запретить доступ к критичным файлам ─────────────────────────
-<FilesMatch "^(config\.php|pulse_db\.php|push_config\.php|db\.php|\.env|security\.php|s3_helper\.php|helpers\.php)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# ── Запретить доступ к логам и временным файлам ─────────────────
-<FilesMatch "\.(log|tmp|bak|swp|old)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>

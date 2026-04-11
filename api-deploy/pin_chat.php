@@ -10,8 +10,7 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
-require_rate_limit('pin_chat', 30, 60);
-$body = input();
+$body = json_decode(file_get_contents('php://input'), true) ?? [];
 
 // ── Reorder mode ─────────────────────────────────────────────
 if (isset($body['reorder']) && is_array($body['reorder'])) {

@@ -9,28 +9,12 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
-require_rate_limit('update_profile', 10, 60);
 $data = input();
 
 $nickname  = trim($data['nickname']  ?? '');
 $signalId  = trim($data['signal_id'] ?? '');
 $avatarUrl = trim($data['avatar_url'] ?? '');
 $bio       = trim(mb_substr($data['bio'] ?? '', 0, 150));
-
-// ── Валидация avatar_url (если передан) ────────────────────────
-if (!empty($avatarUrl)) {
-    // Разрешаем: пустую строку (сброс), URL из нашего S3, или прокси
-    $allowed = false;
-    if (str_starts_with($avatarUrl, 'avatars/')) $allowed = true;
-    if (str_starts_with($avatarUrl, 'get_media.php?key=')) $allowed = true;
-    if ($allowed === false) {
-        // Также разрешаем если URL подписан нашими сигнатурами
-        if (str_contains($avatarUrl, 'sig=') && str_contains($avatarUrl, 'exp=')) $allowed = true;
-    }
-    if ($allowed === false) {
-        $avatarUrl = ''; // Сбрасываем невалидный URL
-    }
-}
 if (mb_strlen($nickname) < 2 || mb_strlen($nickname) > 64) {
     json_err('invalid_nickname', 'Имя: от 2 до 64 символов');
 }

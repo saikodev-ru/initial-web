@@ -31,31 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $key = trim($_GET['key'] ?? '');
 
 // ── Защита доступа ────────────────────────────────────────────────────────
-// Приоритет: 1) Bearer token, 2) Signed URL (sig+exp), 3) fallback legacy token (deprecated)
-$authed = false;
-$bearerToken = get_bearer_token();
-if (!empty($bearerToken)) {
-    check_media_auth();
-    $authed = true;
-} else {
-    // Signed URL — проверяем подпись
-    $sig = $_GET['sig'] ?? '';
-    $exp = (int)($_GET['exp'] ?? 0);
-    if (verify_media_signature($key, $sig, $exp)) {
-        $authed = true;
-    } elseif (!empty($_GET['token'])) {
-        // Legacy fallback: ?token= в URL для <img> тегов (deprecated)
-        check_media_auth();
-        $authed = true;
-    }
-}
-
-if (!$authed) {
-    http_response_code(403);
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'forbidden', 'message' => 'Auth required'], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+check_media_auth();
 
 // ── Валидация ключа (защита от path traversal) ────────────────────────────
 // Разрешаем:
@@ -67,7 +43,7 @@ if (!$authed) {
 //   media/audio/{userId}/{uid}.{ext}
 //   media/voice/{userId}/{uid}.{ext}        ← голосовые сообщения
 if (empty($key) || !preg_match(
-    '#^(avatars/user_.*?\.(jpg|jpeg|png|webp|gif)|music/\d+/(covers/)?[a-f0-9]{16}\.(mp3|m4a|aac|ogg|wav|flac|webm|jpg|jpeg|png|webp)|media/(images|videos|audio|voice|documents)/\d+/[a-f0-9]{16}\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm|mp3|ogg|aac|m4a|pdf|doc|docx|xls|xlsx|zip|rar|7z|txt|csv|json|html|css|xml|md|rtf))$#i',
+    '#^(avatars/user_.*?\.(jpg|jpeg|png|webp|gif)|music/\d+/(covers/)?[a-f0-9]{16}\.(mp3|m4a|aac|ogg|wav|flac|webm|jpg|jpeg|png|webp)|media/(images|videos|audio|voice)/\d+/[a-f0-9]{16}\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm|mp3|ogg|aac|m4a))$#i',
     $key
 )) {
     http_response_code(400);
@@ -91,12 +67,6 @@ $mimeMap = [
     'wav'  => 'audio/wav',   'flac' => 'audio/flac',
     // webm — контекстно: для голосовых это аудио, для видео — видео
     'webm' => $isVoice ? 'audio/webm' : 'video/webm',
-    // Documents
-    'pdf'  => 'application/pdf',
-    'doc'  => 'application/msword',
-    'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls'  => 'application/vnd.ms-excel',
-    'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
 $mime = $mimeMap[$ext] ?? 'application/octet-stream';
 

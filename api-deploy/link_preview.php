@@ -7,35 +7,6 @@ require_once __DIR__ . '/helpers.php';
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Только GET', 405);
 
-require_rate_limit('link_preview', 20, 60);
-
-/**
- * SSRF-safe URL fetch using curl with pinned IP.
- * Prevents DNS rebinding by resolving once and using CURLOPT_RESOLVE.
- */
-function _ssrf_safe_fetch(string $url, string $pinnedIp, int $timeout = 6, int $maxBytes = 65536): string|false {
-    $host = parse_url($url, PHP_URL_HOST);
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => $timeout,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_MAXREDIRS      => 3,
-        CURLOPT_CONNECTTIMEOUT => $timeout,
-        CURLOPT_RESOLVE        => ["{$host}:443:{$pinnedIp}", "{$host}:80:{$pinnedIp}"],
-        CURLOPT_USERAGENT      => 'InitialBot/1.0 (+https://initial.su)',
-        CURLOPT_HTTPHEADER     => ['Accept: text/html,application/xhtml+xml'],
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_RANGE          => "0-{$maxBytes}",
-    ]);
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    return ($httpCode >= 200 && $httpCode < 300) ? $result : false;
-}
-
 // Auth not required for public link previews, but rate-limit by IP
 $url = trim($_GET['url'] ?? '');
 if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
@@ -52,15 +23,8 @@ if (!in_array($scheme, ['http', 'https'], true)) {
 $host = parse_url($url, PHP_URL_HOST);
 if (!$host) json_err('invalid_url', 'Некорректный хост', 400);
 
-// SSRF-защита: резолвим DNS и пиним IP (предотвращаем DNS rebinding)
-$resolvedIp = gethostbyname($host);
-if ($resolvedIp === $host) {
-    json_err('invalid_url', 'Не удалось разрешить хост', 400);
-}
-if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-    json_err('blocked', 'Приватный адрес', 403);
-}
-if (filter_var($resolvedIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_LOOP_RANGE) === false) {
+$ip = gethostbyname($host);
+if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
     json_err('blocked', 'Приватный адрес', 403);
 }
 
@@ -197,8 +161,23 @@ if ($embed !== null) {
     exit;
 }
 
-// Fetch the URL (SSRF-safe: pinned IP prevents DNS rebinding)
-$html = _ssrf_safe_fetch($url, $resolvedIp);
+// Fetch the URL
+$ctx = stream_context_create([
+    'http' => [
+        'method'     => 'GET',
+        'timeout'    => 6,
+        'user_agent' => 'SignalBot/1.0 (+https://initial.su)',
+        'follow_location' => 1,
+        'max_redirects'   => 3,
+        'header'     => "Accept: text/html,application/xhtml+xml\r\n",
+    ],
+    'ssl' => [
+        'verify_peer'      => true,
+        'verify_peer_name' => true,
+    ],
+]);
+
+$html = @file_get_contents($url, false, $ctx, 0, 65536); // max 64KB
 if ($html === false || strlen($html) < 50) {
     json_err('fetch_error', 'Не удалось получить страницу', 422);
 }

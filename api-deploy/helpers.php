@@ -28,13 +28,10 @@ register_shutdown_function(function () {
 
 require_once __DIR__ . '/config.php';
 
-// Load security module
-require_once __DIR__ . '/security.php';
-
-
-
-// ── Инициализация безопасности при первой загрузке ──────────────
-security_init();
+// Load Web Push VAPID config if the file exists
+if (file_exists(__DIR__ . '/push_config.php')) {
+    require_once __DIR__ . '/push_config.php';
+}
 
 // ── PDO-соединение (singleton) ───────────────────────────────
 function db(): PDO {
@@ -67,19 +64,16 @@ function json_err(string $code, string $message, int $status = 400): never {
     exit;
 }
 
-// ── Заголовки CORS + CSRF ────────────────────────────────────
+// ── Заголовки CORS ───────────────────────────────────────────
 function set_cors_headers(): void {
     header('Content-Type: application/json; charset=UTF-8');
     header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
-    header('Access-Control-Max-Age: ' . (defined('SESSION_DAYS') ? SESSION_DAYS * 86400 : 2592000));
+    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
         http_response_code(204);
         exit;
     }
-    // CSRF-защита для state-changing запросов (POST/DELETE)
-    check_csrf_origin();
 }
 
 // ── Входящий JSON ────────────────────────────────────────────
@@ -194,7 +188,7 @@ function create_session(int $userId): string {
     $token     = bin2hex(random_bytes(32));
     $expiresAt = date('Y-m-d H:i:s', strtotime('+' . SESSION_DAYS . ' days'));
     $device    = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200);
-    $ip        = get_real_ip(); // Безопасное получение IP (с учётом Cloudflare)
+    $ip        = $_SERVER['REMOTE_ADDR'] ?? '';
 
     $stmt = db()->prepare(
         'INSERT INTO sessions (user_id, token, device, ip, expires_at)
@@ -784,67 +778,6 @@ function send_web_push_to_user(int $userId, string $title, string $body, array $
     error_log('WebPush: send_web_push_to_user() is deprecated — FCM handles all pushes');
 }
 
-// ── Signed Media URLs (для безопасного доступа к медиа без авторизации) ──
-/**
- * Сгенерировать подписанный URL для медиа-файла.
- * Используется для <img> тегов где нельзя передать Authorization header.
- * Секрет: MEDIA_SIGN_SECRET из config.php, fallback — хеш от DB_PASS.
- *
- * @param string $s3Key Ключ файла в S3 (media/images/5/abc.jpg)
- * @param int    $ttl   Время жизни в секундах (default 3600 = 1 час)
- * @return string Полный URL: get_media.php?key=...&sig=...&exp=...
- */
-function sign_media_url(string $s3Key, int $ttl = 3600): string {
-    $secret = defined('MEDIA_SIGN_SECRET') ? MEDIA_SIGN_SECRET : '';
-    if (empty($secret)) {
-        // Fallback: используем хеш от DB credentials как секрет
-        $secret = defined('DB_PASS') ? hash('sha256', 'initial_media_salt:' . DB_PASS) : '';
-    }
-    if (empty($secret)) return $s3Key; // Без секрета — не подписываем
-
-    $expires = time() + $ttl;
-    $payload = $s3Key . ':' . $expires;
-    $sig = hash_hmac('sha256', $payload, $secret);
-    return 'get_media.php?key=' . rawurlencode($s3Key) . '&sig=' . $sig . '&exp=' . $expires;
-}
-
-/**
- * Проверить подпись медиа-URL.
- *
- * @param string $s3Key Ключ файла
- * @param string $sig   Подпись из query
- * @param int    $exp   Срок действия (unix timestamp)
- * @return bool true если подпись валидна и не истекла
- */
-function verify_media_signature(string $s3Key, string $sig, int $exp): bool {
-    if (empty($sig) || empty($exp)) return false;
-    if ($exp < time()) return false;
-
-    $secret = defined('MEDIA_SIGN_SECRET') ? MEDIA_SIGN_SECRET : '';
-    if (empty($secret)) {
-        $secret = defined('DB_PASS') ? hash('sha256', 'initial_media_salt:' . DB_PASS) : '';
-    }
-    if (empty($secret)) return false;
-
-    $expected = hash_hmac('sha256', $s3Key . ':' . $exp, $secret);
-    return hash_equals($expected, $sig);
-}
-
-/**
- * Build full media URL for API responses.
- * Returns the raw S3 key (existing behavior) + signed full URL as separate field.
- *
- * @param string|null $s3Key Raw S3 key from DB (e.g. "media/images/5/abc.jpg")
- * @return array{key: string|null, url: string|null} key=raw, url=signed full URL
- */
-function build_media_response(?string $s3Key): array {
-    if (empty($s3Key)) return ['key' => null, 'url' => null];
-    return [
-        'key' => $s3Key,
-        'url' => sign_media_url($s3Key),
-    ];
-}
-
 // ============================================================
 //  PDO alias (для совместимости)
 // ============================================================
@@ -868,7 +801,7 @@ function get_pdo(): PDO {
  */
 function decrypt_aes256gcm(string $cipherText, string $keyHex, string $ivHex): string|false
 {
-    $logFile = sys_get_temp_dir() . '/initial_voice_decrypt.log';
+    $logFile = __DIR__ . '/voice_decrypt.log';
     $ts = '[' . date('Y-m-d H:i:s') . '] ';
 
     $keyBin = @hex2bin($keyHex);

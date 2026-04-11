@@ -24,10 +24,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'То�
 
 $me   = auth_user();
 $myId = (int) $me['id'];
-require_rate_limit('send_voice', 20, 60);
 
 /* ── Debug log setup ─────────────────────────────────────────── */
-$vLog = sys_get_temp_dir() . '/initial_voice_upload.log';
+$vLog = (__DIR__ ?: dirname(__FILE__)) . '/voice_upload.log';
 $vTs  = '[' . date('Y-m-d H:i:s') . '] ';
 
 /* ── Validate required fields ────────────────────────────────── */
@@ -53,10 +52,6 @@ $voiceWaveform = validate_waveform_json($_POST['voice_waveform'] ?? '[]');
 
 /* ── Validate voice file upload ──────────────────────────────── */
 $upload = validate_voice_upload($_FILES['voice'] ?? []);
-if (!is_uploaded_file($upload['tmp'])) {
-    error_log("SECURITY: send_voice attempted local file access: {$upload['tmp']}");
-    json_err('invalid_upload', 'Некорректный файл');
-}
 $tmpPath = $upload['tmp'];
 $size    = $upload['size'];
 

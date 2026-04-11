@@ -18,6 +18,8 @@ $isInit   = ($_GET['init'] ?? '0') === '1';
 $markRead = ($_GET['mark_read'] ?? '0') === '1';
 
 $skipChats = ($_GET['skip_chats'] ?? '0') === '1';
+
+$skipChats = ($_GET['skip_chats'] ?? '0') === '1';
 $rawCheck = trim($_GET['check_ids'] ?? '');
 $checkIds = $rawCheck
     ? array_values(array_unique(array_filter(

@@ -19,8 +19,6 @@ require_once __DIR__ . '/helpers.php';
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
-require_rate_limit('qr_create', 10, 60);
-
 // Чистим протухшие сессии
 db()->exec("DELETE FROM qr_sessions WHERE expires_at < NOW() - INTERVAL 10 MINUTE");
 
