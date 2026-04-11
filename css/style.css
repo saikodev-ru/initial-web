@@ -767,13 +767,13 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border:none;
   border-radius:9999px;
-  padding:6px 8px 6px 6px;
+  padding:8px 10px 8px 6px;
   box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
   position:relative;
   overflow:hidden;
 }
 .inapp-push-av{
-  width:38px;height:38px;
+  width:44px;height:44px;
   border-radius:50%;overflow:hidden;
   flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -784,16 +784,16 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .inapp-push-av img.loaded{opacity:1}
 .inapp-push-content{
   flex:1;min-width:0;
-  display:flex;flex-direction:column;gap:0px;
+  display:flex;flex-direction:column;gap:3px;
   padding-right:4px;
 }
 .inapp-push-name{
-  font-size:13px;font-weight:700;color:var(--t1);
+  font-size:14px;font-weight:700;color:var(--t1);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   line-height:1.3;
 }
 .inapp-push-msg{
-  font-size:12.5px;color:var(--t2);
+  font-size:13px;color:var(--t2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   line-height:1.3;
 }
@@ -898,47 +898,109 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     border-radius:0;
     background:transparent;
     backdrop-filter:none;-webkit-backdrop-filter:none;
-    gap:10px;
+    gap:6px;
     box-shadow:none;
     z-index:15;
     align-items:flex-end;
     padding-bottom:2px;
+    height:auto;
   }
-  /* Pill — content-based width, wraps back button + name */
-  .hdr-pill{
-    display:flex;align-items:center;
+
+  /* ── Left pill: back arrow + unread badge ── */
+  .hdr-back-pill{
+    display:flex !important;
+    align-items:center;justify-content:center;
+    position:relative;
+    flex-shrink:0;
+    width:58px;height:58px;
     background:rgba(var(--bg-rgb),.82);
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px 8px 4px 2px;
-    gap:0;
-    flex:0 1 auto;
-    min-width:0;
-    height:58px;
-    width:fit-content;
-    max-width:calc(100% - 64px);
   }
-  /* Show back button on mobile — styled like tg-hero-close for unification */
   .back-btn-mb{
     display:flex !important;
-    flex-shrink:0;
-    width:36px;height:36px;
-    margin-left:6px;
-    margin-right:6px;
+    align-items:center;justify-content:center;
+    width:46px;height:46px;
     background:rgba(255,255,255,.07) !important;
     border:none !important;
     border-radius:50% !important;
     color:var(--t1) !important;
     box-shadow:none !important;
-    transition:background .15s !important;
+    transition:background .15s,transform .12s var(--sp) !important;
+    -webkit-tap-highlight-color:transparent;
   }
   .back-btn-mb:hover{background:rgba(255,255,255,.13) !important}
-  .back-btn-mb:active{opacity:.7}
+  .back-btn-mb:active{transform:scale(.88);opacity:.7}
   .back-btn-mb svg{width:20px;height:20px}
+
+  /* iOS-style unread badge on back pill — accent colors */
+  .hdr-unread-badge{
+    position:absolute;
+    top:-2px;right:-2px;
+    min-width:18px;height:18px;
+    border-radius:99px;
+    background:var(--y);
+    color:#fff;
+    font-size:11px;font-weight:800;
+    font-family:var(--font);
+    line-height:18px;
+    text-align:center;
+    padding:0 5px;
+    box-shadow:0 1px 4px rgba(139,92,246,.4);
+    pointer-events:none;
+    animation:unreadBadgePop .3s cubic-bezier(.34,1.56,.64,1) both;
+    z-index:2;
+  }
+  @keyframes unreadBadgePop{
+    from{transform:scale(0);opacity:0}
+    to{transform:scale(1);opacity:1}
+  }
+
+  /* ── Center pill: stretchable, nickname + status centered ── */
+  .hdr-pill{
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(var(--bg-rgb),.82);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    border-radius:9999px;
+    box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
+    padding:4px 16px;
+    gap:0;
+    flex:1 1 0%;
+    min-width:0;
+    height:58px;
+    overflow:hidden;
+  }
+  .hdr-clickable{
+    flex:1;min-width:0;
+    cursor:default;
+    padding:0;
+    gap:0;
+    display:flex;align-items:center;justify-content:center;
+    width:100%;
+  }
+  .hdr-clickable:hover .hdr-info{background:transparent}
+  .hdr-clickable:active .hdr-info{background:transparent}
   /* Hide desktop avatar in clickable area on mobile */
   .hdr-desktop-av{display:none !important}
-  /* Avatar pill — absolute bottom-right, wraps avatar in its own pill (58+8=66 = circle) */
+  /* Center the name + status inside the pill */
+  .hdr-info{text-align:center}
+  .hdr-info.hdr-info-center{
+    align-items:center;
+    text-align:center;
+    width:100%;
+    overflow:hidden;
+  }
+  .chat-hdr .hdr-name{
+    font-size:15px;font-weight:700;letter-spacing:-.2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .chat-hdr .hdr-st{
+    font-size:12px;margin-top:0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
+  /* ── Right pill: avatar ── */
   .hdr-av-pill{
     position:absolute;
     bottom:0;right:0;
@@ -948,9 +1010,9 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px;
-    width:66px;
-    height:66px;
+    padding:5px;
+    width:58px;
+    height:58px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -961,11 +1023,14 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     -webkit-user-select:none;
     user-select:none;
     touch-action:none;
+    background:none !important;
+    border:none !important;
+    padding:0 !important;
   }
   .hdr-mb-avatar .av-img{
-    width:58px !important;
-    height:58px !important;
-    font-size:20px !important;
+    width:48px !important;
+    height:48px !important;
+    font-size:18px !important;
     border-radius:50%;
     border:none !important;
     -webkit-touch-callout:none;
@@ -973,21 +1038,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     user-select:none;
     pointer-events:none;
   }
+
   /* Hide desktop action buttons (call/more) on mobile — replaced by long-press menu */
   .hdr-call-btn,.hdr-more-btn{display:none !important}
-  /* Info area */
-  .hdr-clickable{
-    flex:1;min-width:0;
-    cursor:default;
-    padding:6px 6px 6px 2px;
-    gap:0;
-  }
-  .hdr-clickable:hover .hdr-info{background:transparent}
-  .hdr-clickable:active .hdr-info{background:transparent}
-  .hdr-info{text-align:left}
-  .hdr-info.hdr-info-center{align-items:flex-start;text-align:left}
-  .chat-hdr .hdr-name{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
-  .chat-hdr .hdr-st{font-size:12px;margin-top:0}
+
+  /* Hide message avatars on mobile — re-enabled for group chats later */
+  .mavi{display:none!important}
 }
 
 /* Classic header toggle — only visible on mobile */
@@ -1015,6 +1071,18 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   box-shadow:none !important;
   padding:0 !important;
   height:auto !important;
+}
+.mobile-classic-hdr .hdr-back-pill{
+  background:transparent !important;
+  backdrop-filter:none !important;-webkit-backdrop-filter:none !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  width:auto !important;
+  height:auto !important;
+  position:static !important;
+}
+.mobile-classic-hdr .hdr-unread-badge{
+  display:none !important;
 }
 .mobile-classic-hdr .hdr-av-pill{
   background:transparent !important;
@@ -3782,6 +3850,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     box-shadow:none !important;
   }
   .no-blur .hdr-pill,
+  .no-blur .hdr-back-pill,
   .no-blur .hdr-av-pill{
     backdrop-filter:blur(24px) !important;-webkit-backdrop-filter:blur(24px) !important;
     background:rgba(var(--bg-rgb),.82) !important;
@@ -5010,7 +5079,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 0 4px;
+    padding: 0 8px;
     padding-bottom: max(0px, env(safe-area-inset-bottom));
     position: fixed;
     bottom: 12px;
@@ -5088,7 +5157,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     position: absolute;
     top: 2px;
     height: calc(100% - 4px);
-    width: 56px;
+    width: 60px;
     border-radius: 100px;
     background: var(--ybg);
     transition: left .35s cubic-bezier(.32,.72,0,1), width .25s cubic-bezier(.32,.72,0,1);

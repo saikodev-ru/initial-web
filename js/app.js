@@ -354,11 +354,167 @@ $('btn-prev-send').onclick = async () => {
 };
 
 
-/* ══ SSE — мгновенная доставка новых сообщений ═══════════════ */
+/* ══ SSE — long-poll instant delivery ═════════════════════════ */
+let _sseCursor = 0;
+let _sseCallLastId = 0;
+let _sseActive = false;
+
 function startSSE(chatId, lastId) {
-  if (S.sse) { S.sse.close(); S.sse = null; }
-  // SSE отключен для снижения нагрузки на сервер.
-  // Сообщения забираются через AJAX-опрос (startPoll) и FCM Push.
+  stopSSE();
+  _sseActive = true;
+  _ssePoll(chatId);
+}
+
+async function _ssePoll(chatId) {
+  if (!_sseActive || !S.token) return;
+
+  // Initial cursor fetch if needed
+  if (_sseCursor <= 0) {
+    try {
+      var init = await api('poll_updates?cursor=0&chat_id=' + chatId + '&last_call_id=' + _sseCallLastId);
+      if (init && init.ok) {
+        _sseCursor = init.now || Math.floor(Date.now() / 1000);
+        if (init.last_call_id > _sseCallLastId) _sseCallLastId = init.last_call_id;
+      } else {
+        _sseCursor = Math.floor(Date.now() / 1000);
+      }
+    } catch (e) {
+      _sseCursor = Math.floor(Date.now() / 1000);
+    }
+  }
+
+  while (_sseActive && S.token) {
+    try {
+      var controller = new AbortController();
+      S.sse = controller;
+
+      var res = await fetch(
+        API + '/poll_updates.php?cursor=' + _sseCursor + '&chat_id=' + chatId + '&last_call_id=' + _sseCallLastId,
+        {
+          headers: S.token ? { 'Authorization': 'Bearer ' + S.token } : {},
+          signal: controller.signal,
+        }
+      );
+
+      S.sse = null;
+
+      if (!_sseActive || !S.token) return;
+
+      if (!res.ok) {
+        await new Promise(function(r){ setTimeout(r, 3000); });
+        continue;
+      }
+
+      var data = await res.json();
+      if (!data || !data.ok) {
+        await new Promise(function(r){ setTimeout(r, 2000); });
+        continue;
+      }
+
+      // Update cursor
+      if (data.now > _sseCursor) _sseCursor = data.now;
+      if (data.last_call_id > _sseCallLastId) _sseCallLastId = data.last_call_id;
+
+      // Process new messages
+      if (data.messages && data.messages.length) {
+        data.messages.forEach(function(m) {
+          // Normalize fields
+          if (m.sender_name !== undefined && m.nickname === undefined) m.nickname = m.sender_name;
+          if (m.sender_avatar !== undefined && m.avatar_url === undefined) m.avatar_url = m.sender_avatar;
+          if (m.media_url) m.media_url = getMediaUrl(m.media_url);
+
+          var cid = m.chat_id;
+          S.msgs[cid] = S.msgs[cid] || [];
+
+          // Skip duplicates
+          if (S.msgs[cid].some(function(x){ return x.id === m.id; })) return;
+
+          if (!m.nickname) {
+            var chat = S.chats.find(function(c){ return c.chat_id === cid; });
+            if (chat) m.nickname = m.sender_id === S.user.id ? S.user.nickname : chat.partner_name;
+          }
+
+          S.msgs[cid].push(m);
+          S.rxns[m.id] = Array.isArray(m.reactions) ? m.reactions : [];
+          if (m.id > (S.lastId[cid] || 0)) S.lastId[cid] = m.id;
+
+          // Append to DOM if this is the active chat
+          if (cid === S.chatId && $('msgs')) {
+            var atBot = nearBot();
+            appendMsg(cid, m);
+            if (atBot) scrollBot();
+            else showSBBtn(1);
+          }
+
+          // Show notification for non-active chats
+          if (cid !== S.chatId && m.sender_id !== S.user.id) {
+            var nchat = S.chats.find(function(c){ return c.chat_id === cid; });
+            var senderName = m.nickname || (nchat ? nchat.partner_name : 'Initial');
+            var txt = m.body ? hideSpoilerText(m.body) : '';
+            if (!txt && m.media_type === 'video') txt = '\uD83C\uDFA5 \u0412\u0438\u0434\u0435\u043E';
+            else if (!txt && m.media_type === 'image') txt = '\uD83D\uDDBC \u0424\u043E\u0442\u043E';
+            var callMatch = (m.body || '').match(/^\[call:(missed|declined|ended)(?::(\d+))?\]$/);
+            if (callMatch) {
+              if (callMatch[1] === 'ended') txt = '\uD83D\uDCDE \u0417\u0432\u043E\u043D\u043E\u043A \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D';
+              else if (callMatch[1] === 'missed') txt = '\uD83D\uDCDE \u041F\u0440\u043E\u043F\u0443\u0449\u0435\u043D\u043D\u044B\u0439 \u0437\u0432\u043E\u043D\u043E\u043A';
+              else txt = '\uD83D\uDCDE \u041E\u0442\u043A\u043B\u043E\u043D\u0451\u043D\u043D\u044B\u0439 \u0437\u0432\u043E\u043D\u043E\u043A';
+            }
+            showRichNotif({
+              senderName: senderName,
+              senderAvatar: m.avatar_url || null,
+              body: m.body || txt,
+              chatId: cid,
+              onClick: function() { if (S.chatId !== cid) { var c = S.chats.find(function(ch){ return ch.chat_id === cid; }); if (c) openChat(c); } }
+            });
+          }
+        });
+
+        if (data.chat_updates && data.chat_updates.length) loadChats();
+      } else if (data.chat_updates && data.chat_updates.length) {
+        loadChats();
+      }
+
+      // Process typing indicators
+      if (data.typing && data.typing.length) {
+        data.typing.forEach(function(t) {
+          var chat = S.chats.find(function(c){ return c.chat_id === t.chat_id; });
+          if (chat) {
+            chat.partner_is_typing = 1;
+            if (t.chat_id === S.chatId) {
+              var stEl = document.querySelector('.hdr-st');
+              if (stEl) { stEl.textContent = '\u043F\u0435\u0447\u0430\u0442\u0430\u0435\u0442\u2026'; stEl.className = 'hdr-st typ'; }
+            }
+            setTimeout(function() {
+              chat.partner_is_typing = 0;
+              if (t.chat_id === S.chatId) {
+                var stEl2 = document.querySelector('.hdr-st');
+                if (stEl2 && stEl2.classList.contains('typ')) stEl2.className = 'hdr-st';
+              }
+            }, 4000);
+          }
+        });
+      }
+
+      // Process call signals
+      if (data.call_signals && data.call_signals.length) {
+        data.call_signals.forEach(function(sig) {
+          if (sig.id > _callSigLastId) _callSigLastId = sig.id;
+          if (window.CallUI && window.CallUI.handleSignal) window.CallUI.handleSignal(sig);
+        });
+        if (window.advanceCallSigCursor && _sseCallLastId) window.advanceCallSigCursor(_sseCallLastId);
+      }
+
+    } catch (e) {
+      S.sse = null;
+      if (e && e.name === 'AbortError') return;
+      if (_sseActive) await new Promise(function(r){ setTimeout(r, 3000); });
+    }
+  }
+}
+
+function stopSSE() {
+  _sseActive = false;
+  if (S.sse) { S.sse.abort(); S.sse = null; }
 }
 
 
@@ -533,7 +689,7 @@ function startPoll() {
   function scheduleBase() {
     clearInterval(S.polling);
     if (!S.token) return;
-    const interval = document.visibilityState === 'visible' ? 3000 : 15000;
+    const interval = document.visibilityState === 'visible' ? 2500 : 8000;
     S.polling = setInterval(pollNow, interval);
   }
   scheduleBase();
