@@ -3580,7 +3580,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .sb-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 6px !important; }
   .sb-top { margin-bottom: 10px !important; }
   .msgs{padding:calc(82px + env(safe-area-inset-top, 0px)) 8px 110px}
-  .input-zone{padding:4px 8px 10px;transition:bottom .28s cubic-bezier(.22,1,.36,1)}
+  .input-zone{padding:4px 8px 10px}
   .input-zone, .system-mute-zone{padding:4px 8px 10px}
   /* Bigger input on mobile — keep balanced height */
   .mfield{font-size:16px !important;min-height:42px !important}

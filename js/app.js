@@ -4,21 +4,28 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Mobile keyboard: visualViewport tracks keyboard height ──
-   interactive-widget=resizes-content in viewport meta makes the
-   browser resize layout viewport instead of overlaying keyboard.
-   This means 100dvh shrinks, sticky works, and the page doesn't scroll.
-   We still sync --vv-h via visualViewport as a safety net for older
-   browsers that don't support interactive-widget. */
+/* ── Mobile keyboard: scroll to bottom when keyboard opens ──
+   interactive-widget=resizes-content handles viewport resize,
+   but scroll position stays frozen. We detect keyboard open/close
+   via visualViewport height changes and scroll chat to bottom. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
+  var prevH=vv.height;
+
   function sync(){
-    document.documentElement.style.setProperty('--vv-h',vv.height+'px');
+    var diff=prevH-vv.height;
+    if(diff>80){
+      /* Keyboard opening — scroll chat to bottom */
+      requestAnimationFrame(function(){
+        var msgs=document.getElementById('msgs');
+        if(msgs) msgs.scrollTop=msgs.scrollHeight;
+      });
+    }
+    prevH=vv.height;
   }
   vv.addEventListener('resize',sync);
   vv.addEventListener('scroll',sync);
-  sync();
 })();
 
 /* ══ WELCOME SCREEN — static text with fade-in ════════════════ */
