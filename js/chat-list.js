@@ -38,6 +38,7 @@ function _chatKey(c){
     partner_is_system:c.partner_is_system?1:0,
     partner_is_verified:c.partner_is_verified?1:0,
     partner_is_team_signal:c.partner_is_team_signal?1:0,
+    is_muted:c.is_muted?1:0,
   };
 }
 
@@ -92,7 +93,10 @@ function _renderChatItemContent(el,c){
   const isRead = isOutgoing && c.is_read == 1;
   const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="16" height="11" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
-  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span class="marquee-inner">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
+  // ── Muted indicator ──
+  const ciMuteHtml = c.is_muted ? '<svg class="ci-mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>' : '';
+
+  el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span class="marquee-inner">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}${ciMuteHtml}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
   // Restore saved animating icon
   if(iconAnimating&&existingIcon){const ts=el.querySelector('.ci-ts');const wrap=ts?.parentElement;if(wrap)wrap.insertBefore(existingIcon,ts);}
@@ -110,7 +114,7 @@ function _chatDataChanged(el,c){
     ||d.last_media_type!==n.last_media_type||d.last_sender_id!==n.last_sender_id
     ||d.unread_count!==n.unread_count||d.partner_is_typing!==n.partner_is_typing
     ||d.partner_name!==n.partner_name||d.partner_avatar!==n.partner_avatar
-    ||d.partner_signal_id!==n.partner_signal_id||d.online!==n.online||d.is_pinned!==n.is_pinned||d.pin_order!==n.pin_order;
+    ||d.partner_signal_id!==n.partner_signal_id||d.online!==n.online||d.is_pinned!==n.is_pinned||d.pin_order!==n.pin_order||d.is_muted!==n.is_muted;
 }
 
 function showRbar(){const rb=$('rbar');if(rb){rb.classList.remove('closing');rb.style.animation='';rb.classList.add('on');}}
@@ -494,15 +498,110 @@ function sortChats(chats){
   const list=$('chat-list');
   if(!list)return;
   let dragSrc=null,dragSrcId=null;
+  const isTouchDevice = () => ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
   function getPinnedEls(){
     return [...list.querySelectorAll('.ci.pinned')];
   }
 
+  // ── Touch-based drag for mobile (requires movement threshold) ──
+  let touchState = null;
+
+  function attachTouchDrag(el){
+    if(el._pinTouchBound)return;
+    el._pinTouchBound=true;
+    // On touch devices, do NOT set draggable — HTML5 DnD breaks context menu
+    if(isTouchDevice()) el.removeAttribute('draggable');
+
+    let longPressTimer=null, startX=0, startY=0, hasMoved=false, clone=null, offsetY=0;
+
+    el.addEventListener('touchstart', e=>{
+      if(!el.classList.contains('pinned'))return;
+      const t=e.touches[0];
+      startX=t.clientX; startY=t.clientY; hasMoved=false;
+      // Long press timer — only fires if finger stays still (no drag intent)
+      longPressTimer=setTimeout(()=>{
+        // Long press without movement — let contextmenu handler take over
+        longPressTimer=null;
+      },500);
+    },{passive:true});
+
+    el.addEventListener('touchmove', e=>{
+      if(longPressTimer===null && !hasMoved)return;
+      const t=e.touches[0];
+      const dx=t.clientX-startX, dy=t.clientY-startY;
+      // Cancel long-press if finger moves (indicates scroll intent, not context menu)
+      if(longPressTimer!==null && (Math.abs(dx)>8||Math.abs(dy)>8)){
+        clearTimeout(longPressTimer);longPressTimer=null;
+      }
+      // Start drag only after 15px movement (distinguishes scroll from drag)
+      if(!hasMoved && (Math.abs(dx)>15||Math.abs(dy)>15)){
+        hasMoved=true;
+        dragSrc=el; dragSrcId=+el.dataset.chatId;
+        el.classList.add('dragging');
+        e.preventDefault();
+      }
+      if(hasMoved){
+        e.preventDefault();
+        // Visual: move the element (no clone needed for simplicity)
+        const rect=el.getBoundingClientRect();
+        const listRect=list.getBoundingClientRect();
+        el.style.transform=`translateY(${t.clientY-startY}px)`;
+        el.style.zIndex='100';
+        el.style.position='relative';
+
+        // Find drop target
+        list.querySelectorAll('.ci.pinned').forEach(c=>{
+          if(c===el)return;
+          c.classList.remove('drag-over-top','drag-over-bot');
+          const r=c.getBoundingClientRect();
+          const mid=r.top+r.height/2;
+          if(t.clientY<mid && t.clientY>r.top-20 && t.clientY<r.bottom+20){
+            c.classList.add('drag-over-top');
+          } else if(t.clientY>=mid && t.clientY>r.top-20 && t.clientY<r.bottom+20){
+            c.classList.add('drag-over-bot');
+          }
+        });
+      }
+    },{passive:false});
+
+    function touchEnd(e){
+      clearTimeout(longPressTimer);longPressTimer=null;
+      if(!hasMoved){el.style.transform='';el.style.zIndex='';el.style.position='';return;}
+      hasMoved=false;
+      el.classList.remove('dragging');
+      el.style.transform='';el.style.zIndex='';el.style.position='';
+
+      // Find drop target
+      const target=list.querySelector('.ci.drag-over-top,.ci.drag-over-bot');
+      if(target && target!==el && target.classList.contains('pinned')){
+        const insertBefore=target.classList.contains('drag-over-top');
+        if(insertBefore)list.insertBefore(el,target);
+        else target.after(el);
+
+        const newPinnedOrder=getPinnedEls().map(c=>+c.dataset.chatId);
+        S.chats.forEach(c=>{
+          const idx=newPinnedOrder.indexOf(c.chat_id);
+          if(idx>=0)c.pin_order=newPinnedOrder.length-idx;
+          else c.pin_order=0;
+        });
+        savePinOrder(newPinnedOrder);
+      }
+      list.querySelectorAll('.ci').forEach(c=>c.classList.remove('drag-over-top','drag-over-bot'));
+      dragSrc=null;dragSrcId=null;
+    }
+
+    el.addEventListener('touchend',touchEnd);
+    el.addEventListener('touchcancel',()=>{clearTimeout(longPressTimer);longPressTimer=null;if(hasMoved){hasMoved=false;el.classList.remove('dragging');el.style.transform='';el.style.zIndex='';el.style.position='';list.querySelectorAll('.ci').forEach(c=>c.classList.remove('drag-over-top','drag-over-bot'));}});
+  }
+
   function attachDrag(el){
     if(el._pinDragBound)return;
     el._pinDragBound=true;
-    el.setAttribute('draggable','true');
+    // Only set draggable on non-touch devices (desktop)
+    if(!isTouchDevice()) el.setAttribute('draggable','true');
+    // Always attach touch handlers for hybrid devices
+    attachTouchDrag(el);
 
     el.addEventListener('dragstart',e=>{
       if(!el.classList.contains('pinned')){e.preventDefault();return;}

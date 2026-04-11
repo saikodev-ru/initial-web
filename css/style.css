@@ -501,7 +501,7 @@ body.chat-dividers .sb-pin-divider + .ci{border-top:none;padding-top:9px}
 .av-img img{width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity .25s ease}.av-img img.loaded{opacity:1}.av-dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 .ci-meta{flex:1;min-width:0}.ci-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
 .ci-name{font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;min-width:0}.ci-name>span{display:block;overflow:hidden;text-overflow:ellipsis}.ci-name>span.marquee-inner{display:inline-block;min-width:0;flex-shrink:1}.ci-name>span.is-scrolling{overflow:visible;text-overflow:unset}.ci-name:has(.is-scrolling){-webkit-mask-image:linear-gradient(to right,transparent 0%,#000 8%,#000 92%,transparent 100%);mask-image:linear-gradient(to right,transparent 0%,#000 8%,#000 92%,transparent 100%)}
-.ci-ts{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
+.ci-ts{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px;display:flex;align-items:center;gap:3px}
 .ci-prev{font-size:12.5px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
 /* Two-line chat list mode: message preview wraps to 2 lines */
 body.two-line-chat .ci-prev{white-space:normal;align-items:flex-start}
@@ -516,6 +516,8 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .ci-tick-r svg path:first-child { stroke-opacity: 1; }
 .ci-tick svg{display:block;width:18px;height:11px}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
+/* ── Muted chat indicator (Telegram-style) ── */
+.ci-mute-icon{width:14px;height:14px;color:var(--t3);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
 .prof-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:14px;padding:8px;margin:-8px;transition:background .15s}
 .prof-row:hover{background:var(--s0)}.prof-meta{flex:1;min-width:0}
@@ -2693,7 +2695,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .rxns{display:flex;flex-wrap:wrap;gap:4px;flex:1;transition:gap .18s}
 .rxn{
   display:inline-flex;align-items:center;gap:3px;
-  background:var(--s1);border:1px solid var(--b);border-radius:99px;
+  background:var(--solid1);border:1px solid var(--b2);border-radius:99px;
   padding:4px 8px 4px 5px;cursor:pointer;user-select:none;
   transition:background .18s,transform .18s,width .22s cubic-bezier(.4,0,.2,1),
              opacity .18s,scale .18s cubic-bezier(.34,1.3,.64,1);
@@ -2703,7 +2705,7 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .rxn:hover{background:var(--s2)}
 .rxn:active{transform:scale(.92)}
 .rxn.mine{background:var(--ybg);border-color:var(--yb)}
-.me .rxn{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.15)}.me .rxn.mine{background:rgba(255,255,255,.35);border-color:rgba(255,255,255,.3)}
+.me .rxn{background:rgba(255,255,255,.85);border-color:rgba(255,255,255,.35)}.me .rxn.mine{background:rgba(200,200,255,.95);border-color:rgba(255,255,255,.5)}
 /* Appear: scale+fade in with spring — no translateY to avoid layout jumps */
 @keyframes rxnAppear{
   0%  {opacity:0;scale:.4}
@@ -3976,6 +3978,29 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   .no-blur .unified-input-wrap{
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     background:rgba(var(--bg-rgb),.65);
+  }
+
+  /* ── Keyboard open: fix header to top of SCREEN ── */
+  .kbd-open .chat-hdr{
+    position:fixed !important;
+    top:0 !important;
+    left:0 !important;right:0 !important;
+    margin:0 !important;
+    margin-top:env(safe-area-inset-top, 0px) !important;
+    width:100% !important;
+    z-index:999 !important;
+    background:rgba(var(--bg-rgb),.92) !important;
+    backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important;
+    border-radius:0 !important;
+    box-shadow:0 1px 0 var(--b) !important;
+    padding-left:8px !important;
+    padding-right:8px !important;
+  }
+  .kbd-open .sticky-date-pill{
+    top:calc(60px + env(safe-area-inset-top, 0px)) !important;
+  }
+  .kbd-open .msgs{
+    padding-top:calc(72px + env(safe-area-inset-top, 0px)) !important;
   }
 }
 

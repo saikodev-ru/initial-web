@@ -4,6 +4,40 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
+/* ── Keyboard-aware header: fix header to top of SCREEN on mobile ── */
+(function initKbdHeader(){
+  if(!window.visualViewport)return;
+  const vv=window.visualViewport;
+  let kbdOpen=false;
+  let prevHeight=vv.height;
+
+  function onResize(){
+    // Detect keyboard: viewport shrinks significantly (>100px)
+    const ac=document.getElementById('active-chat');
+    if(!ac)return;
+    const diff=prevHeight-vv.height;
+    if(diff>100&&!kbdOpen){
+      kbdOpen=true;
+      ac.classList.add('kbd-open');
+    }else if(diff<-80&&kbdOpen){
+      kbdOpen=false;
+      ac.classList.remove('kbd-open');
+    }
+    prevHeight=vv.height;
+  }
+
+  vv.addEventListener('resize',onResize);
+  // Also listen to scroll to adjust the fixed header position
+  vv.addEventListener('scroll',()=>{
+    if(!kbdOpen)return;
+    const ac=document.getElementById('active-chat');
+    if(!ac)return;
+    // Offset fixed header by visualViewport offsetTop
+    const hdr=ac.querySelector('.chat-hdr');
+    if(hdr) hdr.style.marginTop=vv.offsetTop+'px';
+  },{passive:true});
+})();
+
 /* ══ WELCOME SCREEN — static text with fade-in ════════════════ */
 function showWelcomeScreen() {
   const titleEl = $('welc-title');
