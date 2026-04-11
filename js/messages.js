@@ -287,6 +287,14 @@ function _upgradePlaceholder(wrap, origW, origH) {
   wrap.dataset.sized = '1';
 }
 
+/* ── Normalize API message fields to match internal naming ── */
+function _normMsg(m){
+  if(m.sender_name!==undefined&&m.nickname===undefined)m.nickname=m.sender_name;
+  if(m.sender_avatar!==undefined&&m.avatar_url===undefined)m.avatar_url=m.sender_avatar;
+  return m;
+}
+function _normMsgs(arr){arr.forEach(_normMsg);return arr;}
+
 /* ══ FETCH MESSAGES ══════════════════════════════════════════ */
 async function fetchMsgs(chatId,init=false){
   if(init){
@@ -299,7 +307,7 @@ async function fetchMsgs(chatId,init=false){
     // Update chats silently — suppress FLIP animation during chat open
     if(res.chats){S.chats=sortChats(res.chats);cacheWriteChats(S.chats);}
 
-    const fresh=res.messages||[];
+    const fresh=_normMsgs(res.messages||[]);
     fresh.forEach(m => { if(m.media_url) m.media_url = getMediaUrl(m.media_url); });
     S.historyEnd = fresh.length < 50; // Обязательно сбрасываем флаг, если история в новом чате длиннее 50
     const prevMsgs=S.msgs[chatId]||[];
@@ -413,7 +421,7 @@ async function fetchMsgs(chatId,init=false){
   }
 
   // ── Новые / изменённые сообщения ──────────────────────────
-  const msgs=res.messages||[];
+  const msgs=_normMsgs(res.messages||[]);
   msgs.forEach(m => { if(m.media_url) m.media_url = getMediaUrl(m.media_url); });
   let readStateChanged=false;
   if(msgs.length){
@@ -518,7 +526,7 @@ async function loadHistory(chatId) {
 
   if(!res.ok||chatId!==S.chatId){ skeleton.remove(); S.historyLoading=false; return; }
 
-  const older=res.messages||[];
+  const older=_normMsgs(res.messages||[]);
   older.forEach(m => { if(m.media_url) m.media_url = getMediaUrl(m.media_url); });
   if(older.length<50) S.historyEnd=true;
   if(!older.length){ skeleton.remove(); S.historyLoading=false; return; }
@@ -1346,8 +1354,8 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: short press (300ms) → dim + ctx menu | long press (700ms) → select ──
-      let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false;
+      // ── Mobile: single tap → dim + ctx menu (instant) | long press (700ms) → select ──
+      let _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
 
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
@@ -1355,31 +1363,15 @@ function makeMsgEl(m,newSender=true){
         if(e.target.closest('.mmedia,.mmedia-video,.voice-msg')){_blocked=true;return;}
         _blocked=false;
         _moved=false;
+        _longFired=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
 
-        // Stage 1: short press → dim other messages + context menu
-        _ctxTimer=setTimeout(()=>{
-          _ctxTimer=null;
-          if(_moved||_blocked)return;
-          // Prevent the touchend from firing a click on the media
-          e.preventDefault&&e.preventDefault();
-          const t=e.touches[0]||e.changedTouches?.[0];
-          if(t){
-            // Dim all other messages, highlight the tapped one
-            const msgsEl=row.closest('.msgs');
-            if(msgsEl){
-              msgsEl.classList.add('msg-dim-active');
-              row.classList.add('msg-ctx-target');
-            }
-            showCtx({clientX:t.clientX,clientY:t.clientY},m);
-          }
-        },300);
-
-        // Stage 2: long press → selection mode
+        // Long press → selection mode (700ms)
         _selTimer=setTimeout(()=>{
           _selTimer=null;
           if(_moved||_blocked)return;
+          _longFired=true;
           navigator.vibrate&&navigator.vibrate(40);
           enterSelectMode(m.id);
           renderMsgsSelect();
@@ -1388,18 +1380,27 @@ function makeMsgEl(m,newSender=true){
       body.addEventListener('touchmove',e=>{
         if(Math.abs(e.touches[0].clientX-_startX)>10||Math.abs(e.touches[0].clientY-_startY)>10){
           _moved=true;
-          clearTimeout(_ctxTimer);_ctxTimer=null;
           clearTimeout(_selTimer);_selTimer=null;
         }
       },{passive:true});
-      body.addEventListener('touchend',()=>{
-        clearTimeout(_ctxTimer);_ctxTimer=null;
+      body.addEventListener('touchend',e=>{
         clearTimeout(_selTimer);_selTimer=null;
+        if(_moved||_blocked||_longFired)return;
+        // Single tap → dim + context menu immediately
+        const t=e.changedTouches?.[0];
+        if(t){
+          const msgsEl=row.closest('.msgs');
+          if(msgsEl){
+            msgsEl.classList.add('msg-dim-active');
+            row.classList.add('msg-ctx-target');
+          }
+          showCtx({clientX:t.clientX,clientY:t.clientY},m);
+        }
       });
       body.addEventListener('touchcancel',()=>{
-        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         _blocked=false;
+        _longFired=false;
       });
       body.addEventListener('contextmenu',e=>{e.preventDefault();});// block native on mobile
 

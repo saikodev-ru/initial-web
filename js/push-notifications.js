@@ -256,11 +256,42 @@
   function _showInappPush(opts) {
     var el = $('inapp-push');
     if (!el) return;
+
+    // Wait for DOM if not ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() { _showInappPush(opts); });
+      return;
+    }
+
     var avEl = $('inapp-push-av');
     var nameEl = $('inapp-push-name');
     var msgEl = $('inapp-push-msg');
     var replyWrap = $('inapp-push-reply-wrap');
     var replyInput = $('inapp-push-reply-input');
+
+    // ── Debounce: if same chat, just update content ──
+    var isVisible = el.classList.contains('visible');
+    if (isVisible && _inappPushChatId === opts.chatId) {
+      // Same chat — update in place without resetting animation
+      nameEl.textContent = opts.senderName || 'Initial';
+      msgEl.textContent = truncate(stripHtml(opts.body || ''), 80);
+      if (avEl && typeof aviHtml === 'function') {
+        avEl.innerHTML = aviHtml(opts.senderName || 'Initial', opts.senderAvatar || null);
+      }
+      // Reset auto-hide timer
+      if (_inappPushTimeout) clearTimeout(_inappPushTimeout);
+      _inappPushTimeout = setTimeout(function () {
+        _hideInappPush();
+      }, 6000);
+      return;
+    }
+
+    // Different chat — hide old, show new after short delay
+    if (isVisible) {
+      _hideInappPush();
+      setTimeout(function() { _showInappPush(opts); }, 300);
+      return;
+    }
 
     // Set name
     nameEl.textContent = opts.senderName || 'Initial';
@@ -288,10 +319,10 @@
     // Show
     el.classList.add('visible');
 
-    // Auto-hide after 5 seconds
+    // Auto-hide after 6 seconds
     _inappPushTimeout = setTimeout(function () {
       _hideInappPush();
-    }, 5000);
+    }, 6000);
   }
 
   function _hideInappPush() {
