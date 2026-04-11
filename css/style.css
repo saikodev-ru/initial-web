@@ -666,6 +666,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .chat-bg-custom{
   position:absolute;inset:0;z-index:0;pointer-events:none;
   background-size:cover;background-position:center;background-repeat:no-repeat;
+  background-attachment:fixed;
   transition:filter .3s var(--ease),transform .3s var(--ease);
 }
 .chat-bg-custom::after{
