@@ -2852,25 +2852,39 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .gi{position:relative;overflow:hidden;aspect-ratio:1}.gi img,.gi video{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s var(--ease)}
 .gi:hover img,.gi:hover video{transform:none}
 .gi-more{position:absolute;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#fff}
-/* Reactions */
+/* Reactions
+   Rules:
+   - Incoming msg reaction  → accent color bg
+   - Outgoing msg reaction  → incoming msg color bg (white)
+   - Own reaction           → full opacity
+   - Others' reaction       → half opacity
+*/
 .rxns{display:flex;flex-wrap:wrap;gap:4px;flex:1;transition:gap .18s}
 .rxn{
   display:inline-flex;align-items:center;gap:3px;
-  background:#ffffff;border:1px solid rgba(0,0,0,.06);border-radius:99px;
+  background:rgba(139,92,246,.50);border:1px solid rgba(139,92,246,.55);border-radius:99px;
   padding:4px 8px 4px 5px;cursor:pointer;user-select:none;
   transition:background .18s,transform .18s,width .22s cubic-bezier(.4,0,.2,1),
              opacity .18s,scale .18s cubic-bezier(.34,1.3,.64,1);
   position:relative;overflow:hidden;
   transform-origin:center;
 }
-.rxn:hover{background:rgba(0,0,0,.06)}
+.rxn:hover{background:rgba(139,92,246,.60)}
 .rxn:active{transform:scale(.92)}
-.rxn.mine{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.28)}
-.me .rxn{background:rgba(139,92,246,.25);border-color:rgba(139,92,246,.35)}.me .rxn.mine{background:rgba(139,92,246,.45);border-color:rgba(139,92,246,.5)}
-/* Light theme: incoming reaction pill needs visible border on white bg */
-body[data-theme="light"] .rxn{background:rgba(0,0,0,.05);border-color:rgba(0,0,0,.1)}
-body[data-theme="light"] .rxn:hover{background:rgba(0,0,0,.09)}
-body[data-theme="light"] .rxn-n{color:rgba(0,0,0,.5)}
+/* Incoming + own → accent full opacity */
+.rxn.mine{background:rgba(139,92,246,.90);border-color:rgba(139,92,246,.95)}
+/* Outgoing + others' → incoming msg color half opacity */
+.me .rxn{background:rgba(255,255,255,.50);border-color:rgba(255,255,255,.55)}
+.me .rxn:hover{background:rgba(255,255,255,.60)}
+/* Outgoing + own → incoming msg color full opacity */
+.me .rxn.mine{background:rgba(255,255,255,.92);border-color:rgba(255,255,255,.95)}
+/* Light theme adaptations */
+body[data-theme="light"] .rxn{background:rgba(139,92,246,.45);border-color:rgba(139,92,246,.50)}
+body[data-theme="light"] .rxn:hover{background:rgba(139,92,246,.55)}
+body[data-theme="light"] .rxn.mine{background:rgba(139,92,246,.88);border-color:rgba(139,92,246,.92)}
+body[data-theme="light"] .me .rxn{background:rgba(33,33,33,.45);border-color:rgba(33,33,33,.50)}
+body[data-theme="light"] .me .rxn:hover{background:rgba(33,33,33,.55)}
+body[data-theme="light"] .me .rxn.mine{background:rgba(33,33,33,.88);border-color:rgba(33,33,33,.92)}
 /* Appear: scale+fade in with spring — no translateY to avoid layout jumps */
 @keyframes rxnAppear{
   0%  {opacity:0;scale:.4}
@@ -2892,9 +2906,13 @@ body[data-theme="light"] .rxn-n{color:rgba(0,0,0,.5)}
 .rxn.rxn-exit{animation:rxnDisappear .18s cubic-bezier(.4,0,1,1) forwards;pointer-events:none}
 .rxn.rxn-bump .rxn-n{animation:rxnBump .2s cubic-bezier(.34,1.4,.64,1) both}
 .rxn-ico{font-size:16px;display:inline-block;vertical-align:middle;line-height:1}
-.rxn-n{font-size:11px;font-weight:800;color:rgba(0,0,0,.55);line-height:1;transition:color .15s}
-.rxn.mine .rxn-n{color:#8b5cf6}
-.me .rxn-n{color:rgba(139,92,246,.85)}.me .rxn.mine .rxn-n{color:#fff}
+.rxn-n{font-size:11px;font-weight:800;color:rgba(255,255,255,.70);line-height:1;transition:color .15s}
+.rxn.mine .rxn-n{color:#fff}
+.me .rxn-n{color:rgba(0,0,0,.55)}.me .rxn.mine .rxn-n{color:rgba(0,0,0,.80)}
+body[data-theme="light"] .rxn-n{color:rgba(255,255,255,.75)}
+body[data-theme="light"] .rxn.mine .rxn-n{color:#fff}
+body[data-theme="light"] .me .rxn-n{color:rgba(0,0,0,.50)}
+body[data-theme="light"] .me .rxn.mine .rxn-n{color:rgba(0,0,0,.78)}
 
 /* SELECT TOOLBAR */
 .select-bar{
@@ -3081,134 +3099,7 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
 /* INPUT AREA */
 .msgs{position:absolute;inset:0;overflow-y:auto;padding:80px 160px 120px;display:flex;flex-direction:column;gap:2px;z-index:1;overscroll-behavior:contain}
 
-/* ── Custom background: use mask-image fade instead of color overlays ── */
-.no-pattern .msgs {
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.06) 10px,
-    rgba(0,0,0,.18) 22px,
-    rgba(0,0,0,.45) 38px,
-    rgba(0,0,0,.75) 56px,
-    black 80px,
-    black calc(100% - 80px),
-    rgba(0,0,0,.75) calc(100% - 68px),
-    rgba(0,0,0,.45) calc(100% - 52px),
-    rgba(0,0,0,.18) calc(100% - 36px),
-    rgba(0,0,0,.06) calc(100% - 20px),
-    transparent calc(100% - 8px)
-  );
-  mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.06) 10px,
-    rgba(0,0,0,.18) 22px,
-    rgba(0,0,0,.45) 38px,
-    rgba(0,0,0,.75) 56px,
-    black 80px,
-    black calc(100% - 80px),
-    rgba(0,0,0,.75) calc(100% - 68px),
-    rgba(0,0,0,.45) calc(100% - 52px),
-    rgba(0,0,0,.18) calc(100% - 36px),
-    rgba(0,0,0,.06) calc(100% - 20px),
-    transparent calc(100% - 8px)
-  );
-}
-/* Blur level 1 — slightly wider fade since bg is distorted */
-.no-pattern:has(.chat-bg-custom.blurred) .msgs {
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.04) 10px,
-    rgba(0,0,0,.14) 24px,
-    rgba(0,0,0,.38) 42px,
-    rgba(0,0,0,.68) 58px,
-    black 82px,
-    black calc(100% - 86px),
-    rgba(0,0,0,.68) calc(100% - 74px),
-    rgba(0,0,0,.38) calc(100% - 56px),
-    rgba(0,0,0,.14) calc(100% - 38px),
-    rgba(0,0,0,.04) calc(100% - 22px),
-    transparent calc(100% - 10px)
-  );
-  mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.04) 10px,
-    rgba(0,0,0,.14) 24px,
-    rgba(0,0,0,.38) 42px,
-    rgba(0,0,0,.68) 58px,
-    black 82px,
-    black calc(100% - 86px),
-    rgba(0,0,0,.68) calc(100% - 74px),
-    rgba(0,0,0,.38) calc(100% - 56px),
-    rgba(0,0,0,.14) calc(100% - 38px),
-    rgba(0,0,0,.04) calc(100% - 22px),
-    transparent calc(100% - 10px)
-  );
-}
-/* Blur level 2 (med) — even wider fade */
-.no-pattern:has(.chat-bg-custom.blurred-med) .msgs {
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.03) 12px,
-    rgba(0,0,0,.10) 28px,
-    rgba(0,0,0,.30) 48px,
-    rgba(0,0,0,.58) 64px,
-    black 86px,
-    black calc(100% - 92px),
-    rgba(0,0,0,.58) calc(100% - 78px),
-    rgba(0,0,0,.30) calc(100% - 58px),
-    rgba(0,0,0,.10) calc(100% - 40px),
-    rgba(0,0,0,.03) calc(100% - 24px),
-    transparent calc(100% - 10px)
-  );
-  mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.03) 12px,
-    rgba(0,0,0,.10) 28px,
-    rgba(0,0,0,.30) 48px,
-    rgba(0,0,0,.58) 64px,
-    black 86px,
-    black calc(100% - 92px),
-    rgba(0,0,0,.58) calc(100% - 78px),
-    rgba(0,0,0,.30) calc(100% - 58px),
-    rgba(0,0,0,.10) calc(100% - 40px),
-    rgba(0,0,0,.03) calc(100% - 24px),
-    transparent calc(100% - 10px)
-  );
-}
-/* Blur level 3 (strong) — widest fade */
-.no-pattern:has(.chat-bg-custom.blurred-strong) .msgs {
-  -webkit-mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.02) 12px,
-    rgba(0,0,0,.07) 30px,
-    rgba(0,0,0,.22) 52px,
-    rgba(0,0,0,.50) 68px,
-    black 90px,
-    black calc(100% - 100px),
-    rgba(0,0,0,.50) calc(100% - 84px),
-    rgba(0,0,0,.22) calc(100% - 62px),
-    rgba(0,0,0,.07) calc(100% - 42px),
-    rgba(0,0,0,.02) calc(100% - 26px),
-    transparent calc(100% - 12px)
-  );
-  mask-image: linear-gradient(to bottom,
-    transparent 0px,
-    rgba(0,0,0,.02) 12px,
-    rgba(0,0,0,.07) 30px,
-    rgba(0,0,0,.22) 52px,
-    rgba(0,0,0,.50) 68px,
-    black 90px,
-    black calc(100% - 100px),
-    rgba(0,0,0,.50) calc(100% - 84px),
-    rgba(0,0,0,.22) calc(100% - 62px),
-    rgba(0,0,0,.07) calc(100% - 42px),
-    rgba(0,0,0,.02) calc(100% - 26px),
-    transparent calc(100% - 12px)
-  );
-}
-.no-pattern .msgs-top-fade,
-.no-pattern .msgs-bottom-fade {
-  display: none;
-}
+/* ── Edge fade removed — no mask-image, no overlay elements ── */
 
 .input-zone{
   padding:8px 160px 20px;
@@ -3216,86 +3107,7 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
   bottom:0;left:0;right:0;
   z-index:10;
 }
-/* Message fade at bottom — gradient mask on msgs container */
-.msgs-bottom-fade {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 80px;
-  background: linear-gradient(to top,
-    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .92) 8%,
-    rgba(var(--chat-bg-rgb), .80) 18%,
-    rgba(var(--chat-bg-rgb), .60) 35%,
-    rgba(var(--chat-bg-rgb), .35) 55%,
-    rgba(var(--chat-bg-rgb), .12) 78%,
-    rgba(var(--chat-bg-rgb), 0) 100%
-  );
-  pointer-events: none;
-  z-index: 5;
-}
-/* Message fade at top — gradient mask on msgs container */
-.msgs-top-fade {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 120px;
-  background: linear-gradient(to bottom,
-    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .90) 12%,
-    rgba(var(--chat-bg-rgb), .70) 28%,
-    rgba(var(--chat-bg-rgb), .40) 48%,
-    rgba(var(--chat-bg-rgb), .15) 70%,
-    rgba(var(--chat-bg-rgb), 0) 100%
-  );
-  pointer-events: none;
-  z-index: 5;
-}
-/* Mobile: taller fade zones */
-@container app (max-width: 680px){
-  .msgs-bottom-fade {
-    height: 100px;
-    background: linear-gradient(to top,
-      var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-      rgba(var(--chat-bg-rgb), .92) 8%,
-      rgba(var(--chat-bg-rgb), .80) 18%,
-      rgba(var(--chat-bg-rgb), .60) 35%,
-      rgba(var(--chat-bg-rgb), .35) 55%,
-      rgba(var(--chat-bg-rgb), .12) 78%,
-      rgba(var(--chat-bg-rgb), 0) 100%
-    );
-  }
-  .msgs-top-fade {
-    height: 150px;
-    background: linear-gradient(to bottom,
-      var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-      rgba(var(--chat-bg-rgb), .90) 10%,
-      rgba(var(--chat-bg-rgb), .70) 25%,
-      rgba(var(--chat-bg-rgb), .40) 45%,
-      rgba(var(--chat-bg-rgb), .15) 68%,
-      rgba(var(--chat-bg-rgb), 0) 100%
-    );
-  }
-}
-body[data-theme="light"] .msgs-bottom-fade {
-  background: linear-gradient(to top,
-    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .94) 8%,
-    rgba(var(--chat-bg-rgb), .82) 18%,
-    rgba(var(--chat-bg-rgb), .62) 35%,
-    rgba(var(--chat-bg-rgb), .35) 55%,
-    rgba(var(--chat-bg-rgb), .12) 78%,
-    rgba(var(--chat-bg-rgb), 0) 100%
-  );
-}
-body[data-theme="light"] .msgs-top-fade {
-  background: linear-gradient(to bottom,
-    var(--bg-fade-color, rgba(var(--chat-bg-rgb), 1)) 0%,
-    rgba(var(--chat-bg-rgb), .92) 10%,
-    rgba(var(--chat-bg-rgb), .72) 25%,
-    rgba(var(--chat-bg-rgb), .40) 48%,
-    rgba(var(--chat-bg-rgb), .14) 72%,
-    rgba(var(--chat-bg-rgb), 0) 100%
-  );
-}
+/* ── Edge fade overlay elements removed ── */
 
 /* Selection — фирменный лавандовый */
 ::selection{background:rgba(139,92,246,.35);color:inherit}
