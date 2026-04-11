@@ -1931,7 +1931,10 @@ if (_pwaBtn) _installObserver.observe(_pwaBtn, { attributes: true, attributeFilt
 
 
 // Notification toggles
+var _notifToggling = false; // lock during FCM async
+
 $('tog-notif').onclick = async () => {
+  if (_notifToggling) return;
   if (!S.notif.enabled) {
     // Unlock audio as part of the same gesture
     _unlockAudio();
@@ -1945,20 +1948,31 @@ $('tog-notif').onclick = async () => {
       toast(reason, 'err');
       return;
     }
-    const granted = await requestNotifPermission();
-    if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
-    S.notif.enabled = true;
-    // FCM is the sole push channel
-    if (window.__fcmReady) {
-      const result = await window.registerFCM();
-      if (result && result.ok) {
-        toast('Уведомления включены', 'ok');
+
+    // ── Lock toggle during async FCM setup ──
+    _notifToggling = true;
+    $('tog-notif').classList.add('loading');
+    try {
+      const granted = await requestNotifPermission();
+      if (!granted) { toast('Разрешите уведомления в браузере', 'err'); return; }
+      S.notif.enabled = true;
+      // FCM is the sole push channel
+      if (window.__fcmReady) {
+        const result = await window.registerFCM();
+        if (result && result.ok) {
+          toast('Уведомления включены', 'ok');
+        } else {
+          const reason = (result && result.reason) ? result.reason : 'Ошибка регистрации push-уведомлений';
+          toast(reason, 'err');
+        }
       } else {
-        const reason = (result && result.reason) ? result.reason : 'Ошибка регистрации push-уведомлений';
-        toast(reason, 'err');
+        toast('Push-уведомления недоступны. Установите Chrome, Edge или Firefox.', 'err');
       }
-    } else {
-      toast('Push-уведомления недоступны. Установите Chrome, Edge или Firefox.', 'err');
+    } catch(e) {
+      toast('Ошибка настройки уведомлений', 'err');
+    } finally {
+      _notifToggling = false;
+      $('tog-notif').classList.remove('loading');
     }
   } else {
     S.notif.enabled = false;

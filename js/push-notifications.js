@@ -415,21 +415,22 @@
   }
 
   window.showRichNotif = function (opts) {
-    var isTabFocused = document.hasFocus();
+    // Skip if same chat is active — no notification needed
+    if (opts.chatId && S.chatId && +opts.chatId === +S.chatId) return;
 
-    // If tab IS focused: show in-app banner if not in the same chat
-    if (isTabFocused) {
-      // Only show banner if user is NOT in the chat that received the message
-      if (opts.chatId && opts.chatId == S.chatId) return;
-      // Check in-app push toggle
-      if (S.notif && S.notif.inappPush === false) return;
-      _showInappPush(opts);
-      // Play sound if enabled
-      if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
-      return;
-    }
+    // Check in-app push toggle (default: enabled — undefined !== false)
+    if (S.notif && S.notif.inappPush === false) return;
 
-    // Tab NOT focused: show browser push notification (existing logic)
+    // ── ALWAYS show in-app push banner (regardless of tab focus) ──
+    // This works in foreground + PWA. If tab is hidden, the banner is
+    // ready when the user returns; auto-hide cleans it up after 6s.
+    _showInappPush(opts);
+
+    // Play sound if enabled
+    if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
+
+    // ── Also show browser push notification if tab is NOT focused ──
+    if (document.hasFocus()) return;
 
     // Skip if SW already showed a background notification for this chat
     if (window._fcmBgHandled && opts.chatId &&
@@ -438,9 +439,6 @@
 
     if (!S.notif.enabled) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-
-    // Play notification sound (from utils.js)
-    if (typeof playNotifSound === 'function') playNotifSound();
 
     var title = S.notif.anon ? 'Инициал' : (opts.senderName || 'Initial');
     var text = truncate(stripHtml(opts.body || ''), 160);
@@ -479,6 +477,17 @@
         // Fallback: page notification (no popup on Android)
         try { new Notification(title, notifOpts); } catch (_) {}
       }
+    });
+  };
+
+  // Debug helper: test in-app push from browser console
+  // Usage: _testInappPush()
+  window._testInappPush = function() {
+    _showInappPush({
+      senderName: 'Test User',
+      senderAvatar: null,
+      body: 'Test message from debug console',
+      chatId: 999999
     });
   };
 
