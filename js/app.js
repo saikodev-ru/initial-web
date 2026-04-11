@@ -465,6 +465,7 @@ async function _ssePoll(chatId) {
             showRichNotif({
               senderName: senderName,
               senderAvatar: m.avatar_url || null,
+              senderId: m.sender_id,
               body: m.body || txt,
               chatId: cid,
               onClick: function() { if (S.chatId !== cid) { var c = S.chats.find(function(ch){ return ch.chat_id === cid; }); if (c) openChat(c); } }

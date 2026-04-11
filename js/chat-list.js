@@ -634,6 +634,7 @@ function syncChats(rawChats){
     showRichNotif({
         senderName: name,
         senderAvatar: c.partner_avatar || null,
+        senderId: c.partner_id,
         body: bodyText,
         chatId: c.chat_id,
         onClick: function() { if (S.chatId !== c.chat_id) openChat(c); }

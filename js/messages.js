@@ -469,6 +469,7 @@ async function fetchMsgs(chatId,init=false){
           showRichNotif({
               senderName: m.nickname || 'Initial',
               senderAvatar: m.avatar_url || null,
+              senderId: m.sender_id,
               body: m.body || txt,
               chatId: chatId,
               onClick: function() { if (S.chatId !== chatId) { var c = S.chats.find(function(ch){ return ch.chat_id === chatId; }); if (c) openChat(c); } }

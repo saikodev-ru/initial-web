@@ -331,9 +331,14 @@
     var el = $('inapp-push');
     if (!el) return;
     el.classList.remove('visible');
+    el.classList.remove('swiping','swipe-out');
+    el.style.transform = '';
+    el.style.opacity = '';
     if (_inappPushTimeout) { clearTimeout(_inappPushTimeout); _inappPushTimeout = null; }
     var replyWrap = $('inapp-push-reply-wrap');
     if (replyWrap) replyWrap.classList.remove('open');
+    var inner = document.querySelector('.inapp-push-inner');
+    if (inner) inner.classList.remove('reply-open');
     var replyInput = $('inapp-push-reply-input');
     if (replyInput) replyInput.textContent = '';
     _inappPushChatId = null;
@@ -348,8 +353,10 @@
     var replyBtn = $('inapp-push-reply-btn');
     if (replyBtn) replyBtn.addEventListener('click', function () {
       var wrap = $('inapp-push-reply-wrap');
+      var inner = document.querySelector('.inapp-push-inner');
       if (!wrap) return;
       wrap.classList.toggle('open');
+      if (inner) inner.classList.toggle('reply-open', wrap.classList.contains('open'));
       if (wrap.classList.contains('open')) {
         var inp = $('inapp-push-reply-input');
         if (inp) inp.focus();
@@ -386,6 +393,47 @@
         }
       });
     }
+
+    // ── Swipe-up to dismiss (mobile only) ──
+    if (pushEl && 'ontouchstart' in window) {
+      var _swipeStartY = 0;
+      var _swipeStartX = 0;
+      var _swipeTracking = false;
+
+      pushEl.addEventListener('touchstart', function(e) {
+        _swipeStartY = e.touches[0].clientY;
+        _swipeStartX = e.touches[0].clientX;
+        _swipeTracking = true;
+      }, { passive: true });
+
+      pushEl.addEventListener('touchmove', function(e) {
+        if (!_swipeTracking) return;
+        var dy = e.touches[0].clientY - _swipeStartY;
+        var dx = Math.abs(e.touches[0].clientX - _swipeStartX);
+        // Only track vertical upward swipes (ignore horizontal gestures)
+        if (dy < -10 && dx < 30) {
+          pushEl.classList.add('swiping');
+          pushEl.style.transform = 'translateX(-50%) translateY(' + dy + 'px)';
+          pushEl.style.opacity = Math.max(0, 1 + dy / 120).toFixed(2);
+        }
+      }, { passive: true });
+
+      pushEl.addEventListener('touchend', function(e) {
+        if (!_swipeTracking) return;
+        _swipeTracking = false;
+        var dy = e.changedTouches[0].clientY - _swipeStartY;
+        pushEl.classList.remove('swiping');
+        // If swiped more than 60px upward, dismiss
+        if (dy < -60) {
+          pushEl.classList.add('swipe-out');
+          setTimeout(function() { _hideInappPush(); }, 300);
+        } else {
+          // Spring back
+          pushEl.style.transform = '';
+          pushEl.style.opacity = '';
+        }
+      }, { passive: true });
+    }
   });
 
   function _sendInappReply() {
@@ -420,6 +468,9 @@
 
     // Check in-app push toggle (default: enabled — undefined !== false)
     if (S.notif && S.notif.inappPush === false) return;
+
+    // Skip if sender is muted
+    if (opts.senderId && typeof isUserMuted === 'function' && isUserMuted(opts.senderId)) return;
 
     // ── ALWAYS show in-app push banner (regardless of tab focus) ──
     // This works in foreground + PWA. If tab is hidden, the banner is
