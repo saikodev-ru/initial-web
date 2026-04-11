@@ -2469,9 +2469,11 @@ function hideSBBtn(){
     const hdrR=hdr.getBoundingClientRect();
     const areaR=area.getBoundingClientRect();
     const offset=hdrR.bottom-areaR.top;
+    // Don't set top when chat is hidden (display:none → all rects are 0)
+    if(offset===0 && hdrR.height===0)return;
     pill.style.top=Math.max(0,Math.round(offset))+'px';
   }
-  _syncStickyTop();
+  // Don't call immediately — chat is hidden on load, would get offset=0
   window.addEventListener('resize',_syncStickyTop,{passive:true});
   const _resizeObs=new ResizeObserver(_syncStickyTop);
   const hdr=document.getElementById('chat-hdr');
@@ -2504,10 +2506,10 @@ function hideSBBtn(){
         const aRect=area.getBoundingClientRect();
         if(r.top<=aRect.top+60){visible=pills[i].querySelector('span')?.textContent;break;}
       }
-      if(visible&&visible!==stickySpan.textContent){
-        stickySpan.textContent=visible;
+      if(visible){
+        if(visible!==stickySpan.textContent)stickySpan.textContent=visible;
         stickyPill.classList.add('visible');
-      }else if(!visible){
+      }else{
         stickyPill.classList.remove('visible');
       }
       // Auto-hide pill after scrolling stops (1.5s)
