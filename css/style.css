@@ -3567,7 +3567,8 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 /* ══ ... continues with mobile styles below ... ══ */
 @container app (max-width: 680px){
   /* Use dynamic viewport height — browser address bar collapses on scroll */
-  #scr-app,.layout{height:100dvh;min-height:100dvh}
+  html,body{transition:height .28s cubic-bezier(.22,1,.36,1)}
+  #scr-app,.layout{height:100dvh;min-height:100dvh;transition:height .28s cubic-bezier(.22,1,.36,1)}
   .sidebar{position:fixed;inset:0;width:100%!important;z-index:100;transition:transform .42s cubic-bezier(.32,.72,0,1),opacity .35s ease;backdrop-filter:blur(20px) !important;-webkit-backdrop-filter:blur(20px) !important}
   .sidebar.hidden{transform:translateX(-100%);pointer-events:none;opacity:0}
   .chat-welcome{display:none!important}
