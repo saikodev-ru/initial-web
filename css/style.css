@@ -701,6 +701,16 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   content:none;
   display:none;
 }
+/* ── Mobile: pattern on #active-chat (it covers .layout on mobile) ── */
+@container app (max-width: 680px){
+  #active-chat::before{
+    content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-color:var(--pattern-color, rgba(255,255,255,0.05));
+    -webkit-mask-image:url('../assets/background-pattern.svg');mask-image:url('../assets/background-pattern.svg');
+    -webkit-mask-size:400px auto;mask-size:400px auto;
+    -webkit-mask-position:center;mask-position:center;
+  }
+}
 .chat-welcome{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 60px;position:relative}
 .chat-welcome::before{content:'';position:absolute;inset:0;background:rgba(var(--chat-bg-rgb),.85);pointer-events:none}
 .chat-welcome>*{position:relative;z-index:1}
@@ -3611,7 +3621,6 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
     transition:transform .42s cubic-bezier(.32,.72,0,1);
     display:flex!important;
     flex-direction:column;
-    background:transparent;
     /* Fill dynamic viewport so browser bar collapse doesn't leave gap */
     height:100dvh;
     min-height:100dvh;
