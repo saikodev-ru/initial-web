@@ -778,8 +778,13 @@ function animateSend(tempId) {
   });
 
   // Pulse the send button
+  sendBtn.classList.remove('send-pulse');
+  void sendBtn.offsetWidth; // force reflow to restart animation
   sendBtn.classList.add('send-pulse');
-  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 440);
+  sendBtn.addEventListener('animationend', function handler() {
+    sendBtn.classList.remove('send-pulse');
+    sendBtn.removeEventListener('animationend', handler);
+  });
 
   // Hide real message during flight
   bubble.style.opacity = '0';

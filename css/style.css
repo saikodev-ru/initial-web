@@ -946,7 +946,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 @container app (max-width: 680px){
   #active-chat::after{
     content:'';
-    position:absolute;
+    position:fixed;
     top:0;left:0;right:0;
     height:calc(env(safe-area-inset-top, 0px) + 28px);
     background:linear-gradient(
@@ -976,10 +976,10 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 
 @container app (max-width: 680px){
   .chat-hdr{
-    position:sticky;top:0;
+    position:fixed;top:0;left:0;right:0;
     padding:0 54px 0 0;
-    margin:6px 6px 0 6px;
-    margin-top:calc(14px + env(safe-area-inset-top, 0px));
+    margin:0 6px;
+    padding-top:calc(14px + env(safe-area-inset-top, 0px));
     border:none;
     border-radius:0;
     background:transparent;
@@ -3579,7 +3579,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Reduce sidebar head padding on mobile */
   .sb-head { padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 6px !important; }
   .sb-top { margin-bottom: 10px !important; }
-  .msgs{padding:calc(78px + env(safe-area-inset-top, 0px)) 8px 110px}
+  .msgs{padding:calc(82px + env(safe-area-inset-top, 0px)) 8px 110px}
   .input-zone{padding:4px 8px 10px}
   .input-zone, .system-mute-zone{padding:4px 8px 10px}
   /* Bigger input on mobile — keep balanced height */
