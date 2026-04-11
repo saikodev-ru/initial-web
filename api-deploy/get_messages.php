@@ -166,8 +166,12 @@ function fetch_chats(int $uid): array {
     );
 
     $stmt->execute([
+        // 10× IF(c.user_a = ?, ...)
         $uid, $uid, $uid, $uid, $uid,
-        $uid, $uid, $uid, $uid,
+        $uid, $uid, $uid, $uid, $uid,
+        // $unreadSql: sender_id != ?
+        $uid,
+        // WHERE c.user_a = ? OR c.user_b = ?
         $uid, $uid,
     ]);
 
