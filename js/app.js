@@ -22,6 +22,9 @@ window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulate
     }else if(diff<-80&&kbdOpen){
       kbdOpen=false;
       ac.classList.remove('kbd-open');
+      // Clear inline marginTop — it was set while keyboard was open
+      const hdr=ac.querySelector('.chat-hdr');
+      if(hdr) hdr.style.marginTop='';
     }
     prevHeight=vv.height;
   }
@@ -32,9 +35,17 @@ window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulate
     if(!kbdOpen)return;
     const ac=document.getElementById('active-chat');
     if(!ac)return;
-    // Offset fixed header by visualViewport offsetTop
     const hdr=ac.querySelector('.chat-hdr');
-    if(hdr) hdr.style.marginTop=vv.offsetTop+'px';
+    if(hdr){
+      if(vv.offsetTop===0){
+        // Keyboard dismissed via gesture — clear and reset
+        hdr.style.marginTop='';
+        kbdOpen=false;
+        ac.classList.remove('kbd-open');
+      }else{
+        hdr.style.marginTop=vv.offsetTop+'px';
+      }
+    }
   },{passive:true});
 })();
 

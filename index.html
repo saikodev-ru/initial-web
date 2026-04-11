@@ -685,8 +685,21 @@ if (window._swSupported) {
               <div class="sb-notif-row" id="row-no-blur"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
             </div>
 
+            <div class="sb-prof-section-title" style="padding:10px 0 4px">Эффекты</div>
+            <div class="sb-prof-section">
+              <div class="sb-notif-row" id="row-edge-blur"><div><div class="sb-notif-label">Эффект по краям экрана</div><div class="sb-notif-sub">Использовать размытие для исчезающих сообщений</div></div><button class="toggle" id="tog-edge-blur"></button></div>
+            </div>
+
             <div class="sb-prof-section-title" style="padding:10px 0 4px">Шапка чата</div>
             <div class="sb-prof-section">
+              <div class="sb-notif-row row-desktop-pill-hdr" id="row-desktop-pill-hdr">
+                <div>
+                  <div class="sb-notif-label">Обновлённый заголовок чата</div>
+                  <div class="sb-notif-sub">Мобильный стиль шапки на ПК</div>
+                </div>
+                <button class="toggle" id="tog-desktop-pill-hdr"></button>
+              </div>
+              <div class="sb-prof-divider"></div>
               <div class="sb-notif-row" id="row-hdr-center">
                 <div>
                   <div class="sb-notif-label">По центру</div>
@@ -695,14 +708,6 @@ if (window._swSupported) {
                 <button class="toggle" id="tog-hdr-center"></button>
               </div>
               <div class="sb-prof-divider"></div>
-              <div class="sb-notif-row hdr-classic-row">
-                <div>
-                  <div class="sb-notif-label">Классическая шапка</div>
-                  <div class="sb-notif-sub">Старый стиль заголовка чата</div>
-                </div>
-                <button class="toggle" id="tog-hdr-classic"></button>
-              </div>
-              <div class="sb-prof-divider hdr-classic-divider"></div>
               <div class="sb-notif-row">
                 <div>
                   <div class="sb-notif-label">Скрыть аватар</div>
@@ -1632,10 +1637,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const hdrAv   = document.querySelector('.chat-hdr .av');
     if (hdrInfo) hdrInfo.classList.toggle('hdr-info-center', center);
     if (hdrAv)   hdrAv.style.display = hideAv ? 'none' : '';
-    const isClassic = localStorage.getItem('sg_hdr_classic') === 'true';
-    document.body.classList.toggle('mobile-classic-hdr', isClassic);
-    const togHdrClassic = document.getElementById('tog-hdr-classic');
-    if (togHdrClassic) togHdrClassic.classList.toggle('on', isClassic);
   }
   applyHdrSettings();
 
@@ -1662,18 +1663,39 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // Переключатель: классическая шапка (мобильная)
-  const togHdrClassic = document.getElementById('tog-hdr-classic');
-  if (togHdrClassic) {
-    if (localStorage.getItem('sg_hdr_classic') === 'true') {
-      togHdrClassic.classList.add('on');
-      document.body.classList.add('mobile-classic-hdr');
-    }
-    togHdrClassic.onclick = () => {
-      togHdrClassic.classList.toggle('on');
-      const isOn = togHdrClassic.classList.contains('on');
-      localStorage.setItem('sg_hdr_classic', isOn);
-      document.body.classList.toggle('mobile-classic-hdr', isOn);
+  // ── Обновлённый заголовок чата (ПК — мобильный стиль) ──
+  function applyDesktopPillHdr() {
+    const isOn = localStorage.getItem('sg_desktop_pill_hdr') === 'true';
+    document.body.classList.toggle('desktop-pill-hdr', isOn);
+    const tog = document.getElementById('tog-desktop-pill-hdr');
+    if (tog) tog.classList.toggle('on', isOn);
+  }
+  applyDesktopPillHdr();
+  const togDesktopPillHdr = document.getElementById('tog-desktop-pill-hdr');
+  if (togDesktopPillHdr) {
+    togDesktopPillHdr.onclick = () => {
+      togDesktopPillHdr.classList.toggle('on');
+      const isOn = togDesktopPillHdr.classList.contains('on');
+      localStorage.setItem('sg_desktop_pill_hdr', isOn);
+      document.body.classList.toggle('desktop-pill-hdr', isOn);
+    };
+  }
+
+  // ── Эффект по краям экрана (blur fade) ──
+  function applyEdgeBlur() {
+    const isOn = localStorage.getItem('sg_edge_blur') === 'true';
+    document.body.classList.toggle('edge-blur', isOn);
+    const tog = document.getElementById('tog-edge-blur');
+    if (tog) tog.classList.toggle('on', isOn);
+  }
+  applyEdgeBlur();
+  const togEdgeBlur = document.getElementById('tog-edge-blur');
+  if (togEdgeBlur) {
+    togEdgeBlur.onclick = () => {
+      togEdgeBlur.classList.toggle('on');
+      const isOn = togEdgeBlur.classList.contains('on');
+      localStorage.setItem('sg_edge_blur', isOn);
+      document.body.classList.toggle('edge-blur', isOn);
     };
   }
 
