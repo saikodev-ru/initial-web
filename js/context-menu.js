@@ -14,6 +14,15 @@ function showCtx(e, m) {
   const dimEl = $('msg-ctx-dim');
   if(dimEl && _isTouch()) dimEl.classList.add('on');
 
+  // Highlight target message and dim others on mobile
+  const msgsContainer = $('msgs');
+  const targetRow = msgsContainer ? msgsContainer.querySelector('.mrow[data-id="' + m.id + '"]') : null;
+  if(msgsContainer && _isTouch()) {
+    msgsContainer.classList.add('msg-dim-active');
+    msgsContainer.querySelectorAll('.mrow').forEach(r => r.classList.remove('msg-ctx-target'));
+    if(targetRow) targetRow.classList.add('msg-ctx-target');
+  }
+
   const isMe = m.sender_id == S.user?.id;
   $('ctx-edit').style.display = isMe && m.body ? 'flex' : 'none';
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
@@ -96,10 +105,26 @@ function showCtx(e, m) {
   const M = 6;
   let left = x, top = y;
   
-  // Если не влезает справа — отзеркаливаем (правый-верхний угол меню будет у курсора)
-  if(left + menuW > W - M) left = x - menuW;
-  // Если не влезает снизу — отзеркаливаем вверх
-  if(top + menuH > H - M) top = y - menuH;
+  // On mobile (touch), position menu relative to target message to avoid overlap
+  if(_isTouch() && targetRow) {
+    const rowRect = targetRow.getBoundingClientRect();
+    // Center horizontally on the message
+    left = Math.max(M, Math.min((rowRect.left + rowRect.right) / 2 - menuW / 2, W - menuW - M));
+    // Place above the message row
+    top = rowRect.top - menuH - 8;
+    // If no room above, place below
+    if(top < M) top = rowRect.bottom + 8;
+    // If still no room, fallback to cursor position
+    if(top + menuH > H - M) {
+      left = x;
+      if(left + menuW > W - M) left = x - menuW;
+      top = y - menuH;
+    }
+  } else {
+    // Desktop: cursor-based positioning
+    if(left + menuW > W - M) left = x - menuW;
+    if(top + menuH > H - M) top = y - menuH;
+  }
   if(left < M) left = M;
   if(top < M) top = M;
   
@@ -129,7 +154,8 @@ function hideCtx() {
   // Remove dim overlay and message dimming
   const dimEl = $('msg-ctx-dim');
   if(dimEl) dimEl.classList.remove('on');
-  document.querySelectorAll('.msg-dim-active').forEach(el => el.classList.remove('msg-dim-active'));
+  const msgsContainer = $('msgs');
+  if(msgsContainer) msgsContainer.classList.remove('msg-dim-active');
   document.querySelectorAll('.msg-ctx-target').forEach(el => el.classList.remove('msg-ctx-target'));
 }
 
