@@ -132,7 +132,7 @@ function openChat(c){
   S.historyLoading=false;
   S.historyEnd=false;
   hideSBBtn();
-  if(S.sse){S.sse.close();S.sse=null;}
+  if(S.sse){stopSSE();}
   hideRbar(true);
   $$('.ci').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.ci[data-chat-id="${c.chat_id}"]`)?.classList.add('active');

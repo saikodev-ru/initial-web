@@ -1129,7 +1129,7 @@ function enterApp() {
 
 function logout() {
   clearInterval(S.polling); clearInterval(S._bgSync); clearInterval(S._burstPoll);
-  if (S.sse) { S.sse.close(); S.sse = null; }
+  if (S.sse) { stopSSE(); }
   if (S._callSigInterval) { clearInterval(S._callSigInterval); S._callSigInterval = null; }
   stopQrAll();
   

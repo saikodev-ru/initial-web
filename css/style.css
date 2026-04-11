@@ -767,13 +767,13 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border:none;
   border-radius:9999px;
-  padding:6px 8px 6px 6px;
+  padding:8px 10px 8px 6px;
   box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
   position:relative;
   overflow:hidden;
 }
 .inapp-push-av{
-  width:38px;height:38px;
+  width:44px;height:44px;
   border-radius:50%;overflow:hidden;
   flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
@@ -784,16 +784,16 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .inapp-push-av img.loaded{opacity:1}
 .inapp-push-content{
   flex:1;min-width:0;
-  display:flex;flex-direction:column;gap:0px;
+  display:flex;flex-direction:column;gap:3px;
   padding-right:4px;
 }
 .inapp-push-name{
-  font-size:13px;font-weight:700;color:var(--t1);
+  font-size:14px;font-weight:700;color:var(--t1);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   line-height:1.3;
 }
 .inapp-push-msg{
-  font-size:12.5px;color:var(--t2);
+  font-size:13px;color:var(--t2);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   line-height:1.3;
 }
@@ -948,9 +948,9 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:4px;
-    width:66px;
-    height:66px;
+    padding:5px;
+    width:74px;
+    height:74px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -963,8 +963,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     touch-action:none;
   }
   .hdr-mb-avatar .av-img{
-    width:58px !important;
-    height:58px !important;
+    width:64px !important;
+    height:64px !important;
     font-size:20px !important;
     border-radius:50%;
     border:none !important;
@@ -988,6 +988,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   .hdr-info.hdr-info-center{align-items:flex-start;text-align:left}
   .chat-hdr .hdr-name{font-size:15.5px;font-weight:700;letter-spacing:-.2px}
   .chat-hdr .hdr-st{font-size:12px;margin-top:0}
+  /* Hide message avatars on mobile — re-enabled for group chats later */
+  .mavi{display:none!important}
 }
 
 /* Classic header toggle — only visible on mobile */
@@ -5010,7 +5012,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 0 4px;
+    padding: 0 8px;
     padding-bottom: max(0px, env(safe-area-inset-bottom));
     position: fixed;
     bottom: 12px;
@@ -5088,7 +5090,7 @@ body[data-theme="light"] .mtxt .spoiler.revealed{
     position: absolute;
     top: 2px;
     height: calc(100% - 4px);
-    width: 56px;
+    width: 60px;
     border-radius: 100px;
     background: var(--ybg);
     transition: left .35s cubic-bezier(.32,.72,0,1), width .25s cubic-bezier(.32,.72,0,1);
