@@ -93,8 +93,9 @@ function _renderChatItemContent(el,c){
   const isRead = isOutgoing && c.is_read == 1;
   const ciTickHtml = isOutgoing ? `<span class="ci-tick${isRead?' ci-tick-r':''}"><svg viewBox="0 0 18 11" width="16" height="11" fill="none"><path d="M1 5.5l3 3L10 1" stroke="currentColor" stroke-opacity="${isRead?1:0.4}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5.5l3 3L14 1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>` : '';
 
-  // ── Muted indicator ──
-  const ciMuteHtml = c.is_muted ? '<svg class="ci-mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>' : '';
+  // ── Muted indicator (chat-level + per-user mute) ──
+  const isUserMuted_ = (typeof isUserMuted === 'function' && c.partner_id) ? isUserMuted(c.partner_id) : false;
+  const ciMuteHtml = (c.is_muted || isUserMuted_) ? '<svg class="ci-mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>' : '';
 
   el.innerHTML=`<div class="av">${ciAvatarHtml}${showOnlineDot?'<div class="av-dot"></div>':''}</div><div class="ci-meta"><div class="ci-row"><div class="ci-name" style="display:flex;align-items:center;gap:4px;min-width:0"><span class="marquee-inner">${esc(ciDisplayName)}</span>${verBadgeCI}${teamBadgeCI}</div><div style="display:flex;align-items:center;gap:2px;flex-shrink:0">${pinSvg}<div class="ci-ts">${c.last_time?fmtChatTime(c.last_time):''}${ciMuteHtml}</div></div></div><div class="ci-prev ${isTyping?'typ':''}"><span style="flex:1;overflow:hidden;text-overflow:ellipsis">${prev}</span>${ciTickHtml}${c.unread_count>0?`<span class="badge">${c.unread_count}</span>`:''}</div></div>`;
 
