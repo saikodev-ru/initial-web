@@ -12,10 +12,10 @@ $me   = auth_user();
 require_rate_limit('update_profile', 10, 60);
 $data = input();
 
-$nickname  = trim($data['nickname']  ?? '');
-$signalId  = trim($data['signal_id'] ?? '');
+$nickname  = sanitize_string(trim($data['nickname'] ?? ''));
+$signalId  = strtolower(trim($data['signal_id'] ?? ''));
 $avatarUrl = trim($data['avatar_url'] ?? '');
-$bio       = trim(mb_substr($data['bio'] ?? '', 0, 150));
+$bio       = sanitize_string(trim($data['bio'] ?? ''), 150);
 
 // ── Валидация avatar_url (если передан) ────────────────────────
 if (!empty($avatarUrl)) {
@@ -35,7 +35,12 @@ if (mb_strlen($nickname) < 2 || mb_strlen($nickname) > 64) {
     json_err('invalid_nickname', 'Имя: от 2 до 64 символов');
 }
 if (!preg_match('/^[a-z0-9_]{3,50}$/', $signalId)) {
-    json_err('invalid_signal_id', 'Signal ID: 3–50 символов, только a-z, 0-9, _');
+    json_err('invalid_signal_id', 'Signal ID: 3-50 символов, только a-z, 0-9, _');
+}
+
+// ── Дополнительная валидация signal_id ──────────────────────
+if (!validate_signal_id($signalId)) {
+    json_err('invalid_signal_id', 'Signal ID содержит недопустимые символы или зарезервирован');
 }
 
 // ── Проверка уникальности Signal ID ──────────────────────────

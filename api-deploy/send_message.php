@@ -1,5 +1,5 @@
 <?php
-// POST /api/send_message.php
+// POST /api/send_message
 // Header: Authorization: Bearer <token>
 // Body: {
 //   "to_signal_id": "ivan_42",
@@ -18,8 +18,8 @@ $me   = auth_user();
 require_rate_limit('send_message', 60, 60);
 $data = input();
 
-$toSignalId   = trim($data['to_signal_id']  ?? '');
-$body         = trim($data['body']          ?? '');
+$toSignalId   = sanitize_string(trim($data['to_signal_id'] ?? ''), 100);
+$body         = sanitize_string(trim($data['body'] ?? ''), 10000);
 $replyTo      = isset($data['reply_to'])    ? (int) $data['reply_to'] : null;
 $mediaUrl     = trim($data['media_url']     ?? '');
 $mediaType    = trim($data['media_type']    ?? '');
@@ -47,7 +47,6 @@ if ($hasMedia) {
     }
     // Также разрешаем подписанные URL
     if (!$urlOk && str_contains($mediaUrl, 'sig=') && str_contains($mediaUrl, 'exp=')) $urlOk = true;
-    // Внешние https:// URL запрещены (XSS/tracking risk)
     if (!$urlOk) {
         json_err('invalid_media_url', 'Некорректный media_url');
     }
@@ -77,34 +76,10 @@ if ($isSelfMessage) {
     }
 }
 
-// ── Найти или создать чат ─────────────────────────────────────
-if ($isSelfMessage) {
-    $stmt = db()->prepare('SELECT id FROM chats WHERE is_saved_msgs = 1 AND user_a = ? LIMIT 1');
-    $stmt->execute([$senderId]);
-    $chat = $stmt->fetch();
-    if (!$chat) {
-        db()->prepare(
-            'INSERT INTO chats (user_a, user_b, is_saved_msgs, is_protected) VALUES (?, ?, 1, 1)'
-        )->execute([$senderId, $senderId]);
-        $chatId = (int) db()->lastInsertId();
-    } else {
-        $chatId = (int) $chat['id'];
-    }
-} else {
-    $userA = min($senderId, $recipientId);
-    $userB = max($senderId, $recipientId);
-
-    $stmt = db()->prepare('SELECT id FROM chats WHERE user_a = ? AND user_b = ? AND is_saved_msgs = 0 LIMIT 1');
-    $stmt->execute([$userA, $userB]);
-    $chat = $stmt->fetch();
-
-    if (!$chat) {
-        db()->prepare('INSERT INTO chats (user_a, user_b) VALUES (?, ?)')->execute([$userA, $userB]);
-        $chatId = (int) db()->lastInsertId();
-    } else {
-        $chatId = (int) $chat['id'];
-    }
-}
+// ── Найти или создать чат (атомарно через общий хелпер) ───────
+$chatId = $isSelfMessage
+    ? find_or_create_chat($senderId, $senderId, savedMsgs: true)
+    : find_or_create_chat($senderId, $recipientId);
 
 // ── Сохранить сообщение ───────────────────────────────────────
 $stmt = db()->prepare(
@@ -131,8 +106,8 @@ $sentAt = (int) ($stmt->fetchColumn() ?: time());
 // ── Push-уведомление (FCM only) ─────────────────────────────────
 $senderName = $me['nickname'] ?? $me['email'];
 $pushBody   = $hasMedia
-    ? ($mediaType === 'video' ? '🎥 Видео' : '🖼 Фото') . ($hasText ? ": $body" : '')
-    : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '…' : $body);
+    ? ($mediaType === 'video' ? 'Видео' : 'Фото') . ($hasText ? ": " . mb_substr($body, 0, 80) : '')
+    : (mb_strlen($body) > 80 ? mb_substr($body, 0, 80) . '...' : $body);
 
 $pushData = [
     'chat_id'          => (string) $chatId,

@@ -260,14 +260,19 @@ function validate_email(string $email): bool {
     // Базовая проверка
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return false;
 
-    // Длина домена (макс 253 символа по RFC)
+    // Длина домена (макс 253 символов по RFC)
     $parts = explode('@', $email);
     if (count($parts) !== 2) return false;
     if (strlen($parts[0]) > 64 || strlen($parts[1]) > 253) return false;
 
-    // Запрещённые домены (temp mail)
-    $banned = ['test.com', 'example.com', 'mailinator.com'];
+    // Запрещённые домены (temp mail / disposable)
+    $banned = ['test.com', 'example.com', 'mailinator.com', 'guerrillamail.com',
+               'throwaway.email', 'sharklasers.com', 'guerrillamailblock.com'];
     if (in_array($parts[1], $banned, true)) return false;
+
+    // Block single-letter TLD (not valid)
+    $tld = substr(strrchr($parts[1], '.'), 1);
+    if (strlen($tld) < 2) return false;
 
     // Проверка DNS MX-записи (опционально, только если включено)
     if (defined('CHECK_EMAIL_DNS') && CHECK_EMAIL_DNS) {
@@ -300,19 +305,30 @@ function validate_signal_id(string $signalId): bool {
  * Учитывает Cloudflare и反向 прокси.
  */
 function get_real_ip(): string {
-    // Cloudflare
-    $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? '';
-    if (!empty($ip) && filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+    // Cloudflare (надёжный, только если за Cloudflare)
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+        if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+    }
 
-    // X-Forwarded-For (берём первый)
+    // X-Forwarded-For (берём первый, только если не подделан)
+    // Для безопасности: проверяем что REMOTE_ADDR — доверенный прокси
     $xff = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
     if (!empty($xff)) {
         $parts = explode(',', $xff);
         $first = trim($parts[0]);
-        if (filter_var($first, FILTER_VALIDATE_IP)) return $first;
+        // Защита от spoofing: XFF может быть подделан клиентом
+        // Разрешаем только если запрос приходит от localhost/доверенного прокси
+        $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+        $isTrusted = ($remoteAddr === '127.0.0.1' || $remoteAddr === '::1'
+            || str_starts_with($remoteAddr, '10.')
+            || str_starts_with($remoteAddr, '172.16.')
+            || str_starts_with($remoteAddr, '192.168.')
+            || defined('TRUSTED_PROXY_IPS')); // можно задать в config.php
+        if ($isTrusted && filter_var($first, FILTER_VALIDATE_IP)) return $first;
     }
 
-    // Прямой IP
+    // Прямой IP (фоллбек)
     $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     if ($ip === '::1') return '127.0.0.1';
 
