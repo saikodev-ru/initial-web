@@ -685,11 +685,6 @@ if (window._swSupported) {
               <div class="sb-notif-row" id="row-no-blur"><div><div class="sb-notif-label">Отключить blur-эффекты</div><div class="sb-notif-sub">Убрать размытие фона у панелей</div></div><button class="toggle" id="tog-no-blur"></button></div>
             </div>
 
-            <div class="sb-prof-section-title" style="padding:10px 0 4px">Эффекты</div>
-            <div class="sb-prof-section">
-              <div class="sb-notif-row" id="row-edge-blur"><div><div class="sb-notif-label">Эффект по краям экрана</div><div class="sb-notif-sub">Использовать размытие для исчезающих сообщений</div></div><button class="toggle" id="tog-edge-blur"></button></div>
-            </div>
-
             <div class="sb-prof-section-title" style="padding:10px 0 4px">Шапка чата</div>
             <div class="sb-prof-section">
               <div class="sb-notif-row row-desktop-pill-hdr" id="row-desktop-pill-hdr">
@@ -1681,23 +1676,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  // ── Эффект по краям экрана (blur fade) ──
-  function applyEdgeBlur() {
-    const isOn = localStorage.getItem('sg_edge_blur') === 'true';
-    document.body.classList.toggle('edge-blur', isOn);
-    const tog = document.getElementById('tog-edge-blur');
-    if (tog) tog.classList.toggle('on', isOn);
-  }
-  applyEdgeBlur();
-  const togEdgeBlur = document.getElementById('tog-edge-blur');
-  if (togEdgeBlur) {
-    togEdgeBlur.onclick = () => {
-      togEdgeBlur.classList.toggle('on');
-      const isOn = togEdgeBlur.classList.contains('on');
-      localStorage.setItem('sg_edge_blur', isOn);
-      document.body.classList.toggle('edge-blur', isOn);
-    };
-  }
 
   // ── Скрыть узор на фоне ──
   // tog ON = паттерн скрыт (инвертированная логика)
