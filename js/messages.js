@@ -2459,7 +2459,23 @@ function hideSBBtn(){
     pill.innerHTML='<span></span>';
     area.prepend(pill);
   }
-  // Sticky pill top is managed purely by CSS (desktop: 60px, mobile: calc(60px + safe-area))
+  // Pill is position:fixed — JS sets top to match header bottom
+  function _positionPill(){
+    const pill=document.getElementById('sticky-date-pill');
+    if(!pill)return;
+    const hdr=document.getElementById('chat-hdr');
+    if(!hdr){pill.style.display='none';return;}
+    const hdrR=hdr.getBoundingClientRect();
+    // Hide pill if header is off-screen (chat not visible)
+    if(hdrR.bottom<=0||hdr.width===0){pill.style.display='none';return;}
+    pill.style.display='';
+    pill.style.top=Math.round(hdrR.bottom)+'px';
+  }
+  // Update pill position on resize and header changes
+  const _pillResizeObs=new ResizeObserver(_positionPill);
+  const _pillHdr=document.getElementById('chat-hdr');
+  if(_pillHdr)_pillResizeObs.observe(_pillHdr);
+  window.addEventListener('resize',_positionPill,{passive:true});
 
   // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
   const datePills=()=>area.querySelectorAll('.date-pill');
@@ -2477,8 +2493,6 @@ function hideSBBtn(){
       if(!stickySpan)return;
       const pills=datePills();
       if(!pills.length){stickyPill.classList.remove('visible');return;}
-      const aTop=area.scrollTop;
-      const aBot=aTop+area.clientHeight;
       let visible=null;
       for(let i=pills.length-1;i>=0;i--){
         const r=pills[i].getBoundingClientRect();
@@ -2488,6 +2502,7 @@ function hideSBBtn(){
       if(visible){
         if(visible!==stickySpan.textContent)stickySpan.textContent=visible;
         stickyPill.classList.add('visible');
+        _positionPill(); // update top in case header moved
       }else{
         stickyPill.classList.remove('visible');
       }
