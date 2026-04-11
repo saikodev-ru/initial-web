@@ -849,7 +849,7 @@ body[data-theme="light"] .inapp-push-inner{
 body[data-theme="light"] .inapp-push-act-btn{background:rgba(0,0,0,.04)}
 body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 /* Mobile: full width */
-@container app (max-width: 680px){
+@media (max-width: 680px){
   .inapp-push{
     width:calc(100% - 16px);
     max-width:none;
