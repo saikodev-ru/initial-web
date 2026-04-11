@@ -299,6 +299,17 @@ function showChatCtx(e, c) {
   if(lbl) lbl.textContent = c.is_pinned ? 'Открепить' : 'Закрепить';
   const profBtn = $('chat-ctx-profile');
   if (profBtn) profBtn.style.display = (c.is_saved_msgs || c.is_protected) ? 'none' : '';
+  // Mute user button: show for regular chats (not saved msgs / system / protected)
+  const muteChatBtn = $('chat-ctx-mute-user');
+  const muteChatLabel = $('chat-ctx-mute-user-label');
+  if (muteChatBtn) {
+    const canMute = c.partner_id && !c.is_saved_msgs && !c.is_protected;
+    muteChatBtn.style.display = canMute ? 'flex' : 'none';
+    if (canMute && muteChatLabel) {
+      const muted = isUserMuted(c.partner_id);
+      muteChatLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
+    }
+  }
   
   const menu = $('chat-ctxmenu');
   menu.style.transition = 'none';
@@ -421,6 +432,16 @@ $('chat-ctx-profile').onclick = () => {
     openProfileModal(chatData, false);
   }
   ctxChat = null;
+};
+
+$('chat-ctx-mute-user').onclick = () => {
+  if (!ctxChat || !ctxChat.partner_id) return; hideChatCtx();
+  const chat = ctxChat; ctxChat = null;
+  const nowMuted = toggleMuteUser(chat.partner_id);
+  toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+  // Re-render chat list to update mute indicator
+  if(typeof syncChats === 'function') syncChats(S.chats);
+  else if(typeof renderChats === 'function') renderChats('');
 };
 
 $('chat-ctx-clear').onclick = () => {

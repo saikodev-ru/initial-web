@@ -1532,6 +1532,7 @@ function _applyCustomBg(dataUrl) {
     if (root.style.getPropertyValue('--bg-fade-color')) {
       root.style.removeProperty('--bg-fade-color');
     }
+    try { localStorage.removeItem('sg_bg_fade_color'); } catch {}
   }
 }
 
@@ -1564,6 +1565,8 @@ function _extractBgBottomColor(dataUrl) {
         b = Math.round(b * darken);
         const root = document.documentElement;
         root.style.setProperty('--bg-fade-color', `rgb(${r}, ${g}, ${b})`);
+        // Persist extracted color so gradient restores instantly on reload
+        try { localStorage.setItem('sg_bg_fade_color', `rgb(${r}, ${g}, ${b})`); } catch(e) {}
       }
     };
     img.src = dataUrl;
@@ -1574,6 +1577,11 @@ function _extractBgBottomColor(dataUrl) {
 try {
   const cached = localStorage.getItem(BG_IMG_KEY);
   if (cached) _applyCustomBg(cached);
+} catch {}
+// Restore persisted fade color instantly (before async extraction)
+try {
+  const savedFadeColor = localStorage.getItem('sg_bg_fade_color');
+  if (savedFadeColor) document.documentElement.style.setProperty('--bg-fade-color', savedFadeColor);
 } catch {}
 
 if (_bgImgUpload && _bgImgInput) {
