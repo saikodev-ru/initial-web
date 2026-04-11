@@ -442,7 +442,7 @@ async function _ssePoll(chatId) {
           if (m.id > (S.lastId[cid] || 0)) S.lastId[cid] = m.id;
 
           // Append to DOM if this is the active chat
-          if (cid === S.chatId && $('msgs')) {
+          if (cid === S.chatId && $('msgs') && !S._initializingChat) {
             var atBot = nearBot();
             appendMsg(cid, m);
             if (atBot) scrollBot();

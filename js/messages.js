@@ -684,6 +684,13 @@ function renderEmptyChat(chatId){
 function renderMsgs(chatId){
   const area=$('msgs'),all=S.msgs[chatId]||[],groups=groupMsgs(all);
   if(!all.length){ renderEmptyChat(chatId); return; }
+  // Re-create sticky-date-pill if it was wiped by innerHTML=''
+  if(!document.getElementById('sticky-date-pill')){
+    const pill=document.createElement('div');
+    pill.className='sticky-date-pill';pill.id='sticky-date-pill';
+    pill.innerHTML='<span></span>';
+    area.prepend(pill);
+  }
   let lastDate=null,lastSender=null;
   groups.forEach(g=>{
     const first=g.type==='grid'?g.msgs[0]:g.msg;const d=fmtDate(first.sent_at);
@@ -788,6 +795,8 @@ function animateSend(tempId) {
 
 function appendMsg(chatId,m){
   const area=$('msgs'),all=S.msgs[chatId]||[];
+  // DOM-level dedup: prevent visual duplication from concurrent SSE + fetchMsgs
+  if(area.querySelector('.mrow[data-id="'+m.id+'"]'))return;
   const empty=area.querySelector('.chat-empty-state');
   if(empty) empty.remove();
   const prev=all[all.length-2];
@@ -2442,8 +2451,31 @@ function hideSBBtn(){
   },{passive:true});
 
   // ── Sticky date pill: shows current visible date while scrolling ──
+  // Ensure pill exists (innerHTML='' wipes may remove it)
+  if(!document.getElementById('sticky-date-pill')){
+    const pill=document.createElement('div');
+    pill.className='sticky-date-pill';
+    pill.id='sticky-date-pill';
+    pill.innerHTML='<span></span>';
+    area.prepend(pill);
+  }
   const stickyPill=$('sticky-date-pill');
   if(stickyPill){
+    // Dynamically set top offset to match chat header height
+    function _syncStickyTop(){
+      const hdr=document.getElementById('chat-hdr');
+      if(!hdr||!stickyPill)return;
+      const hdrR=hdr.getBoundingClientRect();
+      const areaR=area.getBoundingClientRect();
+      const offset=hdrR.bottom-areaR.top;
+      stickyPill.style.top=Math.max(0,Math.round(offset))+'px';
+    }
+    _syncStickyTop();
+    window.addEventListener('resize',_syncStickyTop,{passive:true});
+    const _resizeObs=new ResizeObserver(_syncStickyTop);
+    const hdr=document.getElementById('chat-hdr');
+    if(hdr)_resizeObs.observe(hdr);
+
     const stickySpan=stickyPill.querySelector('span');
     const datePills=()=>area.querySelectorAll('.date-pill');
     let _stickyTimer;
@@ -2459,7 +2491,7 @@ function hideSBBtn(){
         for(let i=pills.length-1;i>=0;i--){
           const r=pills[i].getBoundingClientRect();
           const aRect=area.getBoundingClientRect();
-          if(r.top<=aRect.top+40){visible=pills[i].querySelector('span')?.textContent;break;}
+          if(r.top<=aRect.top+60){visible=pills[i].querySelector('span')?.textContent;break;}
         }
         if(visible&&visible!==stickySpan.textContent){
           stickySpan.textContent=visible;

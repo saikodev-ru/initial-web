@@ -916,7 +916,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 
 /* ══ STICKY DATE PILL (below chat header) ═════════════════════ */
 .sticky-date-pill{
-  position:sticky;top:0;z-index:5;
+  position:sticky;top:52px;z-index:14;
   text-align:center;padding:6px 0;pointer-events:none;
   opacity:0;transform:scale(.92);
   transition:opacity .2s,transform .2s;
@@ -931,7 +931,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   padding:3px 12px;
 }
 @container app (max-width: 680px){
-  .sticky-date-pill{padding:4px 0}
+  .sticky-date-pill{top:calc(56px + env(safe-area-inset-top, 0px));padding:4px 0}
   .sticky-date-pill span{font-size:11px;padding:2px 10px}
 }
 
