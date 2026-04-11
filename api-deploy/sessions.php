@@ -38,10 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
         json_ok(['sessions' => $sessions]);
     } catch (Throwable $e) {
-        // Фолбек, если мульти-сессий в БД еще нет
-        json_ok(['sessions' => [
-            ['id' => 1, 'device' => $_SERVER['HTTP_USER_AGENT'] ?? 'Браузер', 'ip' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1', 'last_active' => time(), 'is_current' => true]
-        ]]);
+        error_log('sessions: error loading sessions for user ' . $me['id'] . ': ' . $e->getMessage());
+        json_ok(['sessions' => []]);
     }
 } 
 elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {

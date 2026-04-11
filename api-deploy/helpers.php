@@ -49,7 +49,16 @@ function db(): PDO {
             PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_TIMEOUT            => 5,
+            PDO::ATTR_PERSISTENT         => false,
         ]);
+    }
+    // Проверяем что соединение живо (reconnect если MySQL уронил)
+    try {
+        $pdo->query('SELECT 1');
+    } catch (\Throwable) {
+        $pdo = null;
+        return db();
     }
     return $pdo;
 }
@@ -99,7 +108,7 @@ function auth_user(): array {
         $header = $all['Authorization'] ?? $all['authorization'] ?? '';
     }
 
-    if (!preg_match('/^Bearer\s+(\S+)$/i', $header, $m)) {
+    if (!preg_match('/^Bearer\s+([a-f0-9]{64})$/i', $header, $m)) {
         json_err('unauthorized', 'Необходима авторизация', 401);
     }
 
@@ -123,7 +132,7 @@ function get_bearer_token(): string {
         $all = getallheaders();
         $header = $all['Authorization'] ?? $all['authorization'] ?? '';
     }
-    if (preg_match('/^Bearer\s+(\S+)$/i', $header, $m)) {
+    if (preg_match('/^Bearer\s+([a-f0-9]{64})$/i', $header, $m)) {
         return $m[1];
     }
     return '';
@@ -193,8 +202,8 @@ function parse_user_agent(string $ua): string {
 function create_session(int $userId): string {
     $token     = bin2hex(random_bytes(32));
     $expiresAt = date('Y-m-d H:i:s', strtotime('+' . SESSION_DAYS . ' days'));
-    $device    = substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200);
-    $ip        = get_real_ip(); // Безопасное получение IP (с учётом Cloudflare)
+    $device    = sanitize_string(substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 200), 200);
+    $ip        = get_real_ip();
 
     $stmt = db()->prepare(
         'INSERT INTO sessions (user_id, token, device, ip, expires_at)
@@ -202,6 +211,70 @@ function create_session(int $userId): string {
     );
     $stmt->execute([$userId, $token, $device, $ip, $expiresAt]);
     return $token;
+}
+
+// ── Найти или создать чат (атомарная операция) ─────────────────
+// Устраняет дублирование логики из send_message.php и других файлов.
+// Возвращает chat_id.
+function find_or_create_chat(int $userA, int $userB, bool $savedMsgs = false): int {
+    $db = db();
+
+    if ($savedMsgs) {
+        $stmt = $db->prepare(
+            'SELECT id FROM chats WHERE is_saved_msgs = 1 AND user_a = ? LIMIT 1'
+        );
+        $stmt->execute([$userA]);
+        $chat = $stmt->fetch();
+        if ($chat) return (int) $chat['id'];
+
+        $db->prepare(
+            'INSERT INTO chats (user_a, user_b, is_saved_msgs, is_protected) VALUES (?, ?, 1, 1)'
+        )->execute([$userA, $userA]);
+        return (int) $db->lastInsertId();
+    }
+
+    $min = min($userA, $userB);
+    $max = max($userA, $userB);
+
+    $stmt = $db->prepare(
+        'SELECT id FROM chats WHERE user_a = ? AND user_b = ? AND is_saved_msgs = 0 LIMIT 1'
+    );
+    $stmt->execute([$min, $max]);
+    $chat = $stmt->fetch();
+
+    if ($chat) return (int) $chat['id'];
+
+    // Транзакция для предотвращения race condition при одновременном создании
+    try {
+        $db->beginTransaction();
+
+        // Проверяем ещё раз внутри транзакции
+        $stmt = $db->prepare(
+            'SELECT id FROM chats WHERE user_a = ? AND user_b = ? AND is_saved_msgs = 0 LIMIT 1 FOR UPDATE'
+        );
+        $stmt->execute([$min, $max]);
+        $chat = $stmt->fetch();
+        if ($chat) {
+            $db->commit();
+            return (int) $chat['id'];
+        }
+
+        $db->prepare('INSERT INTO chats (user_a, user_b) VALUES (?, ?)')->execute([$min, $max]);
+        $chatId = (int) $db->lastInsertId();
+        $db->commit();
+        return $chatId;
+    } catch (\Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log("find_or_create_chat: race condition fallback for users {$min}/{$max}: " . $e->getMessage());
+        // Фоллбек: повторный SELECT
+        $stmt = $db->prepare(
+            'SELECT id FROM chats WHERE user_a = ? AND user_b = ? AND is_saved_msgs = 0 LIMIT 1'
+        );
+        $stmt->execute([$min, $max]);
+        $chat = $stmt->fetch();
+        if ($chat) return (int) $chat['id'];
+        throw $e;
+    }
 }
 
 // ── Домены которые нужно отправлять через Brevo ──────────────

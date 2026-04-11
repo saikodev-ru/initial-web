@@ -20,12 +20,18 @@ if ($chatId <= 0) json_err('invalid_id', 'Некорректный chat_id');
 
 $db = db();
 
-// Убедиться что пользователь является участником чата
+// Убедиться что пользователь является участником чата + не системный
 $stmt = $db->prepare(
-    'SELECT id FROM chats WHERE id = ? AND (user_a = ? OR user_b = ?) LIMIT 1'
+    'SELECT id, is_protected, is_saved_msgs FROM chats WHERE id = ? AND (user_a = ? OR user_b = ?) LIMIT 1'
 );
 $stmt->execute([$chatId, $me['id'], $me['id']]);
-if (!$stmt->fetch()) json_err('forbidden', 'Нет доступа к этому чату', 403);
+$chatRow = $stmt->fetch();
+if (!$chatRow) json_err('forbidden', 'Нет доступа к этому чату', 403);
+
+// Запрещаем удаление защищённых чатов (Избранное, чат с @initial)
+if ((int) $chatRow['is_protected'] || (int) $chatRow['is_saved_msgs']) {
+    json_err('forbidden', 'Нельзя удалить системный чат', 403);
+}
 
 // ── Собираем media_url для очистки S3 ──────────────────────
 $mediaStmt = $db->prepare(

@@ -1,20 +1,19 @@
 <?php
 // ═══════════════════════════════════════════════════════════════
 //  POLL UPDATES — Long-polling endpoint for real-time delivery
-//  GET /api/poll_updates.php?cursor=<unix_timestamp>&last_call_id=<int>
+//  GET /api/poll_updates?cursor=<unix_timestamp>&last_call_id=<int>
 //  Header: Authorization: Bearer <token>
 //
-//  Replaces multiple polling endpoints with ONE efficient connection.
 //  Holds connection open for up to 25 seconds, checking for updates.
 //  Returns immediately when new data is available.
 //
 //  Response: {
 //    ok: true,
 //    now: <server_timestamp>,
-//    messages: [...],       // new messages in user's chats
-//    chat_updates: [...],   // chats with activity (for list refresh)
-//    typing: [...],         // users currently typing
-//    call_signals: [...]    // new call signals
+//    messages: [...],
+//    chat_updates: [...],
+//    typing: [...],
+//    call_signals: [...]
 //  }
 // ═══════════════════════════════════════════════════════════════
 declare(strict_types=1);
@@ -22,6 +21,9 @@ declare(strict_types=1);
 // Увеличиваем лимит времени для long-polling
 @set_time_limit(30);
 @ini_set('max_execution_time', '30');
+
+// Игнорируем abort клиента — пишем в лог, а не крашимся
+ignore_user_abort(false);
 
 require_once __DIR__ . '/helpers.php';
 
@@ -32,20 +34,24 @@ $me       = auth_user();
 $uid      = (int) $me['id'];
 $cursor   = (int) ($_GET['cursor'] ?? 0);
 $lastCall = (int) ($_GET['last_call_id'] ?? 0);
-$chatId   = (int) ($_GET['chat_id'] ?? 0); // Optional: specific chat for message updates
+$chatId   = (int) ($_GET['chat_id'] ?? 0);
 
 // Rate limit: 120/min (polled every ~0.5-1s)
 require_rate_limit('poll_updates', 120, 60);
 
-// If no cursor, return current server time (client will use it as starting point)
+// Validate cursor (not in the future, not negative)
+if ($cursor < 0) $cursor = 0;
+if ($cursor > time() + 60) $cursor = time(); // Не допускаем будущее больше чем на 60с
+
+// If no cursor, return current server time
 if ($cursor <= 0) {
     json_ok([
-        'now'         => time(),
-        'messages'    => [],
-        'chat_updates'=> [],
-        'typing'      => [],
-        'call_signals'=> [],
-        'last_call_id'=> $lastCall,
+        'now'           => time(),
+        'messages'      => [],
+        'chat_updates'  => [],
+        'typing'        => [],
+        'call_signals'  => [],
+        'last_call_id'  => $lastCall,
     ]);
 }
 
@@ -62,7 +68,7 @@ foreach ($stmtChats->fetchAll(PDO::FETCH_COLUMN) as $cid) {
 }
 
 // If chat_id specified, also return messages for that specific chat
-$checkChatId = ($chatId > 0 && in_array($chatId, $chatIds)) ? $chatId : 0;
+$checkChatId = ($chatId > 0 && in_array($chatId, $chatIds, true)) ? $chatId : 0;
 
 // Pre-load current call_signals max ID
 $stmtMaxCall = $db->prepare('SELECT COALESCE(MAX(id), 0) FROM call_signals WHERE target_id = ?');
@@ -71,6 +77,11 @@ $currentMaxCallId = (int) $stmtMaxCall->fetchColumn();
 
 // ── Main long-polling loop ──────────────────────────────────
 while (true) {
+    // ── Check if client disconnected ─────────────────────────
+    if (connection_aborted()) {
+        exit; // Клиент ушёл — молча завершаем
+    }
+
     $results = [
         'messages'     => [],
         'chat_updates' => [],
@@ -140,7 +151,6 @@ while (true) {
                 'is_team_signal'  => (int) ($m['is_team_signal'] ?? 0),
             ], $msgs);
 
-            // Collect chat IDs that need list update
             $updatedChatIds = array_unique(array_column($msgs, 'chat_id'));
             $results['chat_updates'] = array_map('intval', $updatedChatIds);
         }
