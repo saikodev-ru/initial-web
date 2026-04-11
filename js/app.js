@@ -463,7 +463,28 @@ async function _ssePoll(chatId) {
           var cid = m.chat_id;
           S.msgs[cid] = S.msgs[cid] || [];
 
-          // Skip duplicates
+          // ── Pending temp-id match: our own sent message not yet confirmed ──
+          if (m.sender_id === S.user.id) {
+            var pending = S._pendingTids || new Map();
+            var matchTid = null;
+            pending.forEach(function(v, k) { if (v === m.body) matchTid = k; });
+            if (matchTid) {
+              // Promote temp → real in state and DOM (avoid duplicate)
+              var tidIdx = -1;
+              for (var ti = 0; ti < S.msgs[cid].length; ti++) {
+                if (S.msgs[cid][ti].id === matchTid) { tidIdx = ti; break; }
+              }
+              if (tidIdx >= 0) S.msgs[cid][tidIdx] = m;
+              S.rxns[m.id] = S.rxns[matchTid] || [];
+              delete S.rxns[matchTid];
+              var tidEl = document.querySelector('.mrow[data-id="' + matchTid + '"]');
+              if (tidEl) { tidEl.dataset.id = m.id; }
+              if (m.id > (S.lastId[cid] || 0)) S.lastId[cid] = m.id;
+              return;
+            }
+          }
+
+          // Skip duplicates already in state
           if (S.msgs[cid].some(function(x){ return x.id === m.id; })) return;
 
           if (!m.nickname) {
