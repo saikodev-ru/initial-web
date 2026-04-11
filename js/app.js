@@ -4,11 +4,12 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Mobile keyboard: keep #active-chat sized to visual viewport ──
-   container-type on #scr-app creates contain: layout, so position:fixed
-   inside is relative to #scr-app, not viewport. We exploit this:
-   #active-chat is fixed relative to #scr-app (fills viewport).
-   visualViewport sets --vv-h so height tracks keyboard in real-time. */
+/* ── Mobile keyboard: visualViewport tracks keyboard height ──
+   interactive-widget=resizes-content in viewport meta makes the
+   browser resize layout viewport instead of overlaying keyboard.
+   This means 100dvh shrinks, sticky works, and the page doesn't scroll.
+   We still sync --vv-h via visualViewport as a safety net for older
+   browsers that don't support interactive-widget. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
