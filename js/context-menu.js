@@ -439,7 +439,9 @@ $('chat-ctx-mute-user').onclick = () => {
   const chat = ctxChat; ctxChat = null;
   const nowMuted = toggleMuteUser(chat.partner_id);
   toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
-  // Re-render chat list to update mute indicator
+  // Force re-render by invalidating _chatData on the target element
+  const el = document.querySelector(`.ci[data-chat-id="${chat.chat_id}"]`);
+  if (el) { el._chatData = null; }
   if(typeof syncChats === 'function') syncChats(S.chats);
   else if(typeof renderChats === 'function') renderChats('');
 };
@@ -933,5 +935,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!partnerId) return;
     var nowMuted = toggleMuteUser(partnerId);
     toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+    // Force re-render of chat list item
+    if (S.chatId) {
+      var el = document.querySelector(`.ci[data-chat-id="${S.chatId}"]`);
+      if (el) { el._chatData = null; }
+      if(typeof syncChats === 'function') syncChats(S.chats);
+    }
   });
 });

@@ -701,8 +701,6 @@ function renderMsgs(chatId){
   applyGroupClasses(area);
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
-  // Re-sync sticky pill top after DOM rebuild
-  if(window._syncStickyTop)requestAnimationFrame(()=>window._syncStickyTop());
 }
 /* ══ SEND ANIMATION — stretch from button, fade-out to real message ══ */
 
@@ -2461,26 +2459,7 @@ function hideSBBtn(){
     pill.innerHTML='<span></span>';
     area.prepend(pill);
   }
-  // Dynamic top offset: match chat header height
-  function _syncStickyTop(){
-    const hdr=document.getElementById('chat-hdr');
-    const pill=document.getElementById('sticky-date-pill');
-    if(!hdr||!pill)return;
-    const hdrR=hdr.getBoundingClientRect();
-    const areaR=area.getBoundingClientRect();
-    const offset=hdrR.bottom-areaR.top;
-    // Don't set top when chat is hidden (display:none → all rects are 0)
-    if(offset===0 && hdrR.height===0)return;
-    pill.style.top=Math.max(0,Math.round(offset))+'px';
-  }
-  // Don't call immediately — chat is hidden on load, would get offset=0
-  window.addEventListener('resize',_syncStickyTop,{passive:true});
-  const _resizeObs=new ResizeObserver(_syncStickyTop);
-  const hdr=document.getElementById('chat-hdr');
-  if(hdr)_resizeObs.observe(hdr);
-
-  // Expose _syncStickyTop so renderMsgs can call it after rebuilding DOM
-  window._syncStickyTop=_syncStickyTop;
+  // Sticky pill top is managed purely by CSS (desktop: 60px, mobile: calc(60px + safe-area))
 
   // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
   const datePills=()=>area.querySelectorAll('.date-pill');

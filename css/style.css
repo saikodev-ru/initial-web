@@ -516,8 +516,8 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .ci-tick-r svg path:first-child { stroke-opacity: 1; }
 .ci-tick svg{display:block;width:18px;height:11px}
 .badge{background:var(--y);color:#fff;font-size:10.5px;font-weight:900;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center;flex-shrink:0}
-/* ── Muted chat indicator (Telegram-style) ── */
-.ci-mute-icon{width:14px;height:14px;color:var(--t3);flex-shrink:0;display:inline-flex;align-items:center;justify-content:center}
+/* ── Muted chat indicator (Telegram-style, next to nickname) ── */
+.ci-mute-icon{width:16px;height:16px;color:var(--t3);flex-shrink:0;display:inline-block;vertical-align:middle;margin-left:2px}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--b);flex-shrink:0}
 .prof-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:14px;padding:8px;margin:-8px;transition:background .15s}
 .prof-row:hover{background:var(--s0)}.prof-meta{flex:1;min-width:0}
@@ -933,7 +933,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   padding:3px 12px;
 }
 @container app (max-width: 680px){
-  .sticky-date-pill{top:calc(66px + env(safe-area-inset-top, 0px));padding:4px 0}
+  .sticky-date-pill{top:calc(60px + env(safe-area-inset-top, 0px));padding:4px 0}
   .sticky-date-pill span{font-size:11px;padding:2px 10px}
 }
 
@@ -3040,7 +3040,10 @@ body[data-theme="light"] .emo-srch input::placeholder{color:var(--t3)}
     transparent calc(100% - 12px)
   );
 }
-/* no-pattern: keep fade overlays visible — they adapt via --bg-fade-color */
+.no-pattern .msgs-top-fade,
+.no-pattern .msgs-bottom-fade {
+  display: none;
+}
 .input-zone{
   padding:8px 160px 20px;
   position:absolute;
