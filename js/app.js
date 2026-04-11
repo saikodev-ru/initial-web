@@ -4,25 +4,30 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Mobile keyboard: scroll to bottom when keyboard opens ──
-   interactive-widget=resizes-content handles viewport resize,
-   but scroll position stays frozen. We detect keyboard open/close
-   via visualViewport height changes and scroll chat to bottom. */
+/* ── Mobile keyboard: synced scroll with smooth viewport resize ──
+   interactive-widget=resizes-content makes 100dvh shrink smoothly
+   (via CSS transition on #scr-app/.layout). But .msgs scrollTop
+   stays frozen → messages near bottom get clipped. We track the
+   exact viewport height delta and scrollBy that amount in sync. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
   var prevH=vv.height;
+  var rafId=0;
 
   function sync(){
-    var diff=prevH-vv.height;
-    if(diff>80){
-      /* Keyboard opening — scroll chat to bottom */
-      requestAnimationFrame(function(){
+    var curH=vv.height;
+    var delta=prevH-curH;
+    if(Math.abs(delta)>2){
+      cancelAnimationFrame(rafId);
+      rafId=requestAnimationFrame(function(){
         var msgs=document.getElementById('msgs');
-        if(msgs) msgs.scrollTop=msgs.scrollHeight;
+        if(!msgs)return;
+        var atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<60;
+        if(atBottom) msgs.scrollBy(0,delta);
       });
     }
-    prevH=vv.height;
+    prevH=curH;
   }
   vv.addEventListener('resize',sync);
   vv.addEventListener('scroll',sync);
