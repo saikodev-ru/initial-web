@@ -665,7 +665,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 /* Custom chat background image — placed inside .layout to span sidebar + chat area */
 .chat-bg-custom{
   position:absolute;
-  width:100dvw;height:100dvh;top:0;left:0;
+  width:100vw;height:100vh;top:0;left:0;
   z-index:0;pointer-events:none;
   background-size:cover;background-position:center;background-repeat:no-repeat;
   transition:filter .3s var(--ease),transform .3s var(--ease);

@@ -4,17 +4,20 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
-/* ── Mobile keyboard: scroll to bottom when keyboard opens ──
-   interactive-widget=resizes-content smoothly resizes 100dvh.
-   When user is at chat bottom, viewport shrink hides messages.
-   Detect keyboard open (height drop >80px) → scroll to bottom.
-   On intermediate frames, scrollBy exact delta to stay synced. */
+/* ── Mobile keyboard: Telegram-style scroll on keyboard open ──
+   When user is at bottom → scroll down by exact keyboard height.
+   When user is scrolled up → do nothing (content clips from bottom).
+   Like Telegram 1:1 behavior. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
   var prevH=vv.height;
   var kbdOpen=false;
   var rafId=0;
+
+  function isAtBottom(msgs){
+    return msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<60;
+  }
 
   function sync(){
     var curH=vv.height;
@@ -23,17 +26,19 @@ window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulate
     if(delta>80&&!kbdOpen){
       kbdOpen=true;
       cancelAnimationFrame(rafId);
-      rafId=requestAnimationFrame(function(){
-        var msgs=document.getElementById('msgs');
-        if(msgs) msgs.scrollTop=msgs.scrollHeight;
-      });
+      var wasAtBottom=isAtBottom(document.getElementById('msgs'));
+      if(wasAtBottom){
+        rafId=requestAnimationFrame(function(){
+          var msgs=document.getElementById('msgs');
+          if(msgs) msgs.scrollTop=msgs.scrollHeight;
+        });
+      }
     }else if(kbdOpen&&Math.abs(delta)>2){
       cancelAnimationFrame(rafId);
       rafId=requestAnimationFrame(function(){
         var msgs=document.getElementById('msgs');
         if(!msgs)return;
-        var atBottom=msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<60;
-        if(atBottom) msgs.scrollTop=msgs.scrollHeight;
+        if(isAtBottom(msgs)) msgs.scrollTop=msgs.scrollHeight;
       });
     }
 
