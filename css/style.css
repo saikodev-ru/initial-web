@@ -933,7 +933,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   padding:3px 12px;
 }
 @container app (max-width: 680px){
-  .sticky-date-pill{top:calc(56px + env(safe-area-inset-top, 0px));padding:4px 0}
+  .sticky-date-pill{top:calc(66px + env(safe-area-inset-top, 0px));padding:4px 0}
   .sticky-date-pill span{font-size:11px;padding:2px 10px}
 }
 
@@ -2704,8 +2704,8 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 }
 .rxn:hover{background:var(--s2)}
 .rxn:active{transform:scale(.92)}
-.rxn.mine{background:var(--ybg);border-color:var(--yb)}
-.me .rxn{background:rgba(255,255,255,.85);border-color:rgba(255,255,255,.35)}.me .rxn.mine{background:rgba(200,200,255,.95);border-color:rgba(255,255,255,.5)}
+.rxn.mine{background:#2e2340;border-color:#5b3d8a}
+.me .rxn{background:rgba(255,255,255,1);border-color:rgba(255,255,255,.5)}.me .rxn.mine{background:rgba(200,200,255,1);border-color:rgba(255,255,255,.5)}
 /* Appear: scale+fade in with spring — no translateY to avoid layout jumps */
 @keyframes rxnAppear{
   0%  {opacity:0;scale:.4}

@@ -514,19 +514,23 @@ function sortChats(chats){
     if(isTouchDevice()) el.removeAttribute('draggable');
 
     let longPressTimer=null, startX=0, startY=0, hasMoved=false, clone=null, offsetY=0;
+    let longPressed=false; // Set after long-press timer fires — prevents drag entirely
 
     el.addEventListener('touchstart', e=>{
       if(!el.classList.contains('pinned'))return;
       const t=e.touches[0];
-      startX=t.clientX; startY=t.clientY; hasMoved=false;
+      startX=t.clientX; startY=t.clientY; hasMoved=false; longPressed=false;
       // Long press timer — only fires if finger stays still (no drag intent)
       longPressTimer=setTimeout(()=>{
-        // Long press without movement — let contextmenu handler take over
+        // Long press without movement — prevent any drag and let contextmenu handle
         longPressTimer=null;
+        longPressed=true;
       },500);
     },{passive:true});
 
     el.addEventListener('touchmove', e=>{
+      // After long press fired, completely ignore all movement — no drag possible
+      if(longPressed)return;
       if(longPressTimer===null && !hasMoved)return;
       const t=e.touches[0];
       const dx=t.clientX-startX, dy=t.clientY-startY;
