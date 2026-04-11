@@ -888,12 +888,45 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 
 /* ══ MOBILE PILL HEADER ══ */
+
+/* ── Status bar seamless gradient (mobile PWA) ──
+   Creates a tiny gradient from the OS status bar color
+   into the app background for a seamless feel. */
+@container app (max-width: 680px){
+  #active-chat::after{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;
+    height:calc(env(safe-area-inset-top, 0px) + 14px);
+    background:linear-gradient(
+      to bottom,
+      rgba(var(--bg-rgb), 0) 0%,
+      rgba(var(--chat-bg-rgb), .4) 35%,
+      transparent 100%
+    );
+    z-index:20;
+    pointer-events:none;
+  }
+}
+
+/* ── Light theme: status bar gradient ── */
+@container app (max-width: 680px){
+  body[data-theme="light"] #active-chat::after {
+    background:linear-gradient(
+      to bottom,
+      rgba(var(--bg-rgb), 0) 0%,
+      rgba(var(--bg-rgb), .25) 35%,
+      transparent 100%
+    );
+  }
+}
+
 @container app (max-width: 680px){
   .chat-hdr{
     position:sticky;top:0;
     padding:0 54px 0 0;
     margin:6px 6px 0 6px;
-    margin-top:calc(6px + env(safe-area-inset-top, 0px));
+    margin-top:calc(10px + env(safe-area-inset-top, 0px));
     border:none;
     border-radius:0;
     background:transparent;
@@ -3925,6 +3958,23 @@ body[data-theme="light"] .chat-hdr {
 body[data-theme="light"] .hdr-mb-avatar .av-img {
   border-color: rgba(0,0,0,.1);
 }
+/* Voice mini-player — light theme pill buttons */
+body[data-theme="light"] .voice-mini-player {
+  background: rgba(var(--bg-rgb),.92);
+  box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+}
+body[data-theme="light"] .voice-mini-player .vmp-btn {
+  background: rgba(0,0,0,.04);
+}
+body[data-theme="light"] .voice-mini-player .vmp-btn:hover {
+  background: rgba(0,0,0,.08);
+}
+body[data-theme="light"] .voice-mini-player .vmp-close {
+  background: rgba(0,0,0,.03);
+}
+body[data-theme="light"] .voice-mini-player .vmp-close:hover {
+  background: rgba(0,0,0,.07);
+}
 
 /* Resize handle — lighter color for light theme */
 body[data-theme="light"] .resize-handle {
@@ -5871,19 +5921,22 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 .voice-mini-player {
   position: relative;
   z-index: 14;
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 12px;
-  background: rgba(var(--bg-rgb),.92);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid var(--b);
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  background: rgba(var(--bg-rgb),.82);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: none;
+  border-radius: 9999px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 4px 16px rgba(0,0,0,.08);
   max-height: 0; opacity: 0; overflow: hidden;
-  padding-top: 0; padding-bottom: 0;
-  transition: max-height .25s var(--ease), opacity .25s var(--ease), padding .25s var(--ease);
+  margin: 0 6px;
+  transition: max-height .25s var(--ease), opacity .25s var(--ease), margin .25s var(--ease), padding .25s var(--ease);
   pointer-events: none;
 }
 .voice-mini-player.visible {
-  max-height: 48px; opacity: 1;
-  padding: 6px 12px;
+  max-height: 44px; opacity: 1;
+  padding: 4px 10px;
+  margin: 4px 6px;
   pointer-events: auto;
 }
 .voice-mini-player .vmp-avatar {
@@ -5893,14 +5946,14 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   font-size: 11px; font-weight: 900; color: var(--t2);
 }
 .voice-mini-player .vmp-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.voice-mini-player .vmp-info { flex: 0 0 auto; min-width: 0; max-width: 120px; }
+.voice-mini-player .vmp-info { flex: 0 0 auto; min-width: 0; max-width: 80px; }
 .voice-mini-player .vmp-name {
-  font-size: 12px; font-weight: 600; color: var(--t1);
+  font-size: 11px; font-weight: 700; color: var(--t1);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .voice-mini-player .vmp-wave {
   display: flex; align-items: center; gap: 1.5px;
-  height: 16px; min-width: 0; cursor: pointer; flex: 1; overflow: hidden;
+  height: 14px; min-width: 0; cursor: pointer; flex: 1; overflow: hidden;
 }
 .voice-mini-player .vmp-wf-bar {
   width: 2px; border-radius: 1px;
@@ -5911,27 +5964,29 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 .voice-mini-player .vmp-wf-bar.played { background: var(--voice-accent-light); opacity: 1; }
 .voice-mini-player .vmp-wf-bar.active { background: var(--voice-accent-medium); opacity: 1; }
 .voice-mini-player .vmp-time {
-  font-size: 10.5px; color: var(--t3); font-variant-numeric: tabular-nums;
-  white-space: nowrap; min-width: 36px; text-align: right; flex-shrink: 0;
+  font-size: 10px; color: var(--t3); font-variant-numeric: tabular-nums;
+  white-space: nowrap; min-width: 30px; text-align: right; flex-shrink: 0;
 }
 .voice-mini-player .vmp-btn {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: transparent; border: none;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(255,255,255,.07); border: none;
   color: var(--t2); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: color .12s, background .12s;
+  flex-shrink: 0; transition: color .12s, background .12s, transform .12s var(--sp);
 }
-.voice-mini-player .vmp-btn:hover { color: var(--y); background: var(--s1); }
-.voice-mini-player .vmp-btn svg { width: 16px; height: 16px; }
+.voice-mini-player .vmp-btn:hover { color: var(--y); background: rgba(255,255,255,.13); }
+.voice-mini-player .vmp-btn:active { transform: scale(.85); }
+.voice-mini-player .vmp-btn svg { width: 14px; height: 14px; }
 .voice-mini-player .vmp-close {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: transparent; border: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,.05); border: none;
   color: var(--t3); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: color .12s, background .12s;
+  flex-shrink: 0; transition: color .12s, background .12s, transform .12s var(--sp);
 }
-.voice-mini-player .vmp-close:hover { color: var(--t1); background: var(--s1); }
-.voice-mini-player .vmp-close svg { width: 14px; height: 14px; }
+.voice-mini-player .vmp-close:hover { color: var(--t1); background: rgba(255,255,255,.1); }
+.voice-mini-player .vmp-close:active { transform: scale(.85); }
+.voice-mini-player .vmp-close svg { width: 12px; height: 12px; }
 
 
 /* ═══════════════════════════════════════════════════════════════
