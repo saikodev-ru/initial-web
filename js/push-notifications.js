@@ -254,6 +254,7 @@
   var _inappPushChatId = null;
 
   function _showInappPush(opts) {
+    try {
     var el = $('inapp-push');
     if (!el) return;
 
@@ -323,6 +324,7 @@
     _inappPushTimeout = setTimeout(function () {
       _hideInappPush();
     }, 6000);
+    } catch(e) { console.error('_showInappPush error:', e); }
   }
 
   function _hideInappPush() {
