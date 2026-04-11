@@ -1001,6 +1001,19 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
+    /* Specular highlight — top-left light reflection */
+    overflow:hidden;
+  }
+  .hdr-back-pill::before{
+    content:'';position:absolute;
+    top:0;left:0;right:0;height:50%;
+    border-radius:9999px 9999px 0 0;
+    background:linear-gradient(180deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.06) 40%,
+      transparent 100%
+    );
+    pointer-events:none;z-index:1;
   }
   .back-btn-mb{
     display:flex !important;
@@ -1056,6 +1069,19 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     height:48px;
     overflow:hidden;
     margin:0 auto;
+    /* Specular highlight — top light reflection */
+    position:relative;
+  }
+  .hdr-pill::before{
+    content:'';position:absolute;
+    top:0;left:0;right:0;height:50%;
+    border-radius:9999px 9999px 0 0;
+    background:linear-gradient(180deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.06) 40%,
+      transparent 100%
+    );
+    pointer-events:none;z-index:1;
   }
   .hdr-clickable{
     flex:1;min-width:0;
@@ -1100,6 +1126,19 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     width:48px;
     height:48px;
     z-index:16;
+    /* Specular highlight — top light reflection */
+    overflow:hidden;
+  }
+  .hdr-av-pill::before{
+    content:'';position:absolute;
+    top:0;left:0;right:0;height:50%;
+    border-radius:9999px 9999px 0 0;
+    background:linear-gradient(180deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.06) 40%,
+      transparent 100%
+    );
+    pointer-events:none;z-index:1;
   }
   .hdr-mb-avatar{
     display:flex !important;
@@ -3404,6 +3443,34 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   /* Bigger input on mobile — keep balanced height */
   .mfield{font-size:16px !important;min-height:42px !important}
   .mfield:empty::before{font-weight:500 !important}
+  /* Mobile input bar: remove border, add specular highlight */
+  .mfield-wrap{
+    border:none !important;
+    overflow:hidden;
+    position:relative;
+  }
+  .mfield-wrap::before{
+    content:'';position:absolute;
+    top:0;left:0;right:0;height:50%;
+    border-radius:22px 22px 0 0;
+    background:linear-gradient(180deg,
+      rgba(255,255,255,.18) 0%,
+      rgba(255,255,255,.06) 40%,
+      transparent 100%
+    );
+    pointer-events:none;z-index:2;
+  }
+  .mfield-wrap > .mfield,
+  .mfield-wrap > .emo-btn-in,
+  .mfield-wrap > .attach-btn-in,
+  .mfield-wrap > .send-btn-in{position:relative;z-index:3}
+  /* Remove inner field border on mobile too */
+  .mfield{
+    border:none !important;
+    background:transparent !important;
+  }
+  /* Keep focus ring visible through specular */
+  .mfield-wrap:focus-within::before{opacity:.5}
   .chat-hdr .av-img{
     width:38px !important;
     height:38px !important;
