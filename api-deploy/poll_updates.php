@@ -37,7 +37,9 @@ $lastCall = (int) ($_GET['last_call_id'] ?? 0);
 $chatId   = (int) ($_GET['chat_id'] ?? 0);
 
 // Rate limit: 120/min (polled every ~0.5-1s)
-require_rate_limit('poll_updates', 120, 60);
+if (function_exists('require_rate_limit')) {
+    require_rate_limit('poll_updates', 120, 60);
+}
 
 // Validate cursor (not in the future, not negative)
 if ($cursor < 0) $cursor = 0;
