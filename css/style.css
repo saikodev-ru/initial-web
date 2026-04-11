@@ -918,7 +918,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 
 /* ══ STICKY DATE PILL (below chat header) ═════════════════════ */
 .sticky-date-pill{
-  position:sticky;top:52px;z-index:14;
+  position:sticky;top:60px;z-index:14;
   text-align:center;padding:6px 0;pointer-events:none;
   opacity:0;transform:scale(.92);
   transition:opacity .2s,transform .2s;
