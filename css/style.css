@@ -891,9 +891,9 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 @container app (max-width: 680px){
   .chat-hdr{
     position:sticky;top:0;
-    padding:0;
-    margin:8px 8px 0 8px;
-    margin-top:calc(8px + env(safe-area-inset-top, 0px));
+    padding:0 54px 0 0;
+    margin:6px 6px 0 6px;
+    margin-top:calc(6px + env(safe-area-inset-top, 0px));
     border:none;
     border-radius:0;
     background:transparent;
@@ -912,7 +912,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     align-items:center;justify-content:center;
     position:relative;
     flex-shrink:0;
-    width:58px;height:58px;
+    width:48px;height:48px;
     background:rgba(var(--bg-rgb),.82);
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
@@ -921,7 +921,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   .back-btn-mb{
     display:flex !important;
     align-items:center;justify-content:center;
-    width:46px;height:46px;
+    width:38px;height:38px;
     background:rgba(255,255,255,.07) !important;
     border:none !important;
     border-radius:50% !important;
@@ -932,7 +932,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   }
   .back-btn-mb:hover{background:rgba(255,255,255,.13) !important}
   .back-btn-mb:active{transform:scale(.88);opacity:.7}
-  .back-btn-mb svg{width:20px;height:20px}
+  .back-btn-mb svg{width:18px;height:18px}
 
   /* iOS-style unread badge on back pill — accent colors */
   .hdr-unread-badge{
@@ -957,7 +957,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     to{transform:scale(1);opacity:1}
   }
 
-  /* ── Center pill: stretchable, nickname + status centered ── */
+  /* ── Center pill: content-sized, nickname + status centered ── */
   .hdr-pill{
     display:flex;align-items:center;justify-content:center;
     background:rgba(var(--bg-rgb),.82);
@@ -966,10 +966,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
     padding:4px 16px;
     gap:0;
-    flex:1 1 0%;
+    flex:0 1 auto;
     min-width:0;
-    height:58px;
+    max-width:calc(100vw - 48px - 54px - 20px);
+    height:48px;
     overflow:hidden;
+    margin:0 auto;
   }
   .hdr-clickable{
     flex:1;min-width:0;
@@ -977,7 +979,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     padding:0;
     gap:0;
     display:flex;align-items:center;justify-content:center;
-    width:100%;
+    width:auto;
   }
   .hdr-clickable:hover .hdr-info{background:transparent}
   .hdr-clickable:active .hdr-info{background:transparent}
@@ -1010,9 +1012,9 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
     border-radius:9999px;
     box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08);
-    padding:5px;
-    width:58px;
-    height:58px;
+    padding:3px;
+    width:48px;
+    height:48px;
     z-index:16;
   }
   .hdr-mb-avatar{
@@ -1028,15 +1030,26 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     padding:0 !important;
   }
   .hdr-mb-avatar .av-img{
-    width:48px !important;
-    height:48px !important;
-    font-size:18px !important;
+    width:42px !important;
+    height:42px !important;
+    font-size:16px !important;
     border-radius:50%;
     border:none !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    overflow:hidden !important;
     -webkit-touch-callout:none;
     -webkit-user-select:none;
     user-select:none;
     pointer-events:none;
+  }
+  .hdr-mb-avatar .av-img img{
+    width:100% !important;
+    height:100% !important;
+    object-fit:cover !important;
+    display:block !important;
+    border-radius:50%;
   }
 
   /* Hide desktop action buttons (call/more) on mobile — replaced by long-press menu */

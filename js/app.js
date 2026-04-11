@@ -371,10 +371,13 @@ async function _ssePoll(chatId) {
   // Initial cursor fetch if needed
   if (_sseCursor <= 0) {
     try {
-      var init = await api('poll_updates?cursor=0&chat_id=' + chatId + '&last_call_id=' + _sseCallLastId);
-      if (init && init.ok) {
-        _sseCursor = init.now || Math.floor(Date.now() / 1000);
-        if (init.last_call_id > _sseCallLastId) _sseCallLastId = init.last_call_id;
+      var init = await fetch(API + '/poll_updates.php?cursor=0&chat_id=' + chatId + '&last_call_id=' + _sseCallLastId, {
+        headers: S.token ? { 'Authorization': 'Bearer ' + S.token } : {},
+      });
+      var initData = await init.json();
+      if (initData && initData.ok) {
+        _sseCursor = initData.now || Math.floor(Date.now() / 1000);
+        if (initData.last_call_id > _sseCallLastId) _sseCallLastId = initData.last_call_id;
       } else {
         _sseCursor = Math.floor(Date.now() / 1000);
       }
