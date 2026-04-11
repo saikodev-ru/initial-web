@@ -756,40 +756,48 @@ function animateSend(tempId) {
   // Stretch: visible from button to message position, then fade out
   var flight = clone.animate([
     // Start: small at button
-    { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', opacity: 0.9 },
+    { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', opacity: 1 },
     // Mid: halfway, slightly overshoot
     {
       transform: 'translate(' + (dx * 0.3) + 'px,' + (dy * 0.25) + 'px) scale(1.04)',
-      opacity: 0.95,
-      offset: 0.6
+      opacity: 1,
+      offset: 0.55
     },
-    // Fade-out: at target position, dissolve away
+    // Fade-out: near target position, start dissolving
+    {
+      transform: 'translate(' + (dx * 0.05) + 'px,' + (dy * 0.03) + 'px) scale(1.01)',
+      opacity: 0.6,
+      offset: 0.85
+    },
+    // End: at target, fully dissolved
     { transform: 'translate(0,0) scale(1)', opacity: 0 }
   ], {
-    duration: 380,
+    duration: 400,
     easing: 'cubic-bezier(.22,1.1,.36,1)',
     fill: 'forwards'
   });
 
   // Pulse the send button
   sendBtn.classList.add('send-pulse');
-  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 420);
+  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 440);
 
   // Hide real message during flight
   bubble.style.opacity = '0';
   bubble.style.transition = 'none';
 
-  // Fade-in real message as clone fades out
-  flight.onfinish = function() {
-    clone.remove();
-
-    bubble.style.transition = 'opacity .2s ease-out';
+  // Start fading in real message before clone finishes so no gap
+  setTimeout(function() {
+    bubble.style.transition = 'opacity .15s ease-out';
     bubble.style.opacity = '1';
-
     setTimeout(function() {
       bubble.style.transition = '';
       bubble.style.opacity = '';
-    }, 220);
+    }, 180);
+  }, 320);
+
+  // Clean up clone after animation
+  flight.onfinish = function() {
+    clone.remove();
   };
 }
 
