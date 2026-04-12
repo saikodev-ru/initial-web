@@ -432,6 +432,25 @@ function applyPinToggle(chat) {
   }, 400));
 }
 
+$('chat-ctx-search').onclick = () => {
+  if(!ctxChat) return; hideChatCtx();
+  const chat = ctxChat; ctxChat = null;
+  // Open the chat if not already open, then trigger search
+  if (chat.chat_id !== S.chatId) {
+    const existing = S.chats.find(c => c.chat_id === chat.chat_id);
+    if (existing) {
+      openChat(existing);
+      // Wait for chat to render, then open search
+      setTimeout(() => {
+        if (window._openChatSearch) window._openChatSearch();
+      }, 400);
+    }
+  } else {
+    // Chat already open, just open search
+    if (window._openChatSearch) window._openChatSearch();
+  }
+};
+
 $('chat-ctx-pin').onclick = () => {
   if(!ctxChat) return; hideChatCtx();
   const chat = ctxChat; ctxChat = null;

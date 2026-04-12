@@ -309,6 +309,7 @@ $('hdr-clickable').onclick=()=>{
   let _searchTimer=null;
   let _searchReq=0;      // request ID to cancel stale responses
   let _serverDone=false; // true when server response received
+  let _skipNextPopstate=false; // prevent popstate loop when closing via history.back()
 
   /* ── Open / Close ─────────────────────────────────────── */
   function open(){
@@ -326,11 +327,13 @@ $('hdr-clickable').onclick=()=>{
     countEl.classList.remove('has-results','searching-indicator');
     prevBtn.disabled=true;
     nextBtn.disabled=true;
+    // Push history state so system back gesture closes search
+    history.pushState({chatSearch:true},'');
     // Focus input after pill transition
     setTimeout(()=>input.focus(),380);
   }
 
-  function close(){
+  function close(skipPopstate){
     if(!_active)return;
     _active=false;
     _searchReq++;
@@ -342,6 +345,11 @@ $('hdr-clickable').onclick=()=>{
     // Restore input zone
     navPanel.classList.remove('on');
     if(inputZone) inputZone.style.display='';
+    // Go back in history (skip if called from popstate itself)
+    if(!skipPopstate&&history.state?.chatSearch){
+      _skipNextPopstate=true;
+      history.back();
+    }
   }
 
   function showNav(){
@@ -581,8 +589,19 @@ $('hdr-clickable').onclick=()=>{
   // Close button (in header)
   closeBtn.onclick=close;
 
+  // System back gesture closes search
+  window.addEventListener('popstate',e=>{
+    if(_skipNextPopstate){_skipNextPopstate=false;return;}
+    if(_active&&history.state?.chatSearch!==undefined){
+      // We popped back to the chat state (before search was pushed)
+      close(true); // true = skip history.back() to avoid loop
+    }
+  });
+
   // Expose close for openChat reset
   window._closeChatSearch=close;
+  // Expose open for context menu "Поиск"
+  window._openChatSearch=open;
 })();
 
 
@@ -1442,6 +1461,11 @@ document.addEventListener('keydown', e => {
   // 0. Esc prioritizes canceling search
   if (sbSearchActive) { exitSearch(); return; }
   if (!S.chatId) return;
+  // 0.5. Close inline chat search
+  if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) {
+    window._closeChatSearch();
+    return;
+  }
   // Не перехватывать если открыт модал, эмодзи-пикер или контекстное меню
   if (document.querySelector('.overlay.on')) return;
   if (document.querySelector('.epicker.on')) return;
@@ -1470,6 +1494,8 @@ window.addEventListener('popstate',e=>{
     if (panel && panel.classList.contains('open')) return;
     // Check if any modal is open
     if (document.querySelector('.overlay.on')) return;
+    // Don't close chat if search is active (search handles its own popstate)
+    if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) return;
     goBackToList();
   }
 });
