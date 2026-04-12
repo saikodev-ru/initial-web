@@ -1378,7 +1378,7 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: tap → nothing | long press (~450ms) → ctx menu | long-long press (~800ms) → text selection ──
+      // ── Mobile: scroll works normally | long press (~450ms) → ctx menu | long-long press (~800ms) → text selection ──
       let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
       let _textSelActive=false;
 
@@ -1392,7 +1392,8 @@ function makeMsgEl(m,newSender=true){
         _textSelActive=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
-        if(e.cancelable) e.preventDefault(); // prevent default on short tap (guard for non-cancelable during scroll)
+        // Do NOT preventDefault here — it would kill native scroll.
+        // body already has user-select:none, so short tap won't select text.
 
         // Long press (~450ms) → open context menu
         _ctxTimer=setTimeout(()=>{
@@ -1428,12 +1429,18 @@ function makeMsgEl(m,newSender=true){
             row.style.touchAction='auto';
           },350);
         },450);
-      },{passive:false});
+      },{passive:true});
       body.addEventListener('touchmove',e=>{
-        if(Math.abs(e.touches[0].clientX-_startX)>10||Math.abs(e.touches[0].clientY-_startY)>10){
+        const dx=Math.abs(e.touches[0].clientX-_startX);
+        const dy=Math.abs(e.touches[0].clientY-_startY);
+        if(dx>10||dy>10){
           _moved=true;
           clearTimeout(_ctxTimer);_ctxTimer=null;
           clearTimeout(_selTimer);_selTimer=null;
+          if(_longFired){
+            // Context menu is open — prevent scroll from moving the view
+            if(e.cancelable) e.preventDefault();
+          }
           if(_textSelActive){
             // Reset text selection after user scrolls away
             row.style.userSelect='';
@@ -1442,12 +1449,12 @@ function makeMsgEl(m,newSender=true){
             _textSelActive=false;
           }
         }
-      },{passive:true});
+      },{passive:false});
       body.addEventListener('touchend',e=>{
         clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         if(_moved||_blocked||_longFired)return;
-        // Short tap — do nothing (prevented default already)
+        // Short tap — do nothing (body has user-select:none, no text selection happens)
       });
       body.addEventListener('touchcancel',()=>{
         clearTimeout(_ctxTimer);_ctxTimer=null;
