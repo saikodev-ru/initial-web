@@ -127,25 +127,28 @@ function _renderPinDots() {
   if (!dotsEl) return;
 
   const count = S.pinnedMsgs.length;
-  dotsEl.innerHTML = '';
-
-  // Only show dots if there are 2+ pinned messages
-  if (count < 2) {
-    dotsEl.style.display = 'none';
-    return;
-  }
+  if (!count) { dotsEl.style.display = 'none'; return; }
   dotsEl.style.display = 'flex';
 
+  // Only rebuild dots if count changed
+  const prevCount = dotsEl.children.length;
+  if (prevCount !== count) {
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'pin-dot';
+      dot.dataset.index = i;
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        S.pinIndex = i;
+        updatePinBar();
+      });
+      dotsEl.appendChild(dot);
+    }
+  }
+  // Update active state only
   for (let i = 0; i < count; i++) {
-    const dot = document.createElement('span');
-    dot.className = 'pin-dot' + (i === S.pinIndex ? ' active' : '');
-    dot.dataset.index = i;
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      S.pinIndex = i;
-      updatePinBar();
-    });
-    dotsEl.appendChild(dot);
+    dotsEl.children[i].classList.toggle('active', i === S.pinIndex);
   }
 }
 
@@ -424,28 +427,48 @@ function initPinBar() {
   _initPinSwipe();
 }
 
+/* ── Silent content update (no animation, no re-show) — used by scroll sync ── */
+function _updatePinBarContent() {
+  if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
+  if (S.pinIndex < 0) S.pinIndex = 0;
+  if (S.pinIndex >= S.pinnedMsgs.length) S.pinIndex = S.pinnedMsgs.length - 1;
+
+  const p = S.pinnedMsgs[S.pinIndex];
+  const author = $('pin-bar-author');
+  if (author) author.textContent = p.pinned_for_all ? (p.sender_name || 'Пользователь') : 'Закреплено для вас';
+  const text = $('pin-bar-text');
+  if (text) {
+    let preview = p.body || (p.media_type === 'video' ? 'Видео' : p.media_type === 'photo' ? 'Фото' : p.media_type === 'voice' ? 'Голосовое сообщение' : 'Медиафайл');
+    preview = preview.replace(/\*\*/g, '').replace(/\|\|/g, '').replace(/\[.*?\]\(.*?\)/g, '').trim();
+    if (preview.length > 60) preview = preview.slice(0, 60) + '…';
+    text.textContent = preview || 'Медиафайл';
+  }
+  _renderPinDots();
+}
+
 /* ── Dynamic pin index: update pin bar when scrolling past pinned messages ── */
 function _syncPinIndexOnScroll() {
-  if (!S.pinnedMsgs || S.pinnedMsgs.length < 2) return;
+  if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
+  if (S.pinnedMsgs.length < 2) return; // nothing to switch to
   const area = $('msgs');
   if (!area) return;
   const areaRect = area.getBoundingClientRect();
   const topThreshold = areaRect.top + 80;
 
-  // Find the bottom-most pinned message that's above the threshold (scrolled past)
+  // Find the bottom-most pinned message whose bottom is above threshold (scrolled past)
   let bestIdx = -1;
   for (let i = 0; i < S.pinnedMsgs.length; i++) {
-    const row = area.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
+    const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
     if (!row) continue;
     const r = row.getBoundingClientRect();
     if (r.bottom <= topThreshold) {
       bestIdx = i;
     }
   }
-  // If no message is fully above threshold, check which is closest to top
+  // If no message is fully above threshold, check which is intersecting
   if (bestIdx === -1) {
     for (let i = 0; i < S.pinnedMsgs.length; i++) {
-      const row = area.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
+      const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
       if (!row) continue;
       const r = row.getBoundingClientRect();
       if (r.top <= topThreshold && r.bottom > topThreshold) {
@@ -457,14 +480,14 @@ function _syncPinIndexOnScroll() {
   if (bestIdx === -1) return;
   if (bestIdx !== S.pinIndex) {
     S.pinIndex = bestIdx;
-    updatePinBar();
+    _updatePinBarContent();
   }
 }
 
 // Throttled scroll sync for pin index
 let _pinScrollTimer = null;
 function _onMsgScrollSyncPin() {
-  if (!S.pinnedMsgs || S.pinnedMsgs.length < 2) return;
+  if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
   if (_pinScrollTimer) return;
   _pinScrollTimer = requestAnimationFrame(() => {
     _pinScrollTimer = null;
