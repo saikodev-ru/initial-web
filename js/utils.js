@@ -233,7 +233,7 @@ function aviHtml(name,url){
     if (isGif) {
       img = '<canvas data-gif-url="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" style="width:100%;height:100%;object-fit:cover;display:block;position:relative;border-radius:inherit" onload="this._gifInit||_gifCanvasInit(this)" onerror="_aviErr(this)"></canvas>';
     } else {
-      img = '<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" '
+      img = '<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" loading="lazy" decoding="async" '
         +'style="width:100%;height:100%;object-fit:cover;display:block;position:relative;opacity:0" '
         +'onload="_aviLoaded(this)" onerror="_aviErr(this)">';
     }

@@ -4,6 +4,34 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
+/* ── Full viewport height tracker — prevents background resize on keyboard ──
+   On Android, interactive-widget=resizes-content makes 100vh shrink when
+   the virtual keyboard opens. We track the "full" viewport height (without
+   keyboard) and expose it as --full-vh CSS variable so the background image
+   never changes size. */
+var _fullVh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+document.documentElement.style.setProperty('--full-vh', _fullVh + 'px');
+
+(function trackFullVh() {
+  if (!window.visualViewport) return;
+  var vv = window.visualViewport;
+  var kbdActive = false;
+
+  vv.addEventListener('resize', function() {
+    var h = vv.height;
+    if (h >= _fullVh * 0.85) {
+      // Viewport grew or stayed large — keyboard is NOT open
+      kbdActive = false;
+      _fullVh = h;
+      document.documentElement.style.setProperty('--full-vh', h + 'px');
+    } else if (!kbdActive) {
+      // First frame of keyboard opening — DON'T update, keep previous value
+      kbdActive = true;
+    }
+    // When keyboard is open — do nothing, --full-vh stays at pre-keyboard value
+  });
+})();
+
 /* ── Mobile keyboard: Telegram-style scroll on keyboard open ──
    When user is at bottom → scroll down by exact keyboard height.
    When user is scrolled up → do nothing (content clips from bottom).

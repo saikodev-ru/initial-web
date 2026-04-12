@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <script>
 (function(){
+  // Skip ETag check on visibility restore (PWA returning from background)
+  // to prevent forced reload when Android kills and restarts the WebView
+  if(document.visibilityState==='visible'&&sessionStorage.getItem('_echecked')){
+    sessionStorage.removeItem('_echecked');return;
+  }
   fetch(location.pathname,{method:'HEAD',cache:'no-store'})
     .then(function(r){
       var v=r.headers.get('etag')||r.headers.get('last-modified');
@@ -14,6 +19,8 @@
       else if(!prev)localStorage.setItem(key,v);
     })
     .catch(function(){});
+  // Mark that first-load ETag check has been done
+  sessionStorage.setItem('_echecked','1');
 })();
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
