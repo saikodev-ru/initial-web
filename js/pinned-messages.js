@@ -1,8 +1,8 @@
 'use strict';
 /* ══ PINNED MESSAGES — Telegram-style multi-pin with dot indicators and list screen ══ */
 
-S.pinnedMsgs = [];   // Array of pinned messages per current chat
-S.pinIndex  = 0;     // Current visible index (0 = oldest)
+S.pinnedMsgs = [];   // Array of pinned messages per current chat (DESC: newest first)
+S.pinIndex  = 0;     // Current visible index (0 = newest)
 
 /* ── Show skeleton loading state on the pin bar ── */
 function showPinBarSkeleton() {
@@ -70,8 +70,14 @@ async function fetchPinnedMsgs(chatId) {
         S.pinnedMsgs = [];
       }
     }
-    // Default to most recently pinned (last in array)
-    S.pinIndex = S.pinnedMsgs.length > 0 ? S.pinnedMsgs.length - 1 : 0;
+    // Sort DESC: newest pinned message first (Telegram behavior)
+    S.pinnedMsgs.sort((a, b) => {
+      const ta = a.sent_at || a.created_at || 0;
+      const tb = b.sent_at || b.created_at || 0;
+      return tb - ta;
+    });
+    // Default to most recently pinned (first in DESC array)
+    S.pinIndex = 0;
     hidePinBarSkeleton();
     updatePinBar();
   } catch {
@@ -217,16 +223,16 @@ function _renderPinDots() {
   }
 }
 
-/* ── Navigate between pinned messages ── */
+/* ── Navigate between pinned messages (DESC order: 0=newest, N-1=oldest) ── */
 function _pinNavPrev() {
   if (S.pinnedMsgs.length < 2) return;
-  S.pinIndex = Math.max(0, S.pinIndex - 1);
+  S.pinIndex = Math.max(0, S.pinIndex - 1); // → newer (lower index)
   updatePinBar();
 }
 
 function _pinNavNext() {
   if (S.pinnedMsgs.length < 2) return;
-  S.pinIndex = Math.min(S.pinnedMsgs.length - 1, S.pinIndex + 1);
+  S.pinIndex = Math.min(S.pinnedMsgs.length - 1, S.pinIndex + 1); // → older (higher index)
   updatePinBar();
 }
 
@@ -258,8 +264,8 @@ function _initPinSwipe() {
   inner.addEventListener('touchend', (e) => {
     if (!swiping || S.pinnedMsgs.length < 2) return;
     const dx = e.changedTouches[0].clientX - startX;
-    if (dx < -40) _pinNavPrev();      // swipe left → show previous (older)
-    else if (dx > 40) _pinNavNext();   // swipe right → show next (newer)
+    if (dx < -40) _pinNavNext();      // swipe left → show next in list (older, higher index)
+    else if (dx > 40) _pinNavPrev();   // swipe right → show prev in list (newer, lower index)
   }, { passive: true });
 }
 
@@ -297,10 +303,8 @@ function openPinListScreen() {
     return;
   }
 
-  // Render messages in reverse order (newest first)
-  const reversed = [...S.pinnedMsgs].reverse();
-  reversed.forEach((p, ri) => {
-    const realIndex = S.pinnedMsgs.length - 1 - ri;
+  // Render messages — already DESC (newest first), no reverse needed
+  S.pinnedMsgs.forEach((p, i) => {
     const item = document.createElement('div');
     item.className = 'pin-list-item';
     item.dataset.msgId = p.message_id;
@@ -512,37 +516,34 @@ function _updatePinBarContent() {
 }
 
 /* ── Dynamic pin index: update pin bar when scrolling past pinned messages ── */
+/* DESC array: idx 0 = newest (bottom of chat DOM), idx N-1 = oldest (top of chat DOM)
+   Logic: find the first (newest) pinned message whose top is at or below the viewport bottom.
+   This correctly handles messages that are IN the viewport as well as those scrolled above. */
 function _syncPinIndexOnScroll() {
   if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
-  if (S.pinnedMsgs.length < 2) return; // nothing to switch to
   const area = $('msgs');
   if (!area) return;
   const areaRect = area.getBoundingClientRect();
-  const topThreshold = areaRect.top + 80;
+  const bottomLine = areaRect.bottom;
 
-  // Find the bottom-most pinned message whose bottom is above threshold (scrolled past)
+  // DESC: iterate from newest (0) to oldest (N-1)
+  // Find the first pinned message whose top is at or below the viewport bottom
+  // (i.e., at least partially visible or scrolled above)
   let bestIdx = -1;
   for (let i = 0; i < S.pinnedMsgs.length; i++) {
     const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
     if (!row) continue;
     const r = row.getBoundingClientRect();
-    if (r.bottom <= topThreshold) {
+    if (r.top <= bottomLine) {
       bestIdx = i;
+      break; // First match = newest message at/below viewport bottom
     }
   }
-  // If no message is fully above threshold, check which is intersecting
-  if (bestIdx === -1) {
-    for (let i = 0; i < S.pinnedMsgs.length; i++) {
-      const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
-      if (!row) continue;
-      const r = row.getBoundingClientRect();
-      if (r.top <= topThreshold && r.bottom > topThreshold) {
-        bestIdx = i;
-        break;
-      }
-    }
-  }
-  if (bestIdx === -1) return;
+
+  // Fallback: if ALL pinned messages are below viewport (user above all pins),
+  // show the oldest one (last in DESC = first the user will encounter scrolling down)
+  if (bestIdx === -1) bestIdx = S.pinnedMsgs.length - 1;
+
   if (bestIdx !== S.pinIndex) {
     S.pinIndex = bestIdx;
     _updatePinBarContent();
