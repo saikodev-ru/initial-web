@@ -2503,8 +2503,20 @@ function hideSBBtn(){
     const hdrR=hdr.getBoundingClientRect();
     // Hide pill if header is off-screen (chat not visible)
     if(hdrR.bottom<=0||hdr.width===0){pill.style.display='none';return;}
+    // Calculate offset below all top panels: chat-hdr + pin-bar + mini-player
+    let topOffset = hdrR.bottom;
+    const pinBar = document.getElementById('pin-bar');
+    if (pinBar && pinBar.classList.contains('visible')) {
+      const pinR = pinBar.getBoundingClientRect();
+      topOffset = Math.max(topOffset, pinR.bottom);
+    }
+    const miniPlayer = document.getElementById('voice-mini-player');
+    if (miniPlayer && miniPlayer.classList.contains('visible')) {
+      const mpR = miniPlayer.getBoundingClientRect();
+      topOffset = Math.max(topOffset, mpR.bottom);
+    }
     pill.style.display='';
-    pill.style.top=Math.round(hdrR.bottom)+'px';
+    pill.style.top=Math.round(topOffset)+'px';
     pill.style.left=Math.round(chatR.left)+'px';
     pill.style.width=Math.round(chatR.width)+'px';
   }
@@ -2519,6 +2531,11 @@ function hideSBBtn(){
   const _pillResizeObs=new ResizeObserver(_positionPill);
   const _pillHdr=document.getElementById('chat-hdr');
   if(_pillHdr)_pillResizeObs.observe(_pillHdr);
+  // Also observe pin-bar and mini-player for height changes
+  const _pillPinBar=document.getElementById('pin-bar');
+  if(_pillPinBar)_pillResizeObs.observe(_pillPinBar);
+  const _pillMiniPlayer=document.getElementById('voice-mini-player');
+  if(_pillMiniPlayer)_pillResizeObs.observe(_pillMiniPlayer);
   window.addEventListener('resize',_positionPill,{passive:true});
 
   // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)

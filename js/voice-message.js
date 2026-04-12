@@ -1652,7 +1652,10 @@ window.VoiceMsg = (function () {
       </button>
     `;
 
-    chatHdr.insertAdjacentElement('afterend', el);
+    // Insert after pin-bar (if exists), otherwise after chat-hdr
+    const pinBar = chatArea.querySelector('#pin-bar');
+    const insertAfter = pinBar || chatHdr;
+    insertAfter.insertAdjacentElement('afterend', el);
     state.ui.miniPlayer = el;
 
     $('#vmp-play').addEventListener('click', (e) => {

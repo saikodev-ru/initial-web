@@ -936,16 +936,37 @@ if (window._swSupported) {
             </div>
           </div>
 
-          <!-- Pinned message bar -->
+          <!-- Pinned message bar (Telegram-style multi-pin with dot indicators) -->
           <div class="pin-bar" id="pin-bar" style="display:none">
             <div class="pin-bar-inner">
-              <div class="pin-bar-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/></svg></div>
+              <!-- Dot indicators (left) — shows which pinned message is visible -->
+              <div class="pin-dots" id="pin-dots" style="display:none"></div>
+              <!-- Content (center, left-aligned) -->
               <div class="pin-bar-content" id="pin-bar-content">
-                <span class="pin-bar-text" id="pin-bar-text"></span>
                 <span class="pin-bar-author" id="pin-bar-author"></span>
+                <span class="pin-bar-text" id="pin-bar-text"></span>
               </div>
-              <button class="pin-bar-close" id="pin-bar-close" aria-label="Закрыть">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <!-- Pin + List icon (right) — opens pinned messages list -->
+              <button class="pin-bar-list-btn" id="pin-bar-list-btn" aria-label="Закрепленные сообщения">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/><line x1="4" y1="21" x2="20" y2="21"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Pinned messages list screen (full-screen overlay) -->
+          <div class="pin-list-screen" id="pin-list-screen" style="display:none">
+            <div class="pin-list-hdr">
+              <button class="pin-list-back" id="pin-list-back" aria-label="Назад">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+              </button>
+              <span class="pin-list-title">Закреплённые сообщения</span>
+              <span class="pin-list-count" id="pin-list-count"></span>
+            </div>
+            <div class="pin-list-body" id="pin-list-body"></div>
+            <div class="pin-list-footer">
+              <button class="pin-list-unpin-all" id="pin-list-unpin-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Открепить все сообщения
               </button>
             </div>
           </div>

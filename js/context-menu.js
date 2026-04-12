@@ -33,7 +33,7 @@ function showCtx(e, m) {
   // Update pin label
   const pinLabel = $('ctx-pin-label');
   if(pinLabel && m.body) {
-    const isPinned = S.pinnedMsg && S.pinnedMsg.message_id == m.id;
+    const isPinned = S.pinnedMsgs && S.pinnedMsgs.some(p => p.message_id == m.id);
     pinLabel.textContent = isPinned ? 'Открепить' : 'Закрепить';
   }
   
