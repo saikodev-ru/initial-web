@@ -139,6 +139,8 @@ function openChat(c){
   hideSBBtn();
   if(S.sse){stopSSE();}
   hideRbar(true);
+  if (window._hidePill) window._hidePill(); // reset pill on chat switch
+  if (window._closeChatSearch) window._closeChatSearch(); // close inline search
   $$('.ci').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.ci[data-chat-id="${c.chat_id}"]`)?.classList.add('active');
   const name=c.partner_name||'@'+c.partner_signal_id;
@@ -245,6 +247,7 @@ function openChat(c){
     // 3. scrollTop читает scrollHeight синхронно (layout уже выполнен),
     //    устанавливаем до первого paint — пользователь не видит прыжка
     restoreScrollPos(chatId);
+    requestAnimationFrame(() => { if (window._positionPill) window._positionPill(); });
 
     // 4. Фоновый network-запрос — не блокирует UI
     fetchMsgs(chatId,true);
@@ -262,6 +265,9 @@ function openChat(c){
     S.lastId[chatId]=0;
     fetchMsgs(chatId,true);
   }
+  // Reset pin bar + init pins from cache, then validate with server
+  if(typeof resetPinBarForChatSwitch === 'function') resetPinBarForChatSwitch();
+  if(typeof initPinsForChat === 'function') initPinsForChat(chatId);
 }
 function updateHdrSt(c){
   const el=$('hdr-st');if(!el)return;
@@ -282,6 +288,356 @@ $('hdr-clickable').onclick=()=>{
   if(isSystemChat(S.partner)||isSavedMsgs(S.partner))return;
   openPartnerModal();
 };
+
+/* ══ INLINE CHAT SEARCH (Mobile long-press on center pill) ══ */
+/* Hybrid search: instant cached results + server-side full search */
+(function initChatSearch(){
+  const pill=$('hdr-pill');
+  const searchEl=$('hdr-chat-search');
+  const input=$('hdr-search-input');
+  const closeBtn=$('hdr-search-close');
+  // Bottom navigation panel
+  const navPanel=$('search-nav-panel');
+  const countEl=$('search-nav-count');
+  const prevBtn=$('search-nav-prev');
+  const nextBtn=$('search-nav-next');
+  // Input zone (hidden while searching)
+  const inputZone=$('input-zone');
+  if(!pill||!searchEl||!input||!closeBtn||!navPanel||!countEl)return;
+
+  let _active=false;
+  let _results=[];       // full ordered results [{id, body}] from server (desc by id)
+  let _totalInChat=0;    // total matches on server
+  let _currentIdx=-1;    // index into _results (0 = oldest, length-1 = newest)
+  let _searchTimer=null;
+  let _searchReq=0;      // request ID to cancel stale responses
+  let _serverDone=false; // true when server response received
+  let _skipNextPopstate=false; // prevent popstate loop when closing via history.back()
+
+  /* ── Open / Close ─────────────────────────────────────── */
+  function open(){
+    if(_active)return;
+    _active=true;
+    // GPU-accelerate the pill transition
+    pill.style.willChange='max-width,padding,gap,transform,opacity';
+    pill.classList.add('searching');
+    input.value='';
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
+    _searchReq++;
+    clearHighlights();
+    // Show bottom panel, hide input zone
+    if(inputZone) inputZone.style.display='none';
+    navPanel.classList.add('on');
+    countEl.textContent='Введите запрос';
+    countEl.classList.remove('has-results','searching-indicator');
+    prevBtn.disabled=true;
+    nextBtn.disabled=true;
+    // Push history state so system back gesture closes search
+    history.pushState({chatSearch:true},'');
+    // Focus input after pill transition
+    setTimeout(()=>input.focus(),180);
+  }
+
+  function close(skipPopstate){
+    if(!_active)return;
+    _active=false;
+    _searchReq++;
+    pill.classList.remove('searching');
+    // Remove will-change after transition ends to free GPU memory
+    pill.addEventListener('transitionend',function h(){pill.style.willChange='';pill.removeEventListener('transitionend',h);},{once:true});
+    // Fallback: clean up after 300ms in case transitionend doesn't fire
+    setTimeout(()=>{pill.style.willChange='';},300);
+    input.value='';
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
+    clearHighlights();
+    input.blur();
+    // Restore input zone
+    navPanel.classList.remove('on');
+    if(inputZone) inputZone.style.display='';
+    // Go back in history (skip if called from popstate itself)
+    if(!skipPopstate&&history.state?.chatSearch){
+      _skipNextPopstate=true;
+      history.back();
+    }
+  }
+
+  function showNav(){
+    navPanel.classList.add('on');
+    if(inputZone) inputZone.style.display='none';
+  }
+
+  /* ── Highlight management ─────────────────────────────── */
+  function clearHighlights(){
+    const area=$('msgs');
+    if(!area)return;
+    area.classList.remove('search-dim-active');
+    area.querySelectorAll('.search-match,.search-match-current').forEach(el=>{
+      el.classList.remove('search-match','search-match-current');
+      el.querySelectorAll('mark').forEach(mk=>mk.replaceWith(mk.textContent));
+    });
+  }
+
+  function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+  function highlightMatchesInDOM(ids){
+    const area=$('msgs');
+    if(!area)return;
+    area.classList.add('search-dim-active');
+    ids.forEach(id=>{
+      const row=area.querySelector(`.mrow[data-id="${id}"]`);
+      if(row)row.classList.add('search-match');
+    });
+  }
+
+  function highlightText(row){
+    const q=input.value.trim();
+    if(!q)return;
+    const regex=new RegExp('('+escapeRegex(q)+')','gi');
+    row.querySelectorAll('.mtxt').forEach(txt=>{
+      const walker=document.createTreeWalker(txt,NodeFilter.SHOW_TEXT,null,false);
+      const textNodes=[];
+      let node;
+      while(node=walker.nextNode())textNodes.push(node);
+      textNodes.forEach(tn=>{
+        if(tn.parentElement.tagName==='MARK')return;
+        const parts=tn.textContent.split(regex);
+        if(parts.length<=1)return;
+        const frag=document.createDocumentFragment();
+        parts.forEach((p,i)=>{
+          if(i>0){const mk=document.createElement('mark');mk.textContent=p;frag.appendChild(mk);}
+          else frag.appendChild(document.createTextNode(p));
+        });
+        tn.parentNode.replaceChild(frag,tn);
+      });
+    });
+  }
+
+  /* ── Cached (instant) search ──────────────────────────── */
+  function searchCached(query){
+    const msgs=S.msgs[S.chatId];
+    if(!msgs||!msgs.length)return[];
+    const q=query.toLowerCase();
+    return msgs.filter(m=>m.body&&m.body.toLowerCase().includes(q)).map(m=>({id:m.id,body:m.body}));
+  }
+
+  /* ── Main hybrid search ───────────────────────────────── */
+  async function doSearch(query){
+    clearHighlights();
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
+    const reqId=++_searchReq;
+
+    if(!query.trim()||!S.chatId){
+      showNav();
+      countEl.textContent='Введите запрос';
+      countEl.classList.remove('has-results','searching-indicator');
+      prevBtn.disabled=true;
+      nextBtn.disabled=true;
+      return;
+    }
+
+    showNav();
+    const q=query.trim();
+
+    // ── Phase 1: Instant cached results ──
+    const cached=searchCached(q);
+    if(cached.length){
+      // Sort desc by id (newest first)
+      cached.sort((a,b)=>b.id-a.id);
+      _results=cached;
+      highlightMatchesInDOM(_results.map(r=>r.id));
+      prevBtn.disabled=false;
+      nextBtn.disabled=false;
+      _currentIdx=0; // newest first
+      highlightCurrent();
+      countEl.textContent='1 из '+_results.length;
+      countEl.classList.add('has-results','searching-indicator');
+    } else {
+      countEl.textContent='Поиск…';
+      countEl.classList.remove('has-results');
+      countEl.classList.add('searching-indicator');
+      prevBtn.disabled=true;
+      nextBtn.disabled=true;
+    }
+
+    // ── Phase 2: Server-side search (full chat) ──
+    try{
+      const res=await api('search_messages?chat_id='+S.chatId+'&q='+encodeURIComponent(q)+'&limit=500');
+      if(reqId!==_searchReq)return;
+      _serverDone=true;
+      countEl.classList.remove('searching-indicator');
+
+      if(!res.ok||!res.messages){
+        // Keep cached results if we have them
+        if(!_results.length) countEl.textContent='Ошибка';
+        return;
+      }
+
+      const serverResults=res.messages.map(m=>({id:m.id,body:m.body}));
+      // Already sorted desc by id from server
+      _results=serverResults;
+      _totalInChat=res.total_in_chat||res.messages.length;
+
+      // Re-highlight with authoritative server results
+      clearHighlights();
+      highlightMatchesInDOM(_results.map(r=>r.id));
+
+      if(!_results.length){
+        countEl.textContent='Ничего не найдено';
+        countEl.classList.remove('has-results');
+        prevBtn.disabled=true;
+        nextBtn.disabled=true;
+        return;
+      }
+
+      prevBtn.disabled=false;
+      nextBtn.disabled=false;
+
+      // If cached results existed, try to keep current position
+      if(cached.length&&_currentIdx>=0){
+        // Try to find a similar position — snap to newest
+        _currentIdx=0;
+      } else {
+        _currentIdx=0; // newest first
+      }
+      highlightCurrent();
+    }catch(e){
+      if(reqId!==_searchReq)return;
+      _serverDone=true;
+      countEl.classList.remove('searching-indicator');
+      if(!_results.length) countEl.textContent='Ошибка';
+    }
+  }
+
+  /* ── Current match highlighting + scroll ──────────────── */
+  function highlightCurrent(){
+    const area=$('msgs');
+    if(!area)return;
+    area.querySelectorAll('.search-match-current').forEach(el=>el.classList.remove('search-match-current'));
+    area.querySelectorAll('.search-match mark').forEach(mk=>mk.replaceWith(mk.textContent));
+
+    if(_currentIdx<0||_currentIdx>=_results.length)return;
+
+    const id=_results[_currentIdx].id;
+    const row=area.querySelector(`.mrow[data-id="${id}"]`);
+
+    if(!row){
+      // Message not in DOM — show index but don't scroll
+      updateCount();
+      return;
+    }
+
+    row.classList.add('search-match-current');
+    highlightText(row);
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+    updateCount();
+  }
+
+  function updateCount(){
+    const displayTotal=_totalInChat>_results.length?_totalInChat:_results.length;
+    const extra=_totalInChat>_results.length?' ('+_totalInChat+')':'';
+    if(_results.length){
+      countEl.textContent=(_currentIdx+1)+' из '+displayTotal+extra;
+      countEl.classList.add('has-results');
+    }
+  }
+
+  /* ── Navigation ───────────────────────────────────────── */
+  function goNext(){
+    if(!_results.length)return;
+    // _results is newest-first (desc by id)
+    // "Next" in Telegram = go to OLDER message = move forward in array
+    _currentIdx=Math.min(_currentIdx+1,_results.length-1);
+    highlightCurrent();
+  }
+  function goPrev(){
+    if(!_results.length)return;
+    // "Prev" = go to NEWER message = move backward in array
+    _currentIdx=Math.max(_currentIdx-1,0);
+    highlightCurrent();
+  }
+
+  /* ── Long-press on center pill → open search (mobile) ── */
+  if('ontouchstart' in window){
+    let _lpTimer=null,_lpMoved=false,_lpX=0,_lpY=0;
+    pill.addEventListener('touchstart',e=>{
+      if(_active)return;
+      _lpMoved=false;
+      _lpX=e.touches[0].clientX;
+      _lpY=e.touches[0].clientY;
+      _lpTimer=setTimeout(()=>{
+        if(_lpMoved)return;
+        navigator.vibrate?.(12);
+        open();
+      },250);
+    },{passive:true});
+    pill.addEventListener('touchmove',e=>{
+      if(Math.abs(e.touches[0].clientX-_lpX)>10||Math.abs(e.touches[0].clientY-_lpY)>10){
+        _lpMoved=true;
+        clearTimeout(_lpTimer);_lpTimer=null;
+      }
+    },{passive:true});
+    pill.addEventListener('touchend',()=>{clearTimeout(_lpTimer);_lpTimer=null;});
+    pill.addEventListener('touchcancel',()=>{clearTimeout(_lpTimer);_lpTimer=null;});
+  }
+
+  // Search input with debounce
+  input.addEventListener('input',()=>{
+    clearTimeout(_searchTimer);
+    _searchTimer=setTimeout(()=>doSearch(input.value),250);
+  });
+
+  // Keyboard shortcuts
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();goNext();}
+    else if(e.key==='Enter'&&e.shiftKey){e.preventDefault();goPrev();}
+    else if(e.key==='Escape'){e.preventDefault();close();}
+  });
+
+  // Bottom navigation buttons
+  prevBtn.onclick=goPrev;
+  nextBtn.onclick=goNext;
+
+  // Close button (in header)
+  closeBtn.onclick=close;
+
+  // System back gesture closes search
+  window.addEventListener('popstate',e=>{
+    if(_skipNextPopstate){_skipNextPopstate=false;return;}
+    if(_active&&history.state?.chatSearch!==undefined){
+      // We popped back to the chat state (before search was pushed)
+      close(true); // true = skip history.back() to avoid loop
+    }
+  });
+
+  // Expose close for openChat reset
+  window._closeChatSearch=close;
+  // Expose open for context menu "Поиск"
+  window._openChatSearch=open;
+
+  // Desktop: Ctrl/Cmd+F keyboard shortcut to open chat search
+  document.addEventListener('keydown', e => {
+    if (((e.ctrlKey || e.metaKey) && e.key === 'f') && S.chatId) {
+      // Only intercept if no text input is focused (except our search input)
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' && document.activeElement !== input) return;
+      if (tag === 'TEXTAREA' || tag === 'MFIELD') return;
+      e.preventDefault();
+      if (!_active) open();
+      else { input.focus(); input.select(); }
+    }
+  });
+
+  // Desktop: search button in header actions
+  var deskSearchBtn = $('btn-hdr-search');
+  if (deskSearchBtn) {
+    deskSearchBtn.onclick = () => {
+      if (S.chatId) {
+        if (!_active) open();
+        else { input.focus(); input.select(); }
+      }
+    };
+  }
+})();
 
 
 function openProfileModal(u, isSelf=false){
@@ -1140,6 +1496,11 @@ document.addEventListener('keydown', e => {
   // 0. Esc prioritizes canceling search
   if (sbSearchActive) { exitSearch(); return; }
   if (!S.chatId) return;
+  // 0.5. Close inline chat search
+  if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) {
+    window._closeChatSearch();
+    return;
+  }
   // Не перехватывать если открыт модал, эмодзи-пикер или контекстное меню
   if (document.querySelector('.overlay.on')) return;
   if (document.querySelector('.epicker.on')) return;
@@ -1168,6 +1529,8 @@ window.addEventListener('popstate',e=>{
     if (panel && panel.classList.contains('open')) return;
     // Check if any modal is open
     if (document.querySelector('.overlay.on')) return;
+    // Don't close chat if search is active (search handles its own popstate)
+    if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) return;
     goBackToList();
   }
 });
@@ -1247,6 +1610,17 @@ function updateHeaderUI(c, name) {
         hn.style.minWidth = '0';
         hn.style.maxWidth = '100%';
         setTimeout(() => checkMarquee(span), 50);
+
+    // Mute indicator in header
+    const isMutedUser = (typeof isUserMuted === 'function' && c.partner_id) ? isUserMuted(c.partner_id) : false;
+    const existingMuteIcon = hn.querySelector('.hdr-mute-icon');
+    if (existingMuteIcon) existingMuteIcon.remove();
+    if (isMutedUser && !isSavedMsgs(c) && !isSystemChat(c)) {
+      const mi = document.createElement('span');
+      mi.className = 'hdr-mute-icon';
+      mi.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+      hn.appendChild(mi);
+    }
   }
 
   // 2. Avatar (desktop)

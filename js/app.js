@@ -4,6 +4,34 @@
 window.__mobileEmulated = false;
 window.__isMobileView = () => window.innerWidth <= 680 || window.__mobileEmulated;
 
+/* ── Full viewport height tracker — prevents background resize on keyboard ──
+   On Android, interactive-widget=resizes-content makes 100vh shrink when
+   the virtual keyboard opens. We track the "full" viewport height (without
+   keyboard) and expose it as --full-vh CSS variable so the background image
+   never changes size. */
+var _fullVh = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+document.documentElement.style.setProperty('--full-vh', _fullVh + 'px');
+
+(function trackFullVh() {
+  if (!window.visualViewport) return;
+  var vv = window.visualViewport;
+  var kbdActive = false;
+
+  vv.addEventListener('resize', function() {
+    var h = vv.height;
+    if (h >= _fullVh * 0.85) {
+      // Viewport grew or stayed large — keyboard is NOT open
+      kbdActive = false;
+      _fullVh = h;
+      document.documentElement.style.setProperty('--full-vh', h + 'px');
+    } else if (!kbdActive) {
+      // First frame of keyboard opening — DON'T update, keep previous value
+      kbdActive = true;
+    }
+    // When keyboard is open — do nothing, --full-vh stays at pre-keyboard value
+  });
+})();
+
 /* ── Mobile keyboard: Telegram-style scroll on keyboard open ──
    When user is at bottom → scroll down by exact keyboard height.
    When user is scrolled up → do nothing (content clips from bottom).
@@ -225,6 +253,10 @@ $('btn-prev-send').onclick = async () => {
   });
   scrollBot();
 
+  // ── 2.5 Register pending tids so SSE/polling can swap instead of duplicate ──
+  S._pendingTids = S._pendingTids || new Map();
+  pending.forEach(({ tid, pf }) => S._pendingTids.set(tid, '|' + pf.media_type + '|' + (pf.batch_id || '')));
+
   // ── 3. Attach upload-ring overlay to each bubble ──────────────
   const abortMap = new Map();
 
@@ -310,6 +342,7 @@ $('btn-prev-send').onclick = async () => {
         const r = document.querySelector(`.mrow[data-id="${tid}"]`);
         if (r) deleteMsgEl(r);
         if (S.msgs[S.chatId]) S.msgs[S.chatId] = S.msgs[S.chatId].filter(m => m.id !== tid);
+        if (S._pendingTids) S._pendingTids.delete(tid);
         return;
       }
 
@@ -331,8 +364,11 @@ $('btn-prev-send').onclick = async () => {
       if (S.msgs[S.chatId]) {
         const idx = S.msgs[S.chatId].findIndex(m => m.id === tid);
         if (idx >= 0) Object.assign(S.msgs[S.chatId][idx], { id: res.message_id, media_url: finalUrl });
+        // Dedup: remove duplicate real IDs left by race with SSE/fetchMsgs
+        S.msgs[S.chatId] = S.msgs[S.chatId].filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
       }
       S.rxns[res.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
+      if (S._pendingTids) S._pendingTids.delete(tid);
       S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, res.message_id);
 
       // ── Ring → done: fill to 100%, fade overlay, patch DOM ────
@@ -371,6 +407,7 @@ $('btn-prev-send').onclick = async () => {
 
     } catch (e) {
       if (e && e.name === 'AbortError') return; // user cancelled
+      if (S._pendingTids) S._pendingTids.delete(tid);
       removeMsgById(tid);
     }
   }));
@@ -476,11 +513,22 @@ async function _ssePoll(chatId) {
 
           // ── Pending temp-id match: our own sent message not yet confirmed ──
           if (m.sender_id === S.user.id) {
-            var pending = S._pendingTids || new Map();
+            var pending = S._pendingTids;
             var matchTid = null;
-            pending.forEach(function(v, k) { if (v === m.body) matchTid = k; });
+            if (pending && pending.size) {
+              // Content-based fingerprint matching (not FIFO) to handle rapid-fire sends
+              var incomingFp = (m.body||'') + '|' + (m.media_type||'') + '|' + (m.batch_id||'');
+              // Exact fingerprint match only (no FIFO — prevents wrong-match with rapid multi-send)
+              for (var entry of pending) {
+                var t = entry[0], storedFp = entry[1];
+                if (storedFp && storedFp === incomingFp && S.msgs[cid] && S.msgs[cid].some(function(x){ return x.id === t; })) {
+                  matchTid = t; break;
+                }
+              }
+            }
             if (matchTid) {
               // Promote temp → real in state and DOM (avoid duplicate)
+              pending.delete(matchTid);
               var tidIdx = -1;
               for (var ti = 0; ti < S.msgs[cid].length; ti++) {
                 if (S.msgs[cid][ti].id === matchTid) { tidIdx = ti; break; }
@@ -493,6 +541,9 @@ async function _ssePoll(chatId) {
               if (m.id > (S.lastId[cid] || 0)) S.lastId[cid] = m.id;
               return;
             }
+            // Own message with no pending match — skip it entirely
+            // (send_message response handler will promote the temp message)
+            return;
           }
 
           // Skip duplicates already in state
@@ -609,6 +660,8 @@ async function sendDocumentFiles(docFiles) {
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmpMsg);
     S.rxns[tid] = [];
+    S._pendingTids = S._pendingTids || new Map();
+    S._pendingTids.set(tid, '|document|');
     appendMsg(S.chatId, tmpMsg);
     scrollBot();
     try {
@@ -620,7 +673,7 @@ async function sendDocumentFiles(docFiles) {
         body: formData,
       });
       var res = await uploadRes.json();
-      if (!res.ok) { toast(res.message || 'Ошибка загрузки файла', 'err'); removeMsgById(tid); continue; }
+      if (!res.ok) { toast(res.message || 'Ошибка загрузки файла', 'err'); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); continue; }
       var payload = {
         to_signal_id: S.partner.partner_signal_id, body: '',
         media_url: res.url, media_type: 'document',
@@ -628,7 +681,7 @@ async function sendDocumentFiles(docFiles) {
       };
       if (tmpMsg.reply_to) payload.reply_to = tmpMsg.reply_to;
       var sendRes = await api('send_message', 'POST', payload);
-      if (!sendRes.ok) { toast(sendRes.message || 'Ошибка отправки', 'err'); removeMsgById(tid); continue; }
+      if (!sendRes.ok) { toast(sendRes.message || 'Ошибка отправки', 'err'); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); continue; }
       var finalUrl = getMediaUrl(sendRes.media_url || res.url);
       if (S.msgs[S.chatId]) {
         var idx = S.msgs[S.chatId].findIndex(function(m) { return m.id === tid; });
@@ -636,8 +689,11 @@ async function sendDocumentFiles(docFiles) {
           id: sendRes.message_id, media_url: finalUrl,
           media_type: 'document', media_file_name: file.name, media_file_size: file.size,
         });
+        // Dedup: remove duplicate real IDs left by race with SSE/fetchMsgs
+        S.msgs[S.chatId] = S.msgs[S.chatId].filter(function(m, i, arr) { return arr.findIndex(function(x) { return x.id === m.id; }) === i; });
       }
       S.rxns[sendRes.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
+      if (S._pendingTids) S._pendingTids.delete(tid);
       S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, sendRes.message_id);
       var rowEl = document.querySelector('.mrow[data-id="' + tid + '"]');
       if (rowEl) {
@@ -658,7 +714,7 @@ async function sendDocumentFiles(docFiles) {
           document.querySelector('.ci[data-chat-id="' + sendRes.chat_id + '"]').classList.add('active'); }
         $('msgs').innerHTML = ''; await fetchMsgs(sendRes.chat_id, true);
       }
-    } catch(e) { console.error('Document upload error:', e); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
+    } catch(e) { console.error('Document upload error:', e); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
   }
 }
 
@@ -1462,18 +1518,10 @@ window.addEventListener('popstate', (e) => {
   closeProfile();
 });
 
-/* ── BG PATTERN TOGGLE ────────────────────────────────── */
-const BG_PAT_KEY = 'sg_bg_pattern';
+/* ── BG PATTERN LOCK (toggle logic lives in index.html inline script) ── */
 const BG_IMG_KEY = 'sg_chat_bg_image';
 const _bgPatEl = $('tog-bg-pattern');
 const _bgPatDescEl = $('bg-pattern-desc');
-function _applyBgPattern(on) {
-  const chatArea = $('msgs');
-  if (!chatArea) return;
-  if (on) chatArea.style.backgroundImage = 'radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px)';
-  else chatArea.style.backgroundImage = '';
-  if (chatArea.style.backgroundImage) chatArea.style.backgroundSize = '20px 20px';
-}
 function _updatePatternLock() {
   const hasCustomBg = !!localStorage.getItem(BG_IMG_KEY);
   if (_bgPatEl) {
@@ -1491,15 +1539,8 @@ function _updatePatternLock() {
     }
   }
 }
-const _bgPatOn = (() => { try { return localStorage.getItem(BG_PAT_KEY) === '1'; } catch { return false; } })();
-if (_bgPatEl) { _bgPatEl.classList.toggle('on', _bgPatOn); _applyBgPattern(_bgPatOn); _updatePatternLock(); }
-if (_bgPatEl) _bgPatEl.onclick = () => {
-  if (_bgPatEl.disabled) return;
-  const on = !_bgPatEl.classList.contains('on');
-  _bgPatEl.classList.toggle('on', on);
-  _applyBgPattern(on);
-  try { localStorage.setItem(BG_PAT_KEY, on ? '1' : '0'); } catch { }
-};
+// Init lock state early so inline script's applyPatternSetting sees correct toggle
+_updatePatternLock();
 
 /* ── CUSTOM CHAT BACKGROUND IMAGE ───────────────────────── */
 const BG_IMG_EL_ID = 'chat-bg-custom';
@@ -1527,6 +1568,9 @@ function _applyCustomBg(dataUrl) {
     else if (blurLevel === 2) el.classList.add('blurred-med');
     else if (blurLevel === 1) el.classList.add('blurred');
     document.body.classList.add('no-pattern');
+    try { localStorage.setItem('sg_hide_pattern', 'true'); } catch {}
+    const chatArea = $('msgs');
+    if (chatArea) chatArea.style.backgroundImage = '';
     if (_bgImgRemove) _bgImgRemove.style.display = '';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Установлено';
     _updatePatternLock();
@@ -1535,6 +1579,7 @@ function _applyCustomBg(dataUrl) {
   } else {
     if (el) el.remove();
     document.body.classList.remove('no-pattern');
+    try { localStorage.setItem('sg_hide_pattern', 'false'); } catch {}
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
     _updatePatternLock();

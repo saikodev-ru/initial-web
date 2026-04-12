@@ -28,13 +28,13 @@ function showCtx(e, m) {
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
   $('ctx-del-partner').style.display = !isMe ? 'flex' : 'none';
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
-  // Mute user button: only show for other people's messages
-  const muteBtn = $('ctx-mute-user');
-  const muteLabel = $('ctx-mute-user-label');
-  if (muteBtn) {
-    const muted = isUserMuted(m.sender_id);
-    muteBtn.style.display = !isMe ? 'flex' : 'none';
-    if (muteLabel) muteLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
+  $('ctx-pin').style.display = 'flex';
+
+  // Update pin label
+  const pinLabel = $('ctx-pin-label');
+  if(pinLabel) {
+    const isPinned = S.pinnedMsgs && S.pinnedMsgs.some(p => p.message_id == m.id);
+    pinLabel.textContent = isPinned ? 'Открепить' : 'Закрепить';
   }
   
   const bar = $('ctx-rxn-bar');
@@ -239,6 +239,11 @@ $('ctx-sel').onclick = () => {
   enterSelectMode(ctxMsg.id);
 };
 
+$('ctx-pin').onclick = () => {
+  if(!ctxMsg) return; hideCtx();
+  if(typeof togglePinMessage === 'function') togglePinMessage(ctxMsg);
+};
+
 $('ctx-reply').onclick = () => {
   if(!ctxMsg) return; hideCtx();
   let bodyPrev = ctxMsg.body || 'Медиафайл';
@@ -333,7 +338,7 @@ function showChatCtx(e, c) {
     muteChatBtn.style.display = canMute ? 'flex' : 'none';
     if (canMute && muteChatLabel) {
       const muted = isUserMuted(c.partner_id);
-      muteChatLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
+      muteChatLabel.textContent = muted ? 'Вкл уведомления' : 'Выкл уведомления';
     }
   }
   
@@ -440,6 +445,25 @@ function applyPinToggle(chat) {
   }, 400));
 }
 
+$('chat-ctx-search').onclick = () => {
+  if(!ctxChat) return; hideChatCtx();
+  const chat = ctxChat; ctxChat = null;
+  // Open the chat if not already open, then trigger search
+  if (chat.chat_id !== S.chatId) {
+    const existing = S.chats.find(c => c.chat_id === chat.chat_id);
+    if (existing) {
+      openChat(existing);
+      // Wait for chat to render, then open search
+      setTimeout(() => {
+        if (window._openChatSearch) window._openChatSearch();
+      }, 400);
+    }
+  } else {
+    // Chat already open, just open search
+    if (window._openChatSearch) window._openChatSearch();
+  }
+};
+
 $('chat-ctx-pin').onclick = () => {
   if(!ctxChat) return; hideChatCtx();
   const chat = ctxChat; ctxChat = null;
@@ -464,7 +488,7 @@ $('chat-ctx-mute-user').onclick = () => {
   if (!ctxChat || !ctxChat.partner_id) return; hideChatCtx();
   const chat = ctxChat; ctxChat = null;
   const nowMuted = toggleMuteUser(chat.partner_id);
-  toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+  toast(nowMuted ? 'Уведомления выключены' : 'Уведомления включены');
   // Force re-render by invalidating _chatData on the target element
   const el = document.querySelector(`.ci[data-chat-id="${chat.chat_id}"]`);
   if (el) { el._chatData = null; }
@@ -727,6 +751,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Close context menus on scroll
+document.addEventListener('touchmove', () => {
+  const hdrMenu = $('hdr-mb-ctxmenu');
+  if (hdrMenu && hdrMenu.classList.contains('on')) hideHdrMbCtx();
+  const chatCtx = $('chat-ctxmenu');
+  if (chatCtx && chatCtx.classList.contains('on')) hideChatCtx();
+}, { passive: true });
+document.addEventListener('scroll', () => {
+  const hdrMenu = $('hdr-mb-ctxmenu');
+  if (hdrMenu && hdrMenu.classList.contains('on')) hideHdrMbCtx();
+  const chatCtx = $('chat-ctxmenu');
+  if (chatCtx && chatCtx.classList.contains('on')) hideChatCtx();
+}, { passive: true, capture: true });
+
 /* ── 4. МОБИЛЬНЫЙ АВАТАР ШАПКИ ЧАТА (long-press контекстное меню) ── */
 const hdrMbCtx = $('hdr-mb-ctxmenu');
 
@@ -753,7 +791,7 @@ function showHdrMbCtx(e) {
     const partnerId = c.partner_id || c.id;
     const muted = isUserMuted(partnerId);
     muteMbBtn.style.display = (c.is_saved_msgs || c.is_protected || isSystemChat(c)) ? 'none' : '';
-    if (muteMbLabel) muteMbLabel.textContent = muted ? 'Разглушить' : 'Заглушить';
+    if (muteMbLabel) muteMbLabel.textContent = muted ? 'Вкл уведомления' : 'Выкл уведомления';
   }
 
   hdrMbCtx.style.display = 'block';
@@ -761,7 +799,7 @@ function showHdrMbCtx(e) {
   hdrMbCtx.classList.remove('on');
   hdrMbCtx.style.visibility = 'hidden';
 
-  // Position — center above the avatar button
+  // Position — above/below the avatar button
   const btn = $('hdr-mb-avatar');
   const btnRect = btn.getBoundingClientRect();
   hdrMbCtx.style.left = '0px';
@@ -781,13 +819,20 @@ function showHdrMbCtx(e) {
   if (left + menuW > W - 6) left = W - menuW - 6;
   if (top + menuH > H - 6) top = H - menuH - 6;
 
+  // Set final position, transform and origin — element still hidden
   hdrMbCtx.style.left = left + 'px';
   hdrMbCtx.style.top = top + 'px';
   hdrMbCtx.style.transform = '';
+  const avCx = btnRect.left + btnRect.width / 2 - left;
+  const avCy = btnRect.top + btnRect.height / 2 - top;
+  hdrMbCtx.style.transformOrigin = avCx + 'px ' + avCy + 'px';
+
+  // Force reflow while still hidden (same pattern as showCtx / showChatCtx)
+  getComputedStyle(hdrMbCtx).transformOrigin;
+
+  // Now reveal and animate
   hdrMbCtx.style.visibility = '';
   hdrMbCtx.style.transition = '';
-
-  void hdrMbCtx.offsetWidth; // force reflow
   hdrMbCtx.classList.add('on');
   _hdrMbCtxOpenTime = Date.now();
 }
@@ -803,6 +848,7 @@ function hideHdrMbCtx() {
 (function() {
   const btn = $('hdr-mb-avatar');
   if (!btn) return;
+  const pill = btn.closest('.hdr-av-pill');
 
   let timer = null;
   let fired = false;
@@ -814,26 +860,32 @@ function hideHdrMbCtx() {
     startX = touch.clientX;
     startY = touch.clientY;
     fired = false;
+    // JS-based press feedback (mobile :active is unreliable with preventDefault)
+    if(pill) pill.classList.add('av-pressing');
     timer = setTimeout(() => {
       fired = true;
+      if(pill) pill.classList.remove('av-pressing');
+      navigator.vibrate?.(25); // haptic when context menu appears
       showHdrMbCtx({ clientX: startX, clientY: startY });
     }, 400);
   }
 
   function onMove(e) {
-    if (timer === null) return;
+    if (timer === null && !fired) return;
     const touch = e.touches ? e.touches[0] : e;
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       clearTimeout(timer);
       timer = null;
+      if(pill) pill.classList.remove('av-pressing');
     }
   }
 
   function onEnd(e) {
     clearTimeout(timer);
     timer = null;
+    if(pill) pill.classList.remove('av-pressing');
     if (fired) {
       e.preventDefault();
       e.stopPropagation();
@@ -848,12 +900,12 @@ function hideHdrMbCtx() {
   btn.addEventListener('touchstart', onStart, { passive: false });
   btn.addEventListener('touchmove', onMove, { passive: true });
   btn.addEventListener('touchend', onEnd);
-  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; });
+  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; if(pill) pill.classList.remove('av-pressing'); });
   // Mouse fallback for desktop testing
   btn.addEventListener('mousedown', onStart);
   btn.addEventListener('mousemove', onMove);
   btn.addEventListener('mouseup', onEnd);
-  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; });
+  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; if(pill) pill.classList.remove('av-pressing'); });
   // Prevent native context menu on right-click / long-press
   btn.addEventListener('contextmenu', e => e.preventDefault());
 })();
@@ -877,6 +929,11 @@ $('hdr-mb-ctx-profile').onclick = () => {
   if (!S.partner) return;
   if (isSavedMsgs(S.partner) || isSystemChat(S.partner)) return;
   openPartnerModal();
+};
+
+$('hdr-mb-ctx-search').onclick = () => {
+  hideHdrMbCtx();
+  if (window._openChatSearch) window._openChatSearch();
 };
 
 $('hdr-mb-ctx-clear').onclick = () => {
@@ -945,14 +1002,6 @@ function toggleMuteUser(userId) {
 
 // Mute from message context menu
 document.addEventListener('DOMContentLoaded', function() {
-  var ctxMuteBtn = $('ctx-mute-user');
-  if (ctxMuteBtn) ctxMuteBtn.addEventListener('click', function() {
-    hideCtx();
-    if (!ctxMsg || !ctxMsg.sender_id) return;
-    var nowMuted = toggleMuteUser(ctxMsg.sender_id);
-    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
-  });
-
   var hdrMuteBtn = $('hdr-mb-ctx-mute');
   if (hdrMuteBtn) hdrMuteBtn.addEventListener('click', function() {
     hideHdrMbCtx();
@@ -960,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var partnerId = S.partner.partner_id || S.partner.id;
     if (!partnerId) return;
     var nowMuted = toggleMuteUser(partnerId);
-    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+    toast(nowMuted ? 'Уведомления выключены' : 'Уведомления включены');
     // Force re-render of chat list item
     if (S.chatId) {
       var el = document.querySelector(`.ci[data-chat-id="${S.chatId}"]`);

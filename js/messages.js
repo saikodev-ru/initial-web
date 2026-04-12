@@ -366,6 +366,8 @@ async function fetchMsgs(chatId,init=false){
           const m=g.msg;
           // Уже существующие — патчим
           if(oldIds.has(m.id)){ patchMsgDom(m); return; }
+          // DOM-level dedup: catch messages sent during init (not in oldIds snapshot)
+          if(area.querySelector('.mrow[data-id="'+m.id+'"]')){ patchMsgDom(m); return; }
           const rows=area.querySelectorAll('.mrow');
           const lastRow=rows[rows.length-1];
           const newSender=!lastRow||lastRow.dataset.sid!==String(m.sender_id);
@@ -443,10 +445,20 @@ async function fetchMsgs(chatId,init=false){
         // patch_only: server returned an edited msg outside current window — skip
         if(m.patch_only) return;
         // Before appending: check if this is our own pending temp message
-        const pending=S._pendingTids||new Map();
-        const matchTid=[...pending.entries()].find(([,b])=>b===m.body&&m.sender_id===S.user?.id)?.[0];
+        // _pendingTids is a Map<tempId, fingerprint> awaiting server confirmation.
+        // Match by content fingerprint (not FIFO) to handle rapid-fire sends correctly.
+        const pending=S._pendingTids;
+        let matchTid=null;
+        if(m.sender_id===S.user?.id&&pending&&pending.size){
+          const incomingFp=(m.body||'')+'|'+(m.media_type||'')+'|'+(m.batch_id||'');
+          // Exact fingerprint match only (no FIFO — prevents wrong-match with rapid multi-send)
+          for(const [t,storedFp] of pending){
+            if(storedFp&&storedFp===incomingFp&&S.msgs[chatId]?.some(x=>x.id===t)){matchTid=t;break;}
+          }
+        }
         if(matchTid){
           // Swap temp → real in state and DOM without adding duplicate
+          pending.delete(matchTid);
           const tidIdx=S.msgs[chatId]?.findIndex(x=>x.id===matchTid)??-1;
           if(tidIdx>=0)S.msgs[chatId][tidIdx]=m;
           S.rxns[m.id]=S.rxns[matchTid]||[];delete S.rxns[matchTid];
@@ -455,6 +467,8 @@ async function fetchMsgs(chatId,init=false){
           S.lastId[chatId]=Math.max(S.lastId[chatId]||0,m.id);
           return;
         }
+        // Own message with no pending match — skip (send_message handler will promote it)
+        if(m.sender_id===S.user?.id)return;
         S.msgs[chatId]=S.msgs[chatId]||[];S.msgs[chatId].push(m);
         appendMsg(chatId,m);
         if(m.sender_id!==S.user?.id){
@@ -699,6 +713,7 @@ function renderMsgs(chatId){
     else{area.appendChild(makeMsgEl(g.msg,lastSender!==g.msg.sender_id));lastSender=g.msg.sender_id;}
   });
   applyGroupClasses(area);
+  requestAnimationFrame(() => { if (window._positionPill) window._positionPill(); });
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
@@ -1377,8 +1392,8 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: single tap → dim + ctx menu (instant) | long press (700ms) → select ──
-      let _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
+      // ── Mobile: scroll works normally | long press 0.3s → ctx menu | hold to 0.7s → selection mode ──
+      let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
 
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
@@ -1389,38 +1404,56 @@ function makeMsgEl(m,newSender=true){
         _longFired=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
+        // Do NOT preventDefault here — it would kill native scroll.
+        // body already has user-select:none, so short tap won't select text.
 
-        // Long press → selection mode (700ms)
-        _selTimer=setTimeout(()=>{
-          _selTimer=null;
+        // Long press (300ms) → open context menu
+        _ctxTimer=setTimeout(()=>{
+          _ctxTimer=null;
           if(_moved||_blocked)return;
           _longFired=true;
-          navigator.vibrate&&navigator.vibrate(40);
-          enterSelectMode(m.id);
-          renderMsgsSelect();
-        },700);
+          navigator.vibrate?.(15);
+          const t=e.changedTouches?.[0];
+          if(t){
+            const msgsEl=row.closest('.msgs');
+            if(msgsEl){
+              msgsEl.classList.add('msg-dim-active');
+              row.classList.add('msg-ctx-target');
+            }
+            showCtx({clientX:t.clientX,clientY:t.clientY},m);
+          }
+          // Hold longer (400ms more = 700ms total) → close menu, enter selection mode
+          _selTimer=setTimeout(()=>{
+            _selTimer=null;
+            if(_moved||_blocked)return;
+            navigator.vibrate?.(25);
+            hideCtx();
+            enterSelectMode(m.id);
+            _longFired=false;
+          },400);
+        },300);
       },{passive:true});
       body.addEventListener('touchmove',e=>{
-        if(Math.abs(e.touches[0].clientX-_startX)>10||Math.abs(e.touches[0].clientY-_startY)>10){
+        const dx=Math.abs(e.touches[0].clientX-_startX);
+        const dy=Math.abs(e.touches[0].clientY-_startY);
+        if(dx>10||dy>10){
           _moved=true;
+          clearTimeout(_ctxTimer);_ctxTimer=null;
           clearTimeout(_selTimer);_selTimer=null;
+          if(_longFired){
+            // Context menu is open — prevent scroll from moving the view
+            if(e.cancelable) e.preventDefault();
+          }
         }
-      },{passive:true});
+      },{passive:false});
       body.addEventListener('touchend',e=>{
+        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         if(_moved||_blocked||_longFired)return;
-        // Single tap → dim + context menu immediately
-        const t=e.changedTouches?.[0];
-        if(t){
-          const msgsEl=row.closest('.msgs');
-          if(msgsEl){
-            msgsEl.classList.add('msg-dim-active');
-            row.classList.add('msg-ctx-target');
-          }
-          showCtx({clientX:t.clientX,clientY:t.clientY},m);
-        }
+        // Short tap — do nothing (body has user-select:none, no text selection happens)
       });
       body.addEventListener('touchcancel',()=>{
+        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         _blocked=false;
         _longFired=false;
@@ -2397,7 +2430,8 @@ async function sendText(){
   S.msgs[S.chatId]=S.msgs[S.chatId]||[];S.msgs[S.chatId].push(tmp);S.rxns[tid]=[];
   // Register pending tid so polling/SSE can swap instead of duplicate
   S._pendingTids=S._pendingTids||new Map();
-  S._pendingTids.set(tid, body);
+  // Fingerprint format must match SSE/fetchMsgs comparison: (body||'')+'|'+(media_type||'')+'|'+(batch_id||'')
+  S._pendingTids.set(tid, (body||'')+'||');
   appendMsg(S.chatId,tmp);scrollBot();
   animateSend(tid);
   const payload={to_signal_id:toSid,body};if(replyId)payload.reply_to=replyId;
@@ -2406,6 +2440,8 @@ async function sendText(){
   if(!res.ok){toast('Ошибка: '+(res.message||''),'err');document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter(m=>m.id!==tid);return;}
   // Promote temp → real id in state and DOM
   if(S.msgs[S.chatId]){const idx=S.msgs[S.chatId].findIndex(m=>m.id===tid);if(idx>=0)S.msgs[S.chatId][idx].id=res.message_id;}
+  // Dedup: remove any duplicate real IDs left by race with SSE/fetchMsgs
+  if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter((m,i,arr)=>{const ri=arr.findIndex(x=>x.id===m.id);return ri===i;});
   S.rxns[res.message_id]=S.rxns[tid]||[];delete S.rxns[tid];
   const tmpEl=document.querySelector(`.mrow[data-id="${tid}"]`);
   if(tmpEl){tmpEl.dataset.id=res.message_id;}
@@ -2472,22 +2508,51 @@ function hideSBBtn(){
     pill.innerHTML='<span></span>';
     area.prepend(pill);
   }
-  // Pill is position:fixed — JS sets top to match header bottom
+  // Pill is position:fixed — JS sets top/left/width to match chat area
+  let _userScrolled=false; // only show pill after real user scroll, not on chat open
   function _positionPill(){
     const pill=document.getElementById('sticky-date-pill');
     if(!pill)return;
+    const chatEl=document.getElementById('active-chat');
     const hdr=document.getElementById('chat-hdr');
-    if(!hdr){pill.style.display='none';return;}
+    if(!chatEl||!hdr){pill.style.display='none';return;}
+    const chatR=chatEl.getBoundingClientRect();
     const hdrR=hdr.getBoundingClientRect();
     // Hide pill if header is off-screen (chat not visible)
     if(hdrR.bottom<=0||hdr.width===0){pill.style.display='none';return;}
+    // Calculate offset below all top panels: chat-hdr + pin-bar + mini-player
+    let topOffset = hdrR.bottom;
+    const pinBar = document.getElementById('pin-bar');
+    if (pinBar && pinBar.classList.contains('visible')) {
+      const pinR = pinBar.getBoundingClientRect();
+      topOffset = Math.max(topOffset, pinR.bottom);
+    }
+    const miniPlayer = document.getElementById('voice-mini-player');
+    if (miniPlayer && miniPlayer.classList.contains('visible')) {
+      const mpR = miniPlayer.getBoundingClientRect();
+      topOffset = Math.max(topOffset, mpR.bottom);
+    }
     pill.style.display='';
-    pill.style.top=Math.round(hdrR.bottom)+'px';
+    pill.style.top=Math.round(topOffset)+'px';
+    pill.style.left=Math.round(chatR.left)+'px';
+    pill.style.width=Math.round(chatR.width)+'px';
   }
+  // Hide pill (called from openChat to reset on chat switch)
+  function _hidePill(){
+    const pill=document.getElementById('sticky-date-pill');
+    if(pill){pill.classList.remove('visible');_userScrolled=false;}
+  }
+  window._positionPill = _positionPill;
+  window._hidePill = _hidePill;
   // Update pill position on resize and header changes
   const _pillResizeObs=new ResizeObserver(_positionPill);
   const _pillHdr=document.getElementById('chat-hdr');
   if(_pillHdr)_pillResizeObs.observe(_pillHdr);
+  // Also observe pin-bar and mini-player for height changes
+  const _pillPinBar=document.getElementById('pin-bar');
+  if(_pillPinBar)_pillResizeObs.observe(_pillPinBar);
+  const _pillMiniPlayer=document.getElementById('voice-mini-player');
+  if(_pillMiniPlayer)_pillResizeObs.observe(_pillMiniPlayer);
   window.addEventListener('resize',_positionPill,{passive:true});
 
   // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
@@ -2495,6 +2560,7 @@ function hideSBBtn(){
   let _stickyTimer;
   let _scrollEndTimer;
   area.addEventListener('scroll',()=>{
+    _userScrolled=true;
     // Clear auto-hide timer on every scroll event
     clearTimeout(_scrollEndTimer);
     if(_stickyTimer)return;
