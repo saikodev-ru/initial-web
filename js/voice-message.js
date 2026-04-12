@@ -1771,8 +1771,8 @@ window.VoiceMsg = (function () {
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmp);
     S.rxns[tid] = [];
-    S._pendingTids = S._pendingTids || new Map();
-    S._pendingTids.set(tid, '[voice]');
+    S._pendingTids = S._pendingTids || new Set();
+    S._pendingTids.add(tid);
     appendMsg(S.chatId, tmp);
     scrollBot();
 

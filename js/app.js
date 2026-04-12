@@ -253,6 +253,10 @@ $('btn-prev-send').onclick = async () => {
   });
   scrollBot();
 
+  // ── 2.5 Register pending tids so SSE/polling can swap instead of duplicate ──
+  S._pendingTids = S._pendingTids || new Set();
+  pending.forEach(({ tid }) => S._pendingTids.add(tid));
+
   // ── 3. Attach upload-ring overlay to each bubble ──────────────
   const abortMap = new Map();
 
@@ -338,6 +342,7 @@ $('btn-prev-send').onclick = async () => {
         const r = document.querySelector(`.mrow[data-id="${tid}"]`);
         if (r) deleteMsgEl(r);
         if (S.msgs[S.chatId]) S.msgs[S.chatId] = S.msgs[S.chatId].filter(m => m.id !== tid);
+        if (S._pendingTids) S._pendingTids.delete(tid);
         return;
       }
 
@@ -361,6 +366,7 @@ $('btn-prev-send').onclick = async () => {
         if (idx >= 0) Object.assign(S.msgs[S.chatId][idx], { id: res.message_id, media_url: finalUrl });
       }
       S.rxns[res.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
+      if (S._pendingTids) S._pendingTids.delete(tid);
       S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, res.message_id);
 
       // ── Ring → done: fill to 100%, fade overlay, patch DOM ────
@@ -399,6 +405,7 @@ $('btn-prev-send').onclick = async () => {
 
     } catch (e) {
       if (e && e.name === 'AbortError') return; // user cancelled
+      if (S._pendingTids) S._pendingTids.delete(tid);
       removeMsgById(tid);
     }
   }));
@@ -504,11 +511,19 @@ async function _ssePoll(chatId) {
 
           // ── Pending temp-id match: our own sent message not yet confirmed ──
           if (m.sender_id === S.user.id) {
-            var pending = S._pendingTids || new Map();
+            var pending = S._pendingTids;
             var matchTid = null;
-            pending.forEach(function(v, k) { if (v === m.body) matchTid = k; });
+            if (pending && pending.size) {
+              for (var pt of pending) {
+                if (S.msgs[cid] && S.msgs[cid].some(function(x){ return x.id === pt; })) {
+                  matchTid = pt;
+                  break;
+                }
+              }
+            }
             if (matchTid) {
               // Promote temp → real in state and DOM (avoid duplicate)
+              pending.delete(matchTid);
               var tidIdx = -1;
               for (var ti = 0; ti < S.msgs[cid].length; ti++) {
                 if (S.msgs[cid][ti].id === matchTid) { tidIdx = ti; break; }
@@ -637,6 +652,8 @@ async function sendDocumentFiles(docFiles) {
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmpMsg);
     S.rxns[tid] = [];
+    S._pendingTids = S._pendingTids || new Set();
+    S._pendingTids.add(tid);
     appendMsg(S.chatId, tmpMsg);
     scrollBot();
     try {
@@ -648,7 +665,7 @@ async function sendDocumentFiles(docFiles) {
         body: formData,
       });
       var res = await uploadRes.json();
-      if (!res.ok) { toast(res.message || 'Ошибка загрузки файла', 'err'); removeMsgById(tid); continue; }
+      if (!res.ok) { toast(res.message || 'Ошибка загрузки файла', 'err'); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); continue; }
       var payload = {
         to_signal_id: S.partner.partner_signal_id, body: '',
         media_url: res.url, media_type: 'document',
@@ -656,7 +673,7 @@ async function sendDocumentFiles(docFiles) {
       };
       if (tmpMsg.reply_to) payload.reply_to = tmpMsg.reply_to;
       var sendRes = await api('send_message', 'POST', payload);
-      if (!sendRes.ok) { toast(sendRes.message || 'Ошибка отправки', 'err'); removeMsgById(tid); continue; }
+      if (!sendRes.ok) { toast(sendRes.message || 'Ошибка отправки', 'err'); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); continue; }
       var finalUrl = getMediaUrl(sendRes.media_url || res.url);
       if (S.msgs[S.chatId]) {
         var idx = S.msgs[S.chatId].findIndex(function(m) { return m.id === tid; });
@@ -666,6 +683,7 @@ async function sendDocumentFiles(docFiles) {
         });
       }
       S.rxns[sendRes.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
+      if (S._pendingTids) S._pendingTids.delete(tid);
       S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, sendRes.message_id);
       var rowEl = document.querySelector('.mrow[data-id="' + tid + '"]');
       if (rowEl) {
@@ -686,7 +704,7 @@ async function sendDocumentFiles(docFiles) {
           document.querySelector('.ci[data-chat-id="' + sendRes.chat_id + '"]').classList.add('active'); }
         $('msgs').innerHTML = ''; await fetchMsgs(sendRes.chat_id, true);
       }
-    } catch(e) { console.error('Document upload error:', e); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
+    } catch(e) { console.error('Document upload error:', e); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
   }
 }
 

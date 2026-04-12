@@ -1109,12 +1109,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     height:48px;
     overflow:hidden;
     margin:0 auto;
-    transition:max-width .4s cubic-bezier(.32,.72,0,1),
-               padding .4s cubic-bezier(.32,.72,0,1),
-               border-radius .4s cubic-bezier(.32,.72,0,1),
-               gap .35s cubic-bezier(.32,.72,0,1),
-               background .4s ease,
-               box-shadow .3s ease;
+    transition:max-width .25s cubic-bezier(.32,.72,0,1),
+               padding .25s cubic-bezier(.32,.72,0,1),
+               border-radius .25s cubic-bezier(.32,.72,0,1),
+               gap .22s cubic-bezier(.32,.72,0,1),
+               background .25s ease,
+               box-shadow .2s ease;
   }
   .hdr-pill.searching{
     max-width:calc(100vw - 48px - 12px);
@@ -1162,8 +1162,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     min-width:0;
     opacity:0;
     transform:scale(.92) translateX(-8px);
-    transition:opacity .28s cubic-bezier(.32,.72,0,1) .12s,
-               transform .35s cubic-bezier(.34,1.3,.64,1) .08s;
+    transition:opacity .18s cubic-bezier(.32,.72,0,1) .06s,
+               transform .22s cubic-bezier(.34,1.3,.64,1) .04s;
   }
   .hdr-pill.searching .hdr-clickable{display:none}
   .hdr-pill.searching .hdr-chat-search{

@@ -318,6 +318,8 @@ $('hdr-clickable').onclick=()=>{
   function open(){
     if(_active)return;
     _active=true;
+    // GPU-accelerate the pill transition
+    pill.style.willChange='max-width,padding,gap,transform,opacity';
     pill.classList.add('searching');
     input.value='';
     _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
@@ -333,7 +335,7 @@ $('hdr-clickable').onclick=()=>{
     // Push history state so system back gesture closes search
     history.pushState({chatSearch:true},'');
     // Focus input after pill transition
-    setTimeout(()=>input.focus(),380);
+    setTimeout(()=>input.focus(),180);
   }
 
   function close(skipPopstate){
@@ -341,6 +343,10 @@ $('hdr-clickable').onclick=()=>{
     _active=false;
     _searchReq++;
     pill.classList.remove('searching');
+    // Remove will-change after transition ends to free GPU memory
+    pill.addEventListener('transitionend',function h(){pill.style.willChange='';pill.removeEventListener('transitionend',h);},{once:true});
+    // Fallback: clean up after 300ms in case transitionend doesn't fire
+    setTimeout(()=>{pill.style.willChange='';},300);
     input.value='';
     _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     clearHighlights();
@@ -562,7 +568,7 @@ $('hdr-clickable').onclick=()=>{
         if(_lpMoved)return;
         navigator.vibrate?.(12);
         open();
-      },350);
+      },250);
     },{passive:true});
     pill.addEventListener('touchmove',e=>{
       if(Math.abs(e.touches[0].clientX-_lpX)>10||Math.abs(e.touches[0].clientY-_lpY)>10){

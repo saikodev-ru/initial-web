@@ -443,10 +443,18 @@ async function fetchMsgs(chatId,init=false){
         // patch_only: server returned an edited msg outside current window — skip
         if(m.patch_only) return;
         // Before appending: check if this is our own pending temp message
-        const pending=S._pendingTids||new Map();
-        const matchTid=[...pending.entries()].find(([,b])=>b===m.body&&m.sender_id===S.user?.id)?.[0];
+        // _pendingTids is a Set of temp IDs awaiting server confirmation.
+        // Match by finding a pending tid in this chat's state (FIFO order).
+        const pending=S._pendingTids;
+        let matchTid=null;
+        if(m.sender_id===S.user?.id&&pending&&pending.size){
+          for(const t of pending){
+            if(S.msgs[chatId]?.some(x=>x.id===t)){matchTid=t;break;}
+          }
+        }
         if(matchTid){
           // Swap temp → real in state and DOM without adding duplicate
+          pending.delete(matchTid);
           const tidIdx=S.msgs[chatId]?.findIndex(x=>x.id===matchTid)??-1;
           if(tidIdx>=0)S.msgs[chatId][tidIdx]=m;
           S.rxns[m.id]=S.rxns[matchTid]||[];delete S.rxns[matchTid];
@@ -2415,8 +2423,8 @@ async function sendText(){
   const tmp={id:tid,sender_id:S.user.id,body,sent_at:Math.floor(Date.now()/1000),is_read:0,is_edited:0,nickname:S.user.nickname,avatar_url:S.user.avatar_url,reply_to:replyId,media_url:null,media_type:null,reactions:[]};
   S.msgs[S.chatId]=S.msgs[S.chatId]||[];S.msgs[S.chatId].push(tmp);S.rxns[tid]=[];
   // Register pending tid so polling/SSE can swap instead of duplicate
-  S._pendingTids=S._pendingTids||new Map();
-  S._pendingTids.set(tid, body);
+  S._pendingTids=S._pendingTids||new Set();
+  S._pendingTids.add(tid);
   appendMsg(S.chatId,tmp);scrollBot();
   animateSend(tid);
   const payload={to_signal_id:toSid,body};if(replyId)payload.reply_to=replyId;
