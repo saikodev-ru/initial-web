@@ -2515,19 +2515,30 @@ function hideSBBtn(){
     pill.innerHTML='<span></span>';
     area.prepend(pill);
   }
-  // Pill is position:fixed — JS sets top to match header bottom
+  // Pill is position:fixed — JS sets top/left/width to match chat area
+  let _userScrolled=false; // only show pill after real user scroll, not on chat open
   function _positionPill(){
     const pill=document.getElementById('sticky-date-pill');
     if(!pill)return;
+    const chatEl=document.getElementById('active-chat');
     const hdr=document.getElementById('chat-hdr');
-    if(!hdr){pill.style.display='none';return;}
+    if(!chatEl||!hdr){pill.style.display='none';return;}
+    const chatR=chatEl.getBoundingClientRect();
     const hdrR=hdr.getBoundingClientRect();
     // Hide pill if header is off-screen (chat not visible)
     if(hdrR.bottom<=0||hdr.width===0){pill.style.display='none';return;}
     pill.style.display='';
     pill.style.top=Math.round(hdrR.bottom)+'px';
+    pill.style.left=Math.round(chatR.left)+'px';
+    pill.style.width=Math.round(chatR.width)+'px';
+  }
+  // Hide pill (called from openChat to reset on chat switch)
+  function _hidePill(){
+    const pill=document.getElementById('sticky-date-pill');
+    if(pill){pill.classList.remove('visible');_userScrolled=false;}
   }
   window._positionPill = _positionPill;
+  window._hidePill = _hidePill;
   // Update pill position on resize and header changes
   const _pillResizeObs=new ResizeObserver(_positionPill);
   const _pillHdr=document.getElementById('chat-hdr');
@@ -2539,6 +2550,7 @@ function hideSBBtn(){
   let _stickyTimer;
   let _scrollEndTimer;
   area.addEventListener('scroll',()=>{
+    _userScrolled=true;
     // Clear auto-hide timer on every scroll event
     clearTimeout(_scrollEndTimer);
     if(_stickyTimer)return;

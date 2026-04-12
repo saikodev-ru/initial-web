@@ -139,6 +139,7 @@ function openChat(c){
   hideSBBtn();
   if(S.sse){stopSSE();}
   hideRbar(true);
+  if (window._hidePill) window._hidePill(); // reset pill on chat switch
   $$('.ci').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.ci[data-chat-id="${c.chat_id}"]`)?.classList.add('active');
   const name=c.partner_name||'@'+c.partner_signal_id;
