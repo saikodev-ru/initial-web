@@ -1272,9 +1272,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     background:none !important;
     border:none !important;
     padding:0 !important;
+    transition:transform .25s var(--sp),filter .2s ease;
   }
-  /* Override global .hdr-mb-avatar:active .av-img — pill handles the press scale */
+  /* Override global .hdr-mb-avatar:active .av-img — JS press class handles it */
   .hdr-mb-avatar:active .av-img{transform:none !important}
+  /* JS-based press feedback (.av-pressing added by touchstart in context-menu.js) */
+  .hdr-mb-avatar.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
   .hdr-mb-avatar .av-img{
     width:42px !important;
     height:42px !important;
@@ -1411,9 +1414,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   background:none !important;
   border:none !important;
   padding:0 !important;
+  transition:transform .25s var(--sp),filter .2s ease;
 }
-/* Override global .hdr-mb-avatar:active .av-img — pill handles the press scale */
+/* Override global .hdr-mb-avatar:active .av-img — JS press class handles it */
 .desktop-pill-hdr .hdr-mb-avatar:active .av-img{transform:none !important}
+/* JS-based press feedback */
+.desktop-pill-hdr .hdr-mb-avatar.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
 .desktop-pill-hdr .hdr-mb-avatar .av-img{
   width:42px !important;
   height:42px !important;

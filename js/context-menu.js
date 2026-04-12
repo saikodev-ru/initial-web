@@ -786,7 +786,7 @@ function showHdrMbCtx(e) {
   hdrMbCtx.classList.remove('on');
   hdrMbCtx.style.visibility = 'hidden';
 
-  // Position — center above the avatar button
+  // Position — above/below the avatar button
   const btn = $('hdr-mb-avatar');
   const btnRect = btn.getBoundingClientRect();
   hdrMbCtx.style.left = '0px';
@@ -806,18 +806,20 @@ function showHdrMbCtx(e) {
   if (left + menuW > W - 6) left = W - menuW - 6;
   if (top + menuH > H - 6) top = H - menuH - 6;
 
+  // Set final position, transform and origin — element still hidden
   hdrMbCtx.style.left = left + 'px';
   hdrMbCtx.style.top = top + 'px';
   hdrMbCtx.style.transform = '';
-  hdrMbCtx.style.visibility = '';
-  hdrMbCtx.style.transition = '';
-
-  // Set transformOrigin to the avatar button center for natural animation angle
   const avCx = btnRect.left + btnRect.width / 2 - left;
   const avCy = btnRect.top + btnRect.height / 2 - top;
   hdrMbCtx.style.transformOrigin = avCx + 'px ' + avCy + 'px';
 
-  void hdrMbCtx.offsetWidth; // force reflow
+  // Force reflow while still hidden (same pattern as showCtx / showChatCtx)
+  getComputedStyle(hdrMbCtx).transformOrigin;
+
+  // Now reveal and animate
+  hdrMbCtx.style.visibility = '';
+  hdrMbCtx.style.transition = '';
   hdrMbCtx.classList.add('on');
   _hdrMbCtxOpenTime = Date.now();
 }
@@ -844,27 +846,32 @@ function hideHdrMbCtx() {
     startX = touch.clientX;
     startY = touch.clientY;
     fired = false;
+    // JS-based press feedback (mobile :active is unreliable with preventDefault)
+    btn.classList.add('av-pressing');
     timer = setTimeout(() => {
       fired = true;
+      btn.classList.remove('av-pressing');
       navigator.vibrate?.(25); // haptic when context menu appears
       showHdrMbCtx({ clientX: startX, clientY: startY });
     }, 400);
   }
 
   function onMove(e) {
-    if (timer === null) return;
+    if (timer === null && !fired) return;
     const touch = e.touches ? e.touches[0] : e;
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       clearTimeout(timer);
       timer = null;
+      btn.classList.remove('av-pressing');
     }
   }
 
   function onEnd(e) {
     clearTimeout(timer);
     timer = null;
+    btn.classList.remove('av-pressing');
     if (fired) {
       e.preventDefault();
       e.stopPropagation();
@@ -879,12 +886,12 @@ function hideHdrMbCtx() {
   btn.addEventListener('touchstart', onStart, { passive: false });
   btn.addEventListener('touchmove', onMove, { passive: true });
   btn.addEventListener('touchend', onEnd);
-  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; });
+  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; btn.classList.remove('av-pressing'); });
   // Mouse fallback for desktop testing
   btn.addEventListener('mousedown', onStart);
   btn.addEventListener('mousemove', onMove);
   btn.addEventListener('mouseup', onEnd);
-  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; });
+  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; btn.classList.remove('av-pressing'); });
   // Prevent native context menu on right-click / long-press
   btn.addEventListener('contextmenu', e => e.preventDefault());
 })();
