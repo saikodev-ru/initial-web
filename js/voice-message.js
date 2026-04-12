@@ -1771,8 +1771,8 @@ window.VoiceMsg = (function () {
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmp);
     S.rxns[tid] = [];
-    S._pendingTids = S._pendingTids || new Set();
-    S._pendingTids.add(tid);
+    S._pendingTids = S._pendingTids || new Map();
+    S._pendingTids.set(tid, '|voice');
     appendMsg(S.chatId, tmp);
     scrollBot();
 
@@ -1845,6 +1845,8 @@ window.VoiceMsg = (function () {
         S.msgs[S.chatId][idx].id = res.message_id;
         S.msgs[S.chatId][idx].media_url = res.media_url ? getMediaUrl(res.media_url) : S.msgs[S.chatId][idx].media_url;
       }
+      // Dedup: remove duplicate real IDs left by race with SSE/fetchMsgs
+      S.msgs[S.chatId] = S.msgs[S.chatId].filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
     }
     S.rxns[res.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
     S.lastId[S.chatId] = Math.max(S.lastId[S.chatId] || 0, res.message_id);

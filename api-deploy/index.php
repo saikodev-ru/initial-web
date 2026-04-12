@@ -54,6 +54,23 @@ $routes = [
     'register_fcm'        => 'register_fcm.php',
     'poll_updates'        => 'poll_updates.php',
     'search_messages'     => 'search_messages.php',
+
+    // ── Channels ──────────────────────────────────────────────
+    'create_channel'         => 'create_channel.php',
+    'get_channels'           => 'get_channels.php',
+    'get_channel_info'       => 'get_channel_info.php',
+    'join_channel'           => 'join_channel.php',
+    'leave_channel'          => 'leave_channel.php',
+    'send_channel_message'   => 'send_channel_message.php',
+    'get_channel_messages'   => 'get_channel_messages.php',
+    'edit_channel'           => 'edit_channel.php',
+    'delete_channel'         => 'delete_channel.php',
+    'get_channel_members'    => 'get_channel_members.php',
+    'get_channel_link'       => 'get_channel_link.php',
+    'update_channel_member'  => 'update_channel_member.php',
+    'delete_channel_message' => 'delete_channel_message.php',
+    'search_channels'        => 'search_channels.php',
+    'pin_channel_message'    => 'pin_channel_message.php',
 ];
 
 // ── Запрещённые маршруты ────────────────────────────────────────

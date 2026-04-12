@@ -3,6 +3,8 @@
 
 S.pinnedMsgs = [];   // Array of pinned messages per current chat (DESC: newest first)
 S.pinIndex  = 0;     // Current visible index (0 = newest)
+S._pinsChatId = null;  // Which chat the cached pins belong to
+S._pinsValidated = false;  // Whether cache has been validated against server
 
 /* ── Show skeleton loading state on the pin bar ── */
 function showPinBarSkeleton() {
@@ -57,52 +59,124 @@ function hidePinBarSkeleton() {
   if (btn) btn.style.display = '';
 }
 
-/* ── Fetch pinned messages for a chat (supports both single and array APIs) ── */
+/* ── Compare cached pins with server response by message_id set ── */
+function _pinsSame(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  const idsA = new Set(a.map(p => p.message_id));
+  const idsB = new Set(b.map(p => p.message_id));
+  if (idsA.size !== idsB.size) return false;
+  for (const id of idsA) if (!idsB.has(id)) return false;
+  return true;
+}
+
+/* ── Sort pins DESC: newest pinned message first (Telegram behavior) ── */
+function _sortPinsDesc(pins) {
+  return pins.sort((a, b) => {
+    const ta = a.sent_at || a.created_at || 0;
+    const tb = b.sent_at || b.created_at || 0;
+    return tb - ta;
+  });
+}
+
+/* ── Render pins from cache instantly (no animation, no skeleton) ── */
+function _renderPinsFromCache(chatId) {
+  const cached = cacheReadPins(chatId);
+  if (!cached || !cached.pins || !cached.pins.length) return false;
+  _sortPinsDesc(cached.pins);
+  S.pinnedMsgs = cached.pins;
+  S.pinIndex = 0;
+  S._pinsChatId = chatId;
+  S._pinsValidated = false;
+  // Render pin bar immediately (skip skeleton)
+  hidePinBarSkeleton();
+  const bar = $('pin-bar');
+  if (bar) bar.style.display = '';
+  updatePinBar();
+  return true;
+}
+
+/* ── Fetch pinned messages for a chat (cache-first, then validate with server) ── */
 async function fetchPinnedMsgs(chatId) {
+  S._pinsChatId = chatId;
+  S._pinsValidated = false;
+
   try {
     // Try array endpoint first
     let res = await api('get_pinned_messages?chat_id=' + chatId);
+    let serverPins = [];
     if (res.ok && Array.isArray(res.pinned)) {
-      S.pinnedMsgs = res.pinned;
+      serverPins = res.pinned;
     } else {
       // Fallback to single message endpoint
       res = await api('get_pinned_message?chat_id=' + chatId);
       if (res.ok && res.pinned) {
-        S.pinnedMsgs = Array.isArray(res.pinned) ? res.pinned : [res.pinned];
-      } else {
-        S.pinnedMsgs = [];
+        serverPins = Array.isArray(res.pinned) ? res.pinned : [res.pinned];
       }
     }
-    // Sort DESC: newest pinned message first (Telegram behavior)
-    S.pinnedMsgs.sort((a, b) => {
-      const ta = a.sent_at || a.created_at || 0;
-      const tb = b.sent_at || b.created_at || 0;
-      return tb - ta;
-    });
-    // Default to most recently pinned (first in DESC array)
+    // Sort DESC
+    _sortPinsDesc(serverPins);
+
+    // Check if user navigated away during the request
+    if (S._pinsChatId !== chatId) return;
+
+    // ── Validate cache vs server ──
+    const cached = cacheReadPins(chatId);
+    const cachedPins = cached ? cached.pins : null;
+
+    if (_pinsSame(cachedPins, serverPins)) {
+      // Cache matches server — no DOM changes needed
+      S.pinnedMsgs = serverPins;
+      S._pinsValidated = true;
+      // Silently update content (in case any field changed like sender_name)
+      if (S.pinnedMsgs.length) _updatePinBarContent();
+      hidePinBarSkeleton();
+      updatePinBar();
+      return;
+    }
+
+    // Cache differs from server — update state + DOM + cache
+    S.pinnedMsgs = serverPins;
     S.pinIndex = 0;
+    S._pinsValidated = true;
+    // Update cache
+    cacheWritePins(chatId, serverPins);
     hidePinBarSkeleton();
     updatePinBar();
   } catch {
-    S.pinnedMsgs = [];
-    hidePinBarSkeleton();
-    updatePinBar();
+    if (!S.pinnedMsgs || !S.pinnedMsgs.length) {
+      S.pinnedMsgs = [];
+      hidePinBarSkeleton();
+      updatePinBar();
+    }
+    // If we have cached pins, keep showing them (graceful degradation)
   }
 }
 
 /* Backwards-compatible alias */
 function fetchPinnedMsg(chatId) { return fetchPinnedMsgs(chatId); }
 
-/* ── Reset pin bar for chat switch — show skeleton immediately ── */
+/* ── Reset pin bar for chat switch — try cache first, else show skeleton ── */
 function resetPinBarForChatSwitch() {
   S.pinnedMsgs = [];
   S.pinIndex = 0;
-  // Hide current pin bar content without animation delay
+  S._pinsChatId = null;
+  S._pinsValidated = false;
   const bar = $('pin-bar');
   if (!bar) return;
   bar.classList.remove('visible');
-  // Show skeleton after a tiny delay so the hide transition doesn't conflict
-  setTimeout(() => showPinBarSkeleton(), 50);
+}
+
+/* ── Init pins for a chat: show cached pins instantly, then validate ── */
+function initPinsForChat(chatId) {
+  // Try to render from cache first (instant, no skeleton)
+  if (!_renderPinsFromCache(chatId)) {
+    // No cache — show skeleton
+    setTimeout(() => showPinBarSkeleton(), 50);
+  }
+  // Always fetch from server to validate
+  fetchPinnedMsgs(chatId);
 }
 
 /* ── Toggle pin for a specific message ── */
@@ -122,6 +196,7 @@ async function togglePinMessage(m) {
       if (res.ok) {
         S.pinnedMsgs = S.pinnedMsgs.filter(p => p.message_id != m.id);
         if (S.pinIndex >= S.pinnedMsgs.length) S.pinIndex = Math.max(0, S.pinnedMsgs.length - 1);
+        cacheWritePins(S.chatId, S.pinnedMsgs);
         updatePinBar();
         toast('Сообщение откреплено');
       } else {
@@ -143,6 +218,7 @@ async function doPinMessage(m, pinnedForAll) {
   });
   if (res.ok) {
     await fetchPinnedMsgs(S.chatId);
+    cacheWritePins(S.chatId, S.pinnedMsgs);
     toast(pinnedForAll ? 'Сообщение закреплено' : 'Сообщение закреплено для вас');
   } else {
     toast(res.message || 'Ошибка', 'err');
@@ -370,6 +446,7 @@ function openPinListScreen() {
           if (res.ok) {
             S.pinnedMsgs = S.pinnedMsgs.filter(pp => pp.message_id != msgId);
             if (S.pinIndex >= S.pinnedMsgs.length) S.pinIndex = Math.max(0, S.pinnedMsgs.length - 1);
+            cacheWritePins(S.chatId, S.pinnedMsgs);
             updatePinBar();
             // Remove item from list with animation
             item.style.transition = 'opacity .2s ease, transform .2s ease';
@@ -429,6 +506,7 @@ function unpinAllMessages() {
       if (res.ok) {
         S.pinnedMsgs = [];
         S.pinIndex = 0;
+        cacheWritePins(S.chatId, []);
         updatePinBar();
         closePinListScreen();
         toast('Все сообщения откреплены');

@@ -265,9 +265,9 @@ function openChat(c){
     S.lastId[chatId]=0;
     fetchMsgs(chatId,true);
   }
-  // Reset pin bar + fetch pinned messages for this chat
+  // Reset pin bar + init pins from cache, then validate with server
   if(typeof resetPinBarForChatSwitch === 'function') resetPinBarForChatSwitch();
-  if(typeof fetchPinnedMsg === 'function') fetchPinnedMsg(chatId);
+  if(typeof initPinsForChat === 'function') initPinsForChat(chatId);
 }
 function updateHdrSt(c){
   const el=$('hdr-st');if(!el)return;

@@ -366,6 +366,8 @@ async function fetchMsgs(chatId,init=false){
           const m=g.msg;
           // Уже существующие — патчим
           if(oldIds.has(m.id)){ patchMsgDom(m); return; }
+          // DOM-level dedup: catch messages sent during init (not in oldIds snapshot)
+          if(area.querySelector('.mrow[data-id="'+m.id+'"]')){ patchMsgDom(m); return; }
           const rows=area.querySelectorAll('.mrow');
           const lastRow=rows[rows.length-1];
           const newSender=!lastRow||lastRow.dataset.sid!==String(m.sender_id);
@@ -443,13 +445,15 @@ async function fetchMsgs(chatId,init=false){
         // patch_only: server returned an edited msg outside current window — skip
         if(m.patch_only) return;
         // Before appending: check if this is our own pending temp message
-        // _pendingTids is a Set of temp IDs awaiting server confirmation.
-        // Match by finding a pending tid in this chat's state (FIFO order).
+        // _pendingTids is a Map<tempId, fingerprint> awaiting server confirmation.
+        // Match by content fingerprint (not FIFO) to handle rapid-fire sends correctly.
         const pending=S._pendingTids;
         let matchTid=null;
         if(m.sender_id===S.user?.id&&pending&&pending.size){
-          for(const t of pending){
-            if(S.msgs[chatId]?.some(x=>x.id===t)){matchTid=t;break;}
+          const incomingFp=(m.body||'')+'|'+(m.media_type||'')+'|'+(m.batch_id||'');
+          // Exact fingerprint match only (no FIFO — prevents wrong-match with rapid multi-send)
+          for(const [t,storedFp] of pending){
+            if(storedFp&&storedFp===incomingFp&&S.msgs[chatId]?.some(x=>x.id===t)){matchTid=t;break;}
           }
         }
         if(matchTid){
@@ -463,6 +467,8 @@ async function fetchMsgs(chatId,init=false){
           S.lastId[chatId]=Math.max(S.lastId[chatId]||0,m.id);
           return;
         }
+        // Own message with no pending match — skip (send_message handler will promote it)
+        if(m.sender_id===S.user?.id)return;
         S.msgs[chatId]=S.msgs[chatId]||[];S.msgs[chatId].push(m);
         appendMsg(chatId,m);
         if(m.sender_id!==S.user?.id){
@@ -2423,8 +2429,9 @@ async function sendText(){
   const tmp={id:tid,sender_id:S.user.id,body,sent_at:Math.floor(Date.now()/1000),is_read:0,is_edited:0,nickname:S.user.nickname,avatar_url:S.user.avatar_url,reply_to:replyId,media_url:null,media_type:null,reactions:[]};
   S.msgs[S.chatId]=S.msgs[S.chatId]||[];S.msgs[S.chatId].push(tmp);S.rxns[tid]=[];
   // Register pending tid so polling/SSE can swap instead of duplicate
-  S._pendingTids=S._pendingTids||new Set();
-  S._pendingTids.add(tid);
+  S._pendingTids=S._pendingTids||new Map();
+  // Fingerprint format must match SSE/fetchMsgs comparison: (body||'')+'|'+(media_type||'')+'|'+(batch_id||'')
+  S._pendingTids.set(tid, (body||'')+'||');
   appendMsg(S.chatId,tmp);scrollBot();
   animateSend(tid);
   const payload={to_signal_id:toSid,body};if(replyId)payload.reply_to=replyId;
@@ -2433,6 +2440,8 @@ async function sendText(){
   if(!res.ok){toast('Ошибка: '+(res.message||''),'err');document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter(m=>m.id!==tid);return;}
   // Promote temp → real id in state and DOM
   if(S.msgs[S.chatId]){const idx=S.msgs[S.chatId].findIndex(m=>m.id===tid);if(idx>=0)S.msgs[S.chatId][idx].id=res.message_id;}
+  // Dedup: remove any duplicate real IDs left by race with SSE/fetchMsgs
+  if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter((m,i,arr)=>{const ri=arr.findIndex(x=>x.id===m.id);return ri===i;});
   S.rxns[res.message_id]=S.rxns[tid]||[];delete S.rxns[tid];
   const tmpEl=document.querySelector(`.mrow[data-id="${tid}"]`);
   if(tmpEl){tmpEl.dataset.id=res.message_id;}

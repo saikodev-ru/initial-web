@@ -7194,3 +7194,203 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   font-family:var(--font);
   word-break:break-word;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   CHANNELS — Telegram-style channels
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── 1. Panel (sidebar) ─────────────────────────────────────── */
+.ch-panel-inner{
+  display:flex;flex-direction:column;height:100%;overflow:hidden;
+}
+.ch-panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 16px 10px;flex-shrink:0;
+}
+.ch-panel-title{
+  font-size:20px;font-weight:900;letter-spacing:-.4px;color:var(--t1);
+}
+.ch-list{
+  flex:1;overflow-y:auto;padding:4px 0 20px;
+}
+.ch-ico-btn{
+  width:30px;height:30px;background:var(--s0);border:1px solid var(--b);
+  border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--t2);transition:background .15s,color .15s,transform .12s var(--sp);
+}
+.ch-ico-btn:hover{background:var(--s1);color:var(--t1)}
+.ch-ico-btn:active{transform:scale(.88)}
+.ch-ico-btn svg{width:16px;height:16px}
+
+/* ── 2. Channel list items ─────────────────────────────────── */
+.ch-item{
+  display:flex;align-items:center;gap:11px;padding:10px 16px;cursor:pointer;
+  transition:background .12s;position:relative;contain:layout style;
+  touch-action:manipulation;height:68px;overflow:hidden;
+  content-visibility:auto;contain-intrinsic-size:auto 68px;
+}
+.ch-item:hover{background:var(--s0)}
+.ch-item.active{background:var(--ybg)}
+.ch-item.active::after{
+  content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:56%;background:var(--y);border-radius:0 4px 4px 0;
+}
+
+.ch-item-av{
+  width:48px;height:48px;flex-shrink:0;border-radius:50%;overflow:hidden;position:relative;
+}
+.ch-item-av .av-img{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;overflow:hidden}
+.ch-item-av .av-img img{width:100%;height:100%;object-fit:cover}
+
+.ch-item-meta{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.ch-item-row{display:flex;align-items:center;justify-content:space-between;min-width:0}
+.ch-item-name{
+  font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;
+  min-width:0;display:flex;align-items:center;gap:4px;
+}
+.ch-item-name .marquee-inner{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-lock-ico{opacity:.45;flex-shrink:0}
+
+.ch-item-ts{font-size:11px;color:var(--t3);flex-shrink:0;margin-left:8px}
+
+.ch-item-prev{
+  font-size:12.5px;color:var(--t2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;display:flex;align-items:center;gap:4px;
+}
+.ch-item-prev .badge{margin-left:auto;flex-shrink:0}
+
+/* ── 3. Channel messages ───────────────────────────────────── */
+/* Left-align all channel messages (even own) */
+.ch-msg{flex-direction:row!important;transform-origin:bottom left!important}
+.ch-msg .mbub{max-width:min(540px,88%);align-items:flex-start!important}
+.ch-msg .mbub .mbody{background:var(--msg-bg);color:var(--t1)}
+.ch-msg .mbub .mtxt{color:var(--t1)!important}
+.ch-msg .mbub .mtime{color:var(--t3)!important}
+.ch-msg .mbub .tick{color:var(--t3)!important}
+.ch-msg .mbub .med{color:var(--t3)!important}
+.ch-msg .mbub .mbottom{justify-content:flex-end}
+
+/* Sender name above bubble */
+.ch-sender-name{
+  font-weight:600;font-size:13px;color:var(--y);
+  margin-bottom:2px;cursor:pointer;transition:opacity .15s;
+}
+.ch-sender-name:hover{opacity:.8}
+
+/* Views count (channel-specific) */
+.ch-views{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:10.5px;font-weight:700;color:var(--t3);flex-shrink:0;
+}
+.ch-views svg{opacity:.7}
+
+/* Forward button on messages */
+.ch-fwd-btn{
+  position:absolute;right:-40px;top:50%;transform:translateY(-50%);
+  width:30px;height:30px;border:none;border-radius:8px;
+  background:var(--s0);color:var(--t3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:opacity .2s,background .15s,color .15s,transform .12s var(--sp);
+  pointer-events:none;
+}
+.ch-msg:hover .ch-fwd-btn{opacity:1;pointer-events:auto}
+.ch-fwd-btn:hover{background:var(--s1);color:var(--t1)}
+.ch-fwd-btn:active{transform:translateY(-50%) scale(.88)}
+.ch-fwd-btn svg{width:16px;height:16px}
+
+/* Channel message: hide avatar column */
+.ch-msg .mavi{display:none!important}
+.ch-msg .msg-checkbox{left:0!important}
+
+/* ── 4. Channel member items ───────────────────────────────── */
+.ch-member-item{
+  display:flex;align-items:center;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--b);transition:background .15s;
+}
+.ch-member-item:last-child{border-bottom:none}
+.ch-member-item .av-img{
+  width:40px;height:40px;border-radius:50%;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.ch-member-item .av-img img{width:100%;height:100%;object-fit:cover}
+.ch-member-item .ico-btn{
+  width:auto;height:auto;padding:4px 12px;border-radius:8px;
+  font-size:12px;font-weight:600;color:var(--y);
+  background:var(--s0);border:1px solid var(--b);
+}
+.ch-member-item .ico-btn:hover{background:var(--ybg);color:var(--y2)}
+
+/* ── 5. Channel search items ───────────────────────────────── */
+.ch-search-item{
+  display:flex;align-items:center;gap:12px;padding:12px 0;
+  border-bottom:1px solid var(--b);cursor:pointer;
+  transition:background .15s;border-radius:8px;
+}
+.ch-search-item:last-child{border-bottom:none}
+.ch-search-item:hover{background:var(--s0);padding-left:8px;padding-right:8px}
+.ch-search-item .av-img{
+  width:44px;height:44px;border-radius:50%;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.ch-search-item .av-img img{width:100%;height:100%;object-fit:cover}
+.ch-search-item .btn{
+  width:auto;flex-shrink:0;padding:6px 14px;border-radius:8px;
+  font-size:13px;font-weight:600;
+}
+.ch-search-item .btn:disabled{opacity:.5}
+
+/* ── 6. Channel create modal — type toggle ─────────────────── */
+.ch-type-opt{
+  padding:12px;border-radius:12px;border:2px solid var(--b);
+  background:var(--bg2);text-align:center;font-size:13px;
+  cursor:pointer;transition:border-color .2s,background .2s;
+  user-select:none;
+}
+.ch-type-opt:hover{background:var(--s1)}
+.ch-type-opt.selected,
+input[name="ch-type"]:checked+.ch-type-opt{
+  border-color:var(--yb);background:var(--ybg);
+}
+
+/* ── 7. Channel empty states ───────────────────────────────── */
+.ch-empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:40px 20px;text-align:center;color:var(--t2);
+}
+.ch-empty .e-ico{font-size:48px;margin-bottom:14px;opacity:.3}
+.ch-empty p{font-size:13.5px;line-height:1.6;color:var(--t3)}
+.ch-empty .ch-empty-btn{
+  margin-top:16px;padding:10px 24px;border-radius:12px;
+  background:var(--y);color:#fff;border:none;font-size:14px;
+  font-weight:700;cursor:pointer;font-family:var(--font);
+  transition:transform .15s var(--sp),box-shadow .15s;
+  box-shadow:0 4px 16px rgba(139,92,246,.3);
+}
+.ch-empty .ch-empty-btn:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(139,92,246,.4)}
+.ch-empty .ch-empty-btn:active{transform:scale(.97)}
+
+/* ── 8. Channel settings modal sections ────────────────────── */
+#modal-ch-settings .modal-body label{
+  display:block;font-size:13px;color:var(--t3);margin-bottom:6px;font-weight:600;
+}
+#modal-ch-settings .modal-body input[type="text"],
+#modal-ch-settings .modal-body textarea{
+  width:100%;padding:10px 14px;border-radius:12px;
+  border:1px solid var(--b);background:var(--bg2);color:var(--t1);
+  font-family:var(--font);font-size:15px;outline:none;
+  transition:border-color .2s,background .2s;
+}
+#modal-ch-settings .modal-body input[type="text"]:focus,
+#modal-ch-settings .modal-body textarea:focus{
+  border-color:var(--yb);background:var(--s1);
+}
+#modal-ch-settings .modal-body input[type="text"]::placeholder,
+#modal-ch-settings .modal-body textarea::placeholder{color:var(--t3)}
+
+/* ── 9. Mobile responsive ──────────────────────────────────── */
+@media(max-width:680px){
+  .ch-fwd-btn{right:-36px}
+  .ch-msg .mbub{max-width:min(400px,92%)}
+}

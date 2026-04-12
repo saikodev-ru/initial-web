@@ -456,13 +456,9 @@ if (window._swSupported) {
             <div style="font-size:13px;max-width:240px">Скоро здесь появится лента новостей и обновлений</div>
           </div>
         </div>
-        <!-- Servers panel -->
+        <!-- Servers / Channels panel -->
         <div class="sb-panel nav-panel" id="panel-servers" style="transform:translateX(100%);opacity:0;pointer-events:none">
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center;color:var(--t3)">
-            <div style="font-size:48px;margin-bottom:16px;opacity:.3">🖥️</div>
-            <div style="font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px">Хабы</div>
-            <div style="font-size:13px;max-width:240px">Скоро здесь появятся хабы и сообщества</div>
-          </div>
+          <div id="channels-panel-content" style="display:flex;flex-direction:column;height:100%"></div>
         </div>
       </div>
       <div class="sb-foot"><div class="prof-row" id="prof-row"><div class="av"><div class="av-img" id="foot-av"></div></div><div class="prof-meta"><div class="prof-name" id="foot-name">—</div><div class="prof-id" id="foot-id"></div></div></div></div>
@@ -1425,11 +1421,8 @@ if (window._swSupported) {
       </div>
       <!-- Channel tab -->
       <div class="cm-tab-content" id="cm-tab-channel">
-        <div class="cm-empty-state">
-          <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <div class="cm-empty-title">Скоро</div>
-          <div class="cm-empty-sub">Создание каналов будет доступно в ближайшем обновлении</div>
-        </div>
+        <div class="srch" style="width:100%"><div class="srch-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" d="M21 21l-4.35-4.35"/></svg></div><input type="text" id="channel-search-q" placeholder="Название или @username…" style="width:100%"></div>
+        <div class="user-list" id="channel-search-res"><div class="empty-st" style="padding:28px 0"><div class="e-ico">🔍</div><p>Введите название канала или @username</p></div></div>
       </div>
       <!-- Server tab -->
       <div class="cm-tab-content" id="cm-tab-server">
@@ -1655,6 +1648,7 @@ if (window._swSupported) {
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script src="js/call.js"></script>
+<script src="js/channels.js"></script>
 <script>
 // QR approval on load (if ?qr= in URL and already logged in)
 document.addEventListener('DOMContentLoaded', () => {

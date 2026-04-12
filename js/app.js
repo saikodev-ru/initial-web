@@ -254,8 +254,8 @@ $('btn-prev-send').onclick = async () => {
   scrollBot();
 
   // ── 2.5 Register pending tids so SSE/polling can swap instead of duplicate ──
-  S._pendingTids = S._pendingTids || new Set();
-  pending.forEach(({ tid }) => S._pendingTids.add(tid));
+  S._pendingTids = S._pendingTids || new Map();
+  pending.forEach(({ tid, pf }) => S._pendingTids.set(tid, '|' + pf.media_type + '|' + (pf.batch_id || '')));
 
   // ── 3. Attach upload-ring overlay to each bubble ──────────────
   const abortMap = new Map();
@@ -364,6 +364,8 @@ $('btn-prev-send').onclick = async () => {
       if (S.msgs[S.chatId]) {
         const idx = S.msgs[S.chatId].findIndex(m => m.id === tid);
         if (idx >= 0) Object.assign(S.msgs[S.chatId][idx], { id: res.message_id, media_url: finalUrl });
+        // Dedup: remove duplicate real IDs left by race with SSE/fetchMsgs
+        S.msgs[S.chatId] = S.msgs[S.chatId].filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i);
       }
       S.rxns[res.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
       if (S._pendingTids) S._pendingTids.delete(tid);
@@ -514,10 +516,13 @@ async function _ssePoll(chatId) {
             var pending = S._pendingTids;
             var matchTid = null;
             if (pending && pending.size) {
-              for (var pt of pending) {
-                if (S.msgs[cid] && S.msgs[cid].some(function(x){ return x.id === pt; })) {
-                  matchTid = pt;
-                  break;
+              // Content-based fingerprint matching (not FIFO) to handle rapid-fire sends
+              var incomingFp = (m.body||'') + '|' + (m.media_type||'') + '|' + (m.batch_id||'');
+              // Exact fingerprint match only (no FIFO — prevents wrong-match with rapid multi-send)
+              for (var entry of pending) {
+                var t = entry[0], storedFp = entry[1];
+                if (storedFp && storedFp === incomingFp && S.msgs[cid] && S.msgs[cid].some(function(x){ return x.id === t; })) {
+                  matchTid = t; break;
                 }
               }
             }
@@ -536,6 +541,9 @@ async function _ssePoll(chatId) {
               if (m.id > (S.lastId[cid] || 0)) S.lastId[cid] = m.id;
               return;
             }
+            // Own message with no pending match — skip it entirely
+            // (send_message response handler will promote the temp message)
+            return;
           }
 
           // Skip duplicates already in state
@@ -652,8 +660,8 @@ async function sendDocumentFiles(docFiles) {
     S.msgs[S.chatId] = S.msgs[S.chatId] || [];
     S.msgs[S.chatId].push(tmpMsg);
     S.rxns[tid] = [];
-    S._pendingTids = S._pendingTids || new Set();
-    S._pendingTids.add(tid);
+    S._pendingTids = S._pendingTids || new Map();
+    S._pendingTids.set(tid, '|document|');
     appendMsg(S.chatId, tmpMsg);
     scrollBot();
     try {
@@ -681,6 +689,8 @@ async function sendDocumentFiles(docFiles) {
           id: sendRes.message_id, media_url: finalUrl,
           media_type: 'document', media_file_name: file.name, media_file_size: file.size,
         });
+        // Dedup: remove duplicate real IDs left by race with SSE/fetchMsgs
+        S.msgs[S.chatId] = S.msgs[S.chatId].filter(function(m, i, arr) { return arr.findIndex(function(x) { return x.id === m.id; }) === i; });
       }
       S.rxns[sendRes.message_id] = S.rxns[tid] || []; delete S.rxns[tid];
       if (S._pendingTids) S._pendingTids.delete(tid);
