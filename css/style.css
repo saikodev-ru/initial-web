@@ -1072,6 +1072,14 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     height:48px;
     overflow:hidden;
     margin:0 auto;
+    transition:max-width .25s cubic-bezier(.32,.72,0,1),
+               padding .25s cubic-bezier(.32,.72,0,1),
+               border-radius .25s cubic-bezier(.32,.72,0,1);
+  }
+  .hdr-pill.searching{
+    max-width:calc(100vw - 48px - 54px - 12px);
+    padding:4px 6px 4px 14px;
+    border-radius:22px;
   }
   .hdr-clickable{
     flex:1;min-width:0;
@@ -1101,6 +1109,76 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     font-size:12px;margin-top:0;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
+
+  /* ── Inline chat search bar (inside center pill) ── */
+  .hdr-chat-search{
+    display:none;
+    flex:1;
+    align-items:center;
+    gap:6px;
+    min-width:0;
+  }
+  .hdr-pill.searching .hdr-clickable{display:none}
+  .hdr-pill.searching .hdr-chat-search{display:flex}
+  .hdr-search-bar{
+    flex:1;min-width:0;
+    display:flex;align-items:center;gap:0;
+    background:rgba(var(--bg-rgb),.35);
+    border-radius:14px;
+    padding:0 2px 0 12px;
+    height:36px;
+  }
+  .hdr-search-input{
+    flex:1;min-width:0;
+    background:transparent;border:none;outline:none;
+    color:var(--t1);
+    font-family:var(--font);
+    font-size:14px;font-weight:500;
+    padding:0;height:100%;
+    -webkit-user-select:text;user-select:text;
+    -webkit-touch-callout:default;
+  }
+  .hdr-search-input::placeholder{color:var(--t3);font-weight:400}
+  .hdr-search-nav{
+    display:flex;align-items:center;gap:2px;
+    flex-shrink:0;
+    margin-left:4px;
+  }
+  .hdr-search-count{
+    font-size:11px;font-weight:700;color:var(--t3);
+    min-width:32px;text-align:center;
+    white-space:nowrap;
+  }
+  .hdr-search-nav-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:28px;height:28px;
+    background:transparent;border:none;
+    color:var(--t2);cursor:pointer;
+    border-radius:50%;
+    transition:background .12s,color .12s;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .hdr-search-nav-btn:active{background:var(--s1);color:var(--t1)}
+  .hdr-search-nav-btn svg{width:14px;height:14px}
+  .hdr-search-close{
+    display:flex;align-items:center;justify-content:center;
+    width:28px;height:28px;flex-shrink:0;
+    background:rgba(var(--bg-rgb),.35);
+    border:none;
+    color:var(--t3);cursor:pointer;
+    border-radius:50%;
+    transition:background .12s,color .12s;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .hdr-search-close:active{background:var(--s1);color:var(--t1)}
+
+  /* Search match highlight */
+  .mrow.search-match .mbub{outline:2px solid var(--y);outline-offset:2px;border-radius:18px}
+  .mrow.search-match-current .mbub{outline:2px solid var(--y);outline-offset:2px;border-radius:18px;box-shadow:0 0 8px rgba(139,92,246,.3)}
+  .mrow.search-match mark{background:rgba(139,92,246,.3);border-radius:2px;padding:0 1px;color:inherit}
+  .mrow.search-match-current mark{background:rgba(139,92,246,.5)}
 
   /* ── Right pill: avatar ── */
   .hdr-av-pill{

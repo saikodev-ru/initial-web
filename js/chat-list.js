@@ -140,6 +140,7 @@ function openChat(c){
   if(S.sse){stopSSE();}
   hideRbar(true);
   if (window._hidePill) window._hidePill(); // reset pill on chat switch
+  if (window._closeChatSearch) window._closeChatSearch(); // close inline search
   $$('.ci').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.ci[data-chat-id="${c.chat_id}"]`)?.classList.add('active');
   const name=c.partner_name||'@'+c.partner_signal_id;
@@ -284,6 +285,202 @@ $('hdr-clickable').onclick=()=>{
   if(isSystemChat(S.partner)||isSavedMsgs(S.partner))return;
   openPartnerModal();
 };
+
+/* ══ INLINE CHAT SEARCH (Mobile long-press on center pill) ══ */
+(function initChatSearch(){
+  const pill=$('hdr-pill');
+  const searchEl=$('hdr-chat-search');
+  const input=$('hdr-search-input');
+  const navEl=$('hdr-search-nav');
+  const countEl=$('hdr-search-count');
+  const prevBtn=$('hdr-search-prev');
+  const nextBtn=$('hdr-search-next');
+  const closeBtn=$('hdr-search-close');
+  if(!pill||!searchEl||!input||!closeBtn)return;
+
+  let _active=false;
+  let _results=[]; // array of message ids matching current query
+  let _currentIdx=-1; // index into _results
+  let _searchTimer=null;
+
+  function open(){
+    if(_active)return;
+    _active=true;
+    pill.classList.add('searching');
+    input.value='';
+    navEl.style.display='none';
+    countEl.textContent='0/0';
+    _results=[];_currentIdx=-1;
+    clearHighlights();
+    // Focus input after transition
+    setTimeout(()=>input.focus(),280);
+  }
+
+  function close(){
+    if(!_active)return;
+    _active=false;
+    pill.classList.remove('searching');
+    input.value='';
+    navEl.style.display='none';
+    _results=[];_currentIdx=-1;
+    clearHighlights();
+    input.blur();
+  }
+
+  function clearHighlights(){
+    const area=$('msgs');
+    if(!area)return;
+    area.querySelectorAll('.search-match,.search-match-current').forEach(el=>{
+      el.classList.remove('search-match','search-match-current');
+      // Restore original text (remove <mark> tags)
+      el.querySelectorAll('mark').forEach(mk=>{
+        mk.replaceWith(mk.textContent);
+      });
+    });
+  }
+
+  function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+
+  function doSearch(query){
+    clearHighlights();
+    _results=[];_currentIdx=-1;
+    if(!query.trim()||!S.chatId){
+      navEl.style.display='none';
+      return;
+    }
+    const msgs=S.msgs[S.chatId]||[];
+    const q=query.trim().toLowerCase();
+    const area=$('msgs');
+
+    msgs.forEach(m=>{
+      if(!m.body)return;
+      if(m.body.toLowerCase().includes(q)){
+        _results.push(m.id);
+      }
+    });
+
+    if(!_results.length){
+      navEl.style.display='flex';
+      countEl.textContent='0';
+      return;
+    }
+
+    // Highlight all matches in DOM
+    _results.forEach(id=>{
+      const row=area.querySelector(`.mrow[data-id="${id}"]`);
+      if(row)row.classList.add('search-match');
+    });
+
+    navEl.style.display='flex';
+    // Navigate to last match (most recent message, like Telegram)
+    _currentIdx=_results.length-1;
+    highlightCurrent();
+  }
+
+  function highlightCurrent(){
+    const area=$('msgs');
+    if(!area)return;
+    // Remove previous current
+    area.querySelectorAll('.search-match-current').forEach(el=>el.classList.remove('search-match-current'));
+    // Remove previous marks
+    area.querySelectorAll('.search-match mark').forEach(mk=>mk.replaceWith(mk.textContent));
+
+    if(_currentIdx<0||_currentIdx>=_results.length)return;
+
+    const id=_results[_currentIdx];
+    const row=area.querySelector(`.mrow[data-id="${id}"]`);
+    if(!row)return;
+
+    row.classList.add('search-match-current');
+
+    // Highlight text within this row
+    const q=input.value.trim();
+    if(q){
+      const regex=new RegExp('('+escapeRegex(q)+')','gi');
+      row.querySelectorAll('.mtxt').forEach(txt=>{
+        const walker=document.createTreeWalker(txt,NodeFilter.SHOW_TEXT,null,false);
+        const textNodes=[];
+        let node;
+        while(node=walker.nextNode())textNodes.push(node);
+        textNodes.forEach(tn=>{
+          if(tn.parentElement.tagName==='MARK')return;
+          const parts=tn.textContent.split(regex);
+          if(parts.length<=1)return;
+          const frag=document.createDocumentFragment();
+          parts.forEach((p,i)=>{
+            if(i>0){const mk=document.createElement('mark');mk.textContent=p;frag.appendChild(mk);}
+            else frag.appendChild(document.createTextNode(p));
+          });
+          tn.parentNode.replaceChild(frag,tn);
+        });
+      });
+    }
+
+    // Scroll to match
+    row.scrollIntoView({behavior:'smooth',block:'center'});
+
+    // Update count
+    countEl.textContent=(_currentIdx+1)+'/'+_results.length;
+  }
+
+  function goNext(){
+    if(!_results.length)return;
+    _currentIdx=(_currentIdx+1)%_results.length;
+    highlightCurrent();
+  }
+  function goPrev(){
+    if(!_results.length)return;
+    _currentIdx=(_currentIdx-1+_results.length)%_results.length;
+    highlightCurrent();
+  }
+
+  // Long-press on center pill → open search (mobile only)
+  if('ontouchstart' in window){
+    let _lpTimer=null,_lpMoved=false,_lpX=0,_lpY=0;
+    pill.addEventListener('touchstart',e=>{
+      if(_active)return; // don't re-trigger while searching
+      _lpMoved=false;
+      _lpX=e.touches[0].clientX;
+      _lpY=e.touches[0].clientY;
+      _lpTimer=setTimeout(()=>{
+        if(_lpMoved)return;
+        navigator.vibrate?.(12);
+        open();
+      },350);
+    },{passive:true});
+    pill.addEventListener('touchmove',e=>{
+      if(Math.abs(e.touches[0].clientX-_lpX)>10||Math.abs(e.touches[0].clientY-_lpY)>10){
+        _lpMoved=true;
+        clearTimeout(_lpTimer);_lpTimer=null;
+      }
+    },{passive:true});
+    pill.addEventListener('touchend',()=>{clearTimeout(_lpTimer);_lpTimer=null;});
+    pill.addEventListener('touchcancel',()=>{clearTimeout(_lpTimer);_lpTimer=null;});
+  }
+
+  // Search input
+  input.addEventListener('input',()=>{
+    clearTimeout(_searchTimer);
+    _searchTimer=setTimeout(()=>doSearch(input.value),200);
+  });
+
+  // Keyboard: Enter = next, Shift+Enter = prev, Escape = close
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();goNext();}
+    else if(e.key==='Enter'&&e.shiftKey){e.preventDefault();goPrev();}
+    else if(e.key==='Escape'){e.preventDefault();close();}
+  });
+
+  // Navigation buttons
+  prevBtn.onclick=goPrev;
+  nextBtn.onclick=goNext;
+
+  // Close button
+  closeBtn.onclick=close;
+
+  // Expose close for openChat reset
+  window._closeChatSearch=close;
+})();
 
 
 function openProfileModal(u, isSelf=false){
