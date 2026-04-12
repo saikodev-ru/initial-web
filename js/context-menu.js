@@ -738,6 +738,20 @@ document.addEventListener('keydown', e => {
   }
 });
 
+// Close context menus on scroll
+document.addEventListener('touchmove', () => {
+  const hdrMenu = $('hdr-mb-ctxmenu');
+  if (hdrMenu && hdrMenu.classList.contains('on')) hideHdrMbCtx();
+  const chatCtx = $('chat-ctxmenu');
+  if (chatCtx && chatCtx.classList.contains('on')) hideChatCtx();
+}, { passive: true });
+document.addEventListener('scroll', () => {
+  const hdrMenu = $('hdr-mb-ctxmenu');
+  if (hdrMenu && hdrMenu.classList.contains('on')) hideHdrMbCtx();
+  const chatCtx = $('chat-ctxmenu');
+  if (chatCtx && chatCtx.classList.contains('on')) hideChatCtx();
+}, { passive: true, capture: true });
+
 /* ── 4. МОБИЛЬНЫЙ АВАТАР ШАПКИ ЧАТА (long-press контекстное меню) ── */
 const hdrMbCtx = $('hdr-mb-ctxmenu');
 
@@ -798,6 +812,11 @@ function showHdrMbCtx(e) {
   hdrMbCtx.style.visibility = '';
   hdrMbCtx.style.transition = '';
 
+  // Set transformOrigin to the avatar button center for natural animation angle
+  const avCx = btnRect.left + btnRect.width / 2 - left;
+  const avCy = btnRect.top + btnRect.height / 2 - top;
+  hdrMbCtx.style.transformOrigin = avCx + 'px ' + avCy + 'px';
+
   void hdrMbCtx.offsetWidth; // force reflow
   hdrMbCtx.classList.add('on');
   _hdrMbCtxOpenTime = Date.now();
@@ -825,7 +844,6 @@ function hideHdrMbCtx() {
     startX = touch.clientX;
     startY = touch.clientY;
     fired = false;
-    navigator.vibrate?.(15); // light haptic on touch
     timer = setTimeout(() => {
       fired = true;
       navigator.vibrate?.(25); // haptic when context menu appears
@@ -890,6 +908,11 @@ $('hdr-mb-ctx-profile').onclick = () => {
   if (!S.partner) return;
   if (isSavedMsgs(S.partner) || isSystemChat(S.partner)) return;
   openPartnerModal();
+};
+
+$('hdr-mb-ctx-search').onclick = () => {
+  hideHdrMbCtx();
+  if (window._openChatSearch) window._openChatSearch();
 };
 
 $('hdr-mb-ctx-clear').onclick = () => {
