@@ -747,6 +747,43 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 /* Pill wrapper for mobile header — transparent on desktop */
 .hdr-pill{display:contents}
+/* ── Desktop search: override display:contents when searching ── */
+@container app (min-width: 681px){
+  .hdr-pill.searching{
+    display:flex !important;
+    align-items:center;
+    flex:1;
+    max-width:none;
+    background:rgba(var(--bg-rgb),.50);
+    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+    border-radius:22px;
+    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
+    padding:0 8px 0 6px;
+    gap:6px;
+    height:40px;
+    overflow:hidden;
+  }
+  .hdr-pill.searching .hdr-clickable{display:none !important}
+  .hdr-pill.searching .hdr-chat-search{
+    display:flex !important;
+    opacity:1 !important;
+    transform:none !important;
+  }
+  .hdr-pill.searching .hdr-search-ico{color:var(--y2)}
+  .hdr-pill.searching .hdr-search-input{font-size:14px}
+  .hdr-pill.searching .hdr-search-close{width:28px;height:28px}
+  .hdr-search-btn-desk{
+    display:flex;
+  }
+  /* Desktop search nav panel styling */
+  .search-nav-panel{
+    margin:0 8px 8px 8px;
+  }
+}
+/* Hide desktop search button on mobile */
+@container app (max-width: 680px){
+  .hdr-search-btn-desk{display:none !important}
+}
 /* Avatar pill wrapper — transparent on desktop */
 .hdr-av-pill{display:contents}
 
@@ -1548,19 +1585,20 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 
 /* ── Pinned message bar (Telegram-style) ── */
 .pin-bar{
-  position:absolute;
-  top:100%;left:0;right:0;
+  flex-shrink:0;
   z-index:14;
   padding:0 10px;
   pointer-events:none;
-  transform:translateY(-100%);
+  max-height:0;
+  overflow:hidden;
   opacity:0;
-  transition:transform .3s cubic-bezier(.34,1.1,.64,1), opacity .2s ease;
+  transition:max-height .3s cubic-bezier(.34,1.1,.64,1), opacity .25s ease, padding .3s ease;
 }
 .pin-bar.visible{
-  transform:translateY(0);
+  max-height:60px;
   opacity:1;
   pointer-events:auto;
+  padding:4px 10px;
 }
 .pin-bar-inner{
   display:flex;
@@ -1614,12 +1652,14 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-bar-close:hover{background:rgba(255,255,255,.08);color:var(--t1)}
 .pin-bar-close:active{transform:scale(.88)}
 .pin-bar-close svg{width:14px;height:14px}
+
+/* Mobile: pill-style pin bar with narrower padding */
 @container app (max-width: 680px){
-  .pin-bar{
-    position:absolute;
-    top:100%;left:0;right:0;
-    z-index:14;
-    padding:0 8px;
+  .pin-bar.visible{
+    padding:2px 8px;
+  }
+  .pin-bar-inner{
+    border-radius:9999px;
   }
 }
 

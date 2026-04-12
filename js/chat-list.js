@@ -606,6 +606,30 @@ $('hdr-clickable').onclick=()=>{
   window._closeChatSearch=close;
   // Expose open for context menu "Поиск"
   window._openChatSearch=open;
+
+  // Desktop: Ctrl/Cmd+F keyboard shortcut to open chat search
+  document.addEventListener('keydown', e => {
+    if (((e.ctrlKey || e.metaKey) && e.key === 'f') && S.chatId) {
+      // Only intercept if no text input is focused (except our search input)
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' && document.activeElement !== input) return;
+      if (tag === 'TEXTAREA' || tag === 'MFIELD') return;
+      e.preventDefault();
+      if (!_active) open();
+      else { input.focus(); input.select(); }
+    }
+  });
+
+  // Desktop: search button in header actions
+  var deskSearchBtn = $('btn-hdr-search');
+  if (deskSearchBtn) {
+    deskSearchBtn.onclick = () => {
+      if (S.chatId) {
+        if (!_active) open();
+        else { input.focus(); input.select(); }
+      }
+    };
+  }
 })();
 
 
