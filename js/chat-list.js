@@ -291,40 +291,61 @@ $('hdr-clickable').onclick=()=>{
   const pill=$('hdr-pill');
   const searchEl=$('hdr-chat-search');
   const input=$('hdr-search-input');
-  const navEl=$('hdr-search-nav');
-  const countEl=$('hdr-search-count');
-  const prevBtn=$('hdr-search-prev');
-  const nextBtn=$('hdr-search-next');
   const closeBtn=$('hdr-search-close');
-  if(!pill||!searchEl||!input||!closeBtn)return;
+  // Bottom navigation panel
+  const navPanel=$('search-nav-panel');
+  const countEl=$('search-nav-count');
+  const prevBtn=$('search-nav-prev');
+  const nextBtn=$('search-nav-next');
+  // Input zone (hidden while searching)
+  const inputZone=$('input-zone');
+  if(!pill||!searchEl||!input||!closeBtn||!navPanel||!countEl)return;
 
   let _active=false;
-  let _results=[]; // array of message ids matching current query
+  let _results=[]; // array of {id, body} matching current query (from server)
   let _currentIdx=-1; // index into _results
   let _searchTimer=null;
+  let _searchReq=0; // request ID to cancel stale responses
 
   function open(){
     if(_active)return;
     _active=true;
     pill.classList.add('searching');
     input.value='';
-    navEl.style.display='none';
-    countEl.textContent='0/0';
     _results=[];_currentIdx=-1;
+    _searchReq++;
     clearHighlights();
-    // Focus input after transition
-    setTimeout(()=>input.focus(),280);
+    hideNav();
+    // Show bottom panel, hide input zone
+    if(inputZone) inputZone.style.display='none';
+    navPanel.classList.add('on');
+    countEl.textContent='Введите запрос';
+    // Focus input after pill transition
+    setTimeout(()=>input.focus(),350);
   }
 
   function close(){
     if(!_active)return;
     _active=false;
+    _searchReq++;
     pill.classList.remove('searching');
     input.value='';
-    navEl.style.display='none';
     _results=[];_currentIdx=-1;
     clearHighlights();
+    hideNav();
     input.blur();
+    // Restore input zone
+    navPanel.classList.remove('on');
+    if(inputZone) inputZone.style.display='';
+  }
+
+  function hideNav(){
+    navPanel.classList.remove('on');
+  }
+
+  function showNav(){
+    navPanel.classList.add('on');
+    if(inputZone) inputZone.style.display='none';
   }
 
   function clearHighlights(){
@@ -332,47 +353,63 @@ $('hdr-clickable').onclick=()=>{
     if(!area)return;
     area.querySelectorAll('.search-match,.search-match-current').forEach(el=>{
       el.classList.remove('search-match','search-match-current');
-      // Restore original text (remove <mark> tags)
-      el.querySelectorAll('mark').forEach(mk=>{
-        mk.replaceWith(mk.textContent);
-      });
+      el.querySelectorAll('mark').forEach(mk=>mk.replaceWith(mk.textContent));
     });
   }
 
   function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
-  function doSearch(query){
+  async function doSearch(query){
     clearHighlights();
     _results=[];_currentIdx=-1;
+    const reqId=++_searchReq;
+
     if(!query.trim()||!S.chatId){
-      navEl.style.display='none';
+      showNav();
+      countEl.textContent='Введите запрос';
+      prevBtn.disabled=true;
+      nextBtn.disabled=true;
       return;
     }
-    const msgs=S.msgs[S.chatId]||[];
-    const q=query.trim().toLowerCase();
-    const area=$('msgs');
 
-    msgs.forEach(m=>{
-      if(!m.body)return;
-      if(m.body.toLowerCase().includes(q)){
-        _results.push(m.id);
+    showNav();
+    countEl.textContent='Поиск…';
+    prevBtn.disabled=true;
+    nextBtn.disabled=true;
+
+    try{
+      const res=await api('search_messages?chat_id='+S.chatId+'&q='+encodeURIComponent(query.trim())+'&limit=500');
+      if(reqId!==_searchReq)return; // stale response
+      if(!res.ok||!res.messages){
+        countEl.textContent='Ошибка';
+        return;
       }
-    });
+      _results=res.messages.map(m=>({id:m.id,body:m.body}));
+    }catch(e){
+      if(reqId!==_searchReq)return;
+      countEl.textContent='Ошибка';
+      return;
+    }
+
+    if(reqId!==_searchReq)return;
 
     if(!_results.length){
-      navEl.style.display='flex';
-      countEl.textContent='0';
+      countEl.textContent='Ничего не найдено';
+      prevBtn.disabled=true;
+      nextBtn.disabled=true;
       return;
     }
 
-    // Highlight all matches in DOM
-    _results.forEach(id=>{
-      const row=area.querySelector(`.mrow[data-id="${id}"]`);
+    // Highlight all matches that are in the DOM
+    const area=$('msgs');
+    _results.forEach(r=>{
+      const row=area.querySelector(`.mrow[data-id="${r.id}"]`);
       if(row)row.classList.add('search-match');
     });
 
-    navEl.style.display='flex';
-    // Navigate to last match (most recent message, like Telegram)
+    prevBtn.disabled=false;
+    nextBtn.disabled=false;
+    // Navigate to last match (most recent, like Telegram)
     _currentIdx=_results.length-1;
     highlightCurrent();
   }
@@ -380,20 +417,23 @@ $('hdr-clickable').onclick=()=>{
   function highlightCurrent(){
     const area=$('msgs');
     if(!area)return;
-    // Remove previous current
     area.querySelectorAll('.search-match-current').forEach(el=>el.classList.remove('search-match-current'));
-    // Remove previous marks
     area.querySelectorAll('.search-match mark').forEach(mk=>mk.replaceWith(mk.textContent));
 
     if(_currentIdx<0||_currentIdx>=_results.length)return;
 
-    const id=_results[_currentIdx];
+    const id=_results[_currentIdx].id;
     const row=area.querySelector(`.mrow[data-id="${id}"]`);
-    if(!row)return;
+
+    if(!row){
+      // Message not in DOM — might need to fetch it
+      countEl.textContent=(_currentIdx+1)+' / '+_results.length;
+      return;
+    }
 
     row.classList.add('search-match-current');
 
-    // Highlight text within this row
+    // Highlight text
     const q=input.value.trim();
     if(q){
       const regex=new RegExp('('+escapeRegex(q)+')','gi');
@@ -418,9 +458,7 @@ $('hdr-clickable').onclick=()=>{
 
     // Scroll to match
     row.scrollIntoView({behavior:'smooth',block:'center'});
-
-    // Update count
-    countEl.textContent=(_currentIdx+1)+'/'+_results.length;
+    countEl.textContent=(_currentIdx+1)+' / '+_results.length;
   }
 
   function goNext(){
@@ -438,7 +476,7 @@ $('hdr-clickable').onclick=()=>{
   if('ontouchstart' in window){
     let _lpTimer=null,_lpMoved=false,_lpX=0,_lpY=0;
     pill.addEventListener('touchstart',e=>{
-      if(_active)return; // don't re-trigger while searching
+      if(_active)return;
       _lpMoved=false;
       _lpX=e.touches[0].clientX;
       _lpY=e.touches[0].clientY;
@@ -458,24 +496,24 @@ $('hdr-clickable').onclick=()=>{
     pill.addEventListener('touchcancel',()=>{clearTimeout(_lpTimer);_lpTimer=null;});
   }
 
-  // Search input
+  // Search input with debounce
   input.addEventListener('input',()=>{
     clearTimeout(_searchTimer);
-    _searchTimer=setTimeout(()=>doSearch(input.value),200);
+    _searchTimer=setTimeout(()=>doSearch(input.value),300);
   });
 
-  // Keyboard: Enter = next, Shift+Enter = prev, Escape = close
+  // Keyboard shortcuts
   input.addEventListener('keydown',e=>{
     if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();goNext();}
     else if(e.key==='Enter'&&e.shiftKey){e.preventDefault();goPrev();}
     else if(e.key==='Escape'){e.preventDefault();close();}
   });
 
-  // Navigation buttons
+  // Bottom navigation buttons
   prevBtn.onclick=goPrev;
   nextBtn.onclick=goNext;
 
-  // Close button
+  // Close button (in header)
   closeBtn.onclick=close;
 
   // Expose close for openChat reset
