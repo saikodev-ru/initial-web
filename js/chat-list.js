@@ -287,6 +287,7 @@ $('hdr-clickable').onclick=()=>{
 };
 
 /* ══ INLINE CHAT SEARCH (Mobile long-press on center pill) ══ */
+/* Hybrid search: instant cached results + server-side full search */
 (function initChatSearch(){
   const pill=$('hdr-pill');
   const searchEl=$('hdr-chat-search');
@@ -302,26 +303,31 @@ $('hdr-clickable').onclick=()=>{
   if(!pill||!searchEl||!input||!closeBtn||!navPanel||!countEl)return;
 
   let _active=false;
-  let _results=[]; // array of {id, body} matching current query (from server)
-  let _currentIdx=-1; // index into _results
+  let _results=[];       // full ordered results [{id, body}] from server (desc by id)
+  let _totalInChat=0;    // total matches on server
+  let _currentIdx=-1;    // index into _results (0 = oldest, length-1 = newest)
   let _searchTimer=null;
-  let _searchReq=0; // request ID to cancel stale responses
+  let _searchReq=0;      // request ID to cancel stale responses
+  let _serverDone=false; // true when server response received
 
+  /* ── Open / Close ─────────────────────────────────────── */
   function open(){
     if(_active)return;
     _active=true;
     pill.classList.add('searching');
     input.value='';
-    _results=[];_currentIdx=-1;
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     _searchReq++;
     clearHighlights();
-    hideNav();
     // Show bottom panel, hide input zone
     if(inputZone) inputZone.style.display='none';
     navPanel.classList.add('on');
     countEl.textContent='Введите запрос';
+    countEl.classList.remove('has-results','searching-indicator');
+    prevBtn.disabled=true;
+    nextBtn.disabled=true;
     // Focus input after pill transition
-    setTimeout(()=>input.focus(),350);
+    setTimeout(()=>input.focus(),380);
   }
 
   function close(){
@@ -330,17 +336,12 @@ $('hdr-clickable').onclick=()=>{
     _searchReq++;
     pill.classList.remove('searching');
     input.value='';
-    _results=[];_currentIdx=-1;
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     clearHighlights();
-    hideNav();
     input.blur();
     // Restore input zone
     navPanel.classList.remove('on');
     if(inputZone) inputZone.style.display='';
-  }
-
-  function hideNav(){
-    navPanel.classList.remove('on');
   }
 
   function showNav(){
@@ -348,6 +349,7 @@ $('hdr-clickable').onclick=()=>{
     if(inputZone) inputZone.style.display='none';
   }
 
+  /* ── Highlight management ─────────────────────────────── */
   function clearHighlights(){
     const area=$('msgs');
     if(!area)return;
@@ -359,61 +361,135 @@ $('hdr-clickable').onclick=()=>{
 
   function escapeRegex(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
+  function highlightMatchesInDOM(ids){
+    const area=$('msgs');
+    if(!area)return;
+    ids.forEach(id=>{
+      const row=area.querySelector(`.mrow[data-id="${id}"]`);
+      if(row)row.classList.add('search-match');
+    });
+  }
+
+  function highlightText(row){
+    const q=input.value.trim();
+    if(!q)return;
+    const regex=new RegExp('('+escapeRegex(q)+')','gi');
+    row.querySelectorAll('.mtxt').forEach(txt=>{
+      const walker=document.createTreeWalker(txt,NodeFilter.SHOW_TEXT,null,false);
+      const textNodes=[];
+      let node;
+      while(node=walker.nextNode())textNodes.push(node);
+      textNodes.forEach(tn=>{
+        if(tn.parentElement.tagName==='MARK')return;
+        const parts=tn.textContent.split(regex);
+        if(parts.length<=1)return;
+        const frag=document.createDocumentFragment();
+        parts.forEach((p,i)=>{
+          if(i>0){const mk=document.createElement('mark');mk.textContent=p;frag.appendChild(mk);}
+          else frag.appendChild(document.createTextNode(p));
+        });
+        tn.parentNode.replaceChild(frag,tn);
+      });
+    });
+  }
+
+  /* ── Cached (instant) search ──────────────────────────── */
+  function searchCached(query){
+    const msgs=S.msgs[S.chatId];
+    if(!msgs||!msgs.length)return[];
+    const q=query.toLowerCase();
+    return msgs.filter(m=>m.body&&m.body.toLowerCase().includes(q)).map(m=>({id:m.id,body:m.body}));
+  }
+
+  /* ── Main hybrid search ───────────────────────────────── */
   async function doSearch(query){
     clearHighlights();
-    _results=[];_currentIdx=-1;
+    _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     const reqId=++_searchReq;
 
     if(!query.trim()||!S.chatId){
       showNav();
       countEl.textContent='Введите запрос';
+      countEl.classList.remove('has-results','searching-indicator');
       prevBtn.disabled=true;
       nextBtn.disabled=true;
       return;
     }
 
     showNav();
-    countEl.textContent='Поиск…';
-    prevBtn.disabled=true;
-    nextBtn.disabled=true;
+    const q=query.trim();
 
-    try{
-      const res=await api('search_messages?chat_id='+S.chatId+'&q='+encodeURIComponent(query.trim())+'&limit=500');
-      if(reqId!==_searchReq)return; // stale response
-      if(!res.ok||!res.messages){
-        countEl.textContent='Ошибка';
-        return;
-      }
-      _results=res.messages.map(m=>({id:m.id,body:m.body}));
-    }catch(e){
-      if(reqId!==_searchReq)return;
-      countEl.textContent='Ошибка';
-      return;
-    }
-
-    if(reqId!==_searchReq)return;
-
-    if(!_results.length){
-      countEl.textContent='Ничего не найдено';
+    // ── Phase 1: Instant cached results ──
+    const cached=searchCached(q);
+    if(cached.length){
+      // Sort desc by id (newest first)
+      cached.sort((a,b)=>b.id-a.id);
+      _results=cached;
+      highlightMatchesInDOM(_results.map(r=>r.id));
+      prevBtn.disabled=false;
+      nextBtn.disabled=false;
+      _currentIdx=0; // newest first
+      highlightCurrent();
+      countEl.textContent='1 из '+_results.length;
+      countEl.classList.add('has-results','searching-indicator');
+    } else {
+      countEl.textContent='Поиск…';
+      countEl.classList.remove('has-results');
+      countEl.classList.add('searching-indicator');
       prevBtn.disabled=true;
       nextBtn.disabled=true;
-      return;
     }
 
-    // Highlight all matches that are in the DOM
-    const area=$('msgs');
-    _results.forEach(r=>{
-      const row=area.querySelector(`.mrow[data-id="${r.id}"]`);
-      if(row)row.classList.add('search-match');
-    });
+    // ── Phase 2: Server-side search (full chat) ──
+    try{
+      const res=await api('search_messages?chat_id='+S.chatId+'&q='+encodeURIComponent(q)+'&limit=500');
+      if(reqId!==_searchReq)return;
+      _serverDone=true;
+      countEl.classList.remove('searching-indicator');
 
-    prevBtn.disabled=false;
-    nextBtn.disabled=false;
-    // Navigate to last match (most recent, like Telegram)
-    _currentIdx=_results.length-1;
-    highlightCurrent();
+      if(!res.ok||!res.messages){
+        // Keep cached results if we have them
+        if(!_results.length) countEl.textContent='Ошибка';
+        return;
+      }
+
+      const serverResults=res.messages.map(m=>({id:m.id,body:m.body}));
+      // Already sorted desc by id from server
+      _results=serverResults;
+      _totalInChat=res.total_in_chat||res.messages.length;
+
+      // Re-highlight with authoritative server results
+      clearHighlights();
+      highlightMatchesInDOM(_results.map(r=>r.id));
+
+      if(!_results.length){
+        countEl.textContent='Ничего не найдено';
+        countEl.classList.remove('has-results');
+        prevBtn.disabled=true;
+        nextBtn.disabled=true;
+        return;
+      }
+
+      prevBtn.disabled=false;
+      nextBtn.disabled=false;
+
+      // If cached results existed, try to keep current position
+      if(cached.length&&_currentIdx>=0){
+        // Try to find a similar position — snap to newest
+        _currentIdx=0;
+      } else {
+        _currentIdx=0; // newest first
+      }
+      highlightCurrent();
+    }catch(e){
+      if(reqId!==_searchReq)return;
+      _serverDone=true;
+      countEl.classList.remove('searching-indicator');
+      if(!_results.length) countEl.textContent='Ошибка';
+    }
   }
 
+  /* ── Current match highlighting + scroll ──────────────── */
   function highlightCurrent(){
     const area=$('msgs');
     if(!area)return;
@@ -426,53 +502,42 @@ $('hdr-clickable').onclick=()=>{
     const row=area.querySelector(`.mrow[data-id="${id}"]`);
 
     if(!row){
-      // Message not in DOM — might need to fetch it
-      countEl.textContent=(_currentIdx+1)+' / '+_results.length;
+      // Message not in DOM — show index but don't scroll
+      updateCount();
       return;
     }
 
     row.classList.add('search-match-current');
-
-    // Highlight text
-    const q=input.value.trim();
-    if(q){
-      const regex=new RegExp('('+escapeRegex(q)+')','gi');
-      row.querySelectorAll('.mtxt').forEach(txt=>{
-        const walker=document.createTreeWalker(txt,NodeFilter.SHOW_TEXT,null,false);
-        const textNodes=[];
-        let node;
-        while(node=walker.nextNode())textNodes.push(node);
-        textNodes.forEach(tn=>{
-          if(tn.parentElement.tagName==='MARK')return;
-          const parts=tn.textContent.split(regex);
-          if(parts.length<=1)return;
-          const frag=document.createDocumentFragment();
-          parts.forEach((p,i)=>{
-            if(i>0){const mk=document.createElement('mark');mk.textContent=p;frag.appendChild(mk);}
-            else frag.appendChild(document.createTextNode(p));
-          });
-          tn.parentNode.replaceChild(frag,tn);
-        });
-      });
-    }
-
-    // Scroll to match
+    highlightText(row);
     row.scrollIntoView({behavior:'smooth',block:'center'});
-    countEl.textContent=(_currentIdx+1)+' / '+_results.length;
+    updateCount();
   }
 
+  function updateCount(){
+    const displayTotal=_totalInChat>_results.length?_totalInChat:_results.length;
+    const extra=_totalInChat>_results.length?' ('+_totalInChat+')':'';
+    if(_results.length){
+      countEl.textContent=(_currentIdx+1)+' из '+displayTotal+extra;
+      countEl.classList.add('has-results');
+    }
+  }
+
+  /* ── Navigation ───────────────────────────────────────── */
   function goNext(){
     if(!_results.length)return;
-    _currentIdx=(_currentIdx+1)%_results.length;
+    // _results is newest-first (desc by id)
+    // "Next" in Telegram = go to OLDER message = move forward in array
+    _currentIdx=Math.min(_currentIdx+1,_results.length-1);
     highlightCurrent();
   }
   function goPrev(){
     if(!_results.length)return;
-    _currentIdx=(_currentIdx-1+_results.length)%_results.length;
+    // "Prev" = go to NEWER message = move backward in array
+    _currentIdx=Math.max(_currentIdx-1,0);
     highlightCurrent();
   }
 
-  // Long-press on center pill → open search (mobile only)
+  /* ── Long-press on center pill → open search (mobile) ── */
   if('ontouchstart' in window){
     let _lpTimer=null,_lpMoved=false,_lpX=0,_lpY=0;
     pill.addEventListener('touchstart',e=>{
@@ -499,7 +564,7 @@ $('hdr-clickable').onclick=()=>{
   // Search input with debounce
   input.addEventListener('input',()=>{
     clearTimeout(_searchTimer);
-    _searchTimer=setTimeout(()=>doSearch(input.value),300);
+    _searchTimer=setTimeout(()=>doSearch(input.value),250);
   });
 
   // Keyboard shortcuts

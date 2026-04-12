@@ -24,6 +24,18 @@ if (!$stmt->fetch()) json_err('forbidden', 'Нет доступа к этому 
 // Search messages with LIKE (case-insensitive)
 $searchParam = '%' . $q . '%';
 
+// Get total count (unlimited) for accurate "X из Y" display
+$stmtCount = db()->prepare(
+    'SELECT COUNT(*) AS cnt
+     FROM messages m
+     WHERE m.chat_id = ?
+       AND m.is_deleted = 0
+       AND m.body LIKE ?'
+);
+$stmtCount->execute([$chatId, $searchParam]);
+$totalInChat = (int) $stmtCount->fetchColumn();
+
+// Fetch actual messages (limited)
 $stmt = db()->prepare(
     'SELECT m.id, m.sender_id, m.body,
             UNIX_TIMESTAMP(m.sent_at) AS sent_at
@@ -45,6 +57,7 @@ $messages = array_map(fn($r) => [
 ], $rows);
 
 json_ok([
-    'messages' => $messages,
-    'total'    => count($messages),
+    'messages'      => $messages,
+    'total'         => count($messages),
+    'total_in_chat' => $totalInChat,
 ]);
