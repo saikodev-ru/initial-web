@@ -45,7 +45,7 @@ $stmt = $db->prepare(
      LEFT JOIN ({$lastMsgSql}) lm ON lm.channel_id = c.id
      LEFT JOIN users u ON u.id = lm.sender_id
      WHERE cm.user_id = ?
-     ORDER BY lm.sent_at DESC NULLS LAST, c.created_at DESC"
+     ORDER BY lm.sent_at IS NULL, lm.sent_at DESC, c.created_at DESC"
 );
 $stmt->execute([$uid]);
 $rows = $stmt->fetchAll();
