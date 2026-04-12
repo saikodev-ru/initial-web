@@ -28,11 +28,11 @@ function showCtx(e, m) {
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
   $('ctx-del-partner').style.display = !isMe ? 'flex' : 'none';
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
-  $('ctx-pin').style.display = m.body ? 'flex' : 'none';
+  $('ctx-pin').style.display = 'flex';
 
   // Update pin label
   const pinLabel = $('ctx-pin-label');
-  if(pinLabel && m.body) {
+  if(pinLabel) {
     const isPinned = S.pinnedMsgs && S.pinnedMsgs.some(p => p.message_id == m.id);
     pinLabel.textContent = isPinned ? 'Открепить' : 'Закрепить';
   }

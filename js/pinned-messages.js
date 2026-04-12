@@ -239,9 +239,10 @@ function openPinListScreen() {
 
     // Avatar — use getMediaUrl() for proper S3 URL construction
     const avUrl = p.sender_avatar ? getMediaUrl(p.sender_avatar) : null;
+    const avInitial = esc((p.sender_name || '?')[0]);
     const avHtml = avUrl
-      ? '<div class="pin-list-av"><img src="' + esc(avUrl) + '" alt=""></div>'
-      : '<div class="pin-list-av pin-list-av-placeholder">' + esc((p.sender_name || '?')[0]) + '</div>';
+      ? '<div class="pin-list-av"><img src="' + esc(avUrl) + '" alt="" onerror="this.style.display=\'none\';this.parentNode.classList.add(\'pin-list-av-placeholder\');this.parentNode.textContent=\'' + avInitial + '\';"></div>'
+      : '<div class="pin-list-av pin-list-av-placeholder">' + avInitial + '</div>';
 
     // Message body preview
     let bodyText = p.body || (p.media_type === 'video' ? 'Видео' : p.media_type === 'photo' ? 'Фото' : p.media_type === 'voice' ? 'Голосовое сообщение' : 'Медиафайл');
