@@ -424,4 +424,57 @@ function initPinBar() {
   _initPinSwipe();
 }
 
-document.addEventListener('DOMContentLoaded', initPinBar);
+/* ── Dynamic pin index: update pin bar when scrolling past pinned messages ── */
+function _syncPinIndexOnScroll() {
+  if (!S.pinnedMsgs || S.pinnedMsgs.length < 2) return;
+  const area = $('msgs');
+  if (!area) return;
+  const areaRect = area.getBoundingClientRect();
+  const topThreshold = areaRect.top + 80;
+
+  // Find the bottom-most pinned message that's above the threshold (scrolled past)
+  let bestIdx = -1;
+  for (let i = 0; i < S.pinnedMsgs.length; i++) {
+    const row = area.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
+    if (!row) continue;
+    const r = row.getBoundingClientRect();
+    if (r.bottom <= topThreshold) {
+      bestIdx = i;
+    }
+  }
+  // If no message is fully above threshold, check which is closest to top
+  if (bestIdx === -1) {
+    for (let i = 0; i < S.pinnedMsgs.length; i++) {
+      const row = area.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
+      if (!row) continue;
+      const r = row.getBoundingClientRect();
+      if (r.top <= topThreshold && r.bottom > topThreshold) {
+        bestIdx = i;
+        break;
+      }
+    }
+  }
+  if (bestIdx === -1) return;
+  if (bestIdx !== S.pinIndex) {
+    S.pinIndex = bestIdx;
+    updatePinBar();
+  }
+}
+
+// Throttled scroll sync for pin index
+let _pinScrollTimer = null;
+function _onMsgScrollSyncPin() {
+  if (!S.pinnedMsgs || S.pinnedMsgs.length < 2) return;
+  if (_pinScrollTimer) return;
+  _pinScrollTimer = requestAnimationFrame(() => {
+    _pinScrollTimer = null;
+    _syncPinIndexOnScroll();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initPinBar();
+  // Attach scroll listener for dynamic pin index
+  const area = $('msgs');
+  if (area) area.addEventListener('scroll', _onMsgScrollSyncPin, { passive: true });
+});

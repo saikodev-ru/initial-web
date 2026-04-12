@@ -1612,8 +1612,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
   padding:5px 5px 5px 6px;
   cursor:pointer;
-  max-width:360px;
-  width:fit-content;
+  width:340px;
+  flex-shrink:0;
   transition:filter .15s ease,transform .15s ease;
 }
 .pin-bar-inner:active{filter:brightness(.92);transform:scale(.98)}
@@ -1630,7 +1630,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-dot{
   width:5px;height:5px;
   border-radius:50%;
-  background:var(--t3);
+  background:rgba(255,255,255,.35);
   cursor:pointer;
   transition:background .2s ease, transform .2s var(--sp), height .2s var(--sp);
   flex-shrink:0;
@@ -1686,16 +1686,16 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-bar-list-btn:active{transform:scale(.88)}
 .pin-bar-list-btn svg{width:16px;height:16px}
 
-/* ── Pinned indicator icon on pin bar — tilted pin/скрепка ── */
+/* ── Pinned indicator icon on pin bar — tilted скрепка (paperclip) ── */
 .pin-icon-tilted{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  transform:rotate(-30deg);
-  transform-origin:center 60%;
+  transform:rotate(-45deg);
+  transform-origin:center 55%;
   transition:transform .2s var(--sp);
 }
-.pin-bar-list-btn:active .pin-icon-tilted{transform:rotate(-30deg) scale(.85)}
+.pin-bar-list-btn:active .pin-icon-tilted{transform:rotate(-45deg) scale(.85)}
 
 /* Mobile: pill-style pin bar — narrower, with margin-top for spacing from header */
 @container app (max-width: 680px){
@@ -1708,7 +1708,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     padding:4px 4px 4px 5px;
     gap:5px;
     border-radius:9999px;
-    max-width:calc(100vw - 32px);
+    width:calc(100vw - 32px);
+    flex-shrink:0;
   }
   .pin-dots{gap:2.5px;padding:3px 4px 3px 1px}
   .pin-dot{width:4px;height:4px}
@@ -4787,9 +4788,9 @@ body[data-theme="light"] .pin-bar-inner {
   background: rgba(255,255,255,.65);
   box-shadow: 0 1px 4px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.8);
 }
-body[data-theme="light"] .pin-dot { background: rgba(0,0,0,.15); }
+body[data-theme="light"] .pin-dot { background: rgba(0,0,0,.25); }
 body[data-theme="light"] .pin-dot.active { background: var(--y); }
-body[data-theme="light"] .pin-dot:hover:not(.active) { background: rgba(0,0,0,.25); }
+body[data-theme="light"] .pin-dot:hover:not(.active) { background: rgba(0,0,0,.35); }
 body[data-theme="light"] .pin-bar-list-btn:hover { background: rgba(0,0,0,.06); }
 body[data-theme="light"] .pin-list-screen { background: #f5f5f5; }
 body[data-theme="light"] .pin-list-hdr { background: rgba(255,255,255,.75); border-bottom-color: rgba(0,0,0,.06); }
