@@ -1462,19 +1462,10 @@ window.addEventListener('popstate', (e) => {
   closeProfile();
 });
 
-/* ── BG PATTERN TOGGLE ────────────────────────────────── */
-const BG_PAT_KEY = 'sg_bg_pattern';
+/* ── BG PATTERN LOCK (toggle logic lives in index.html inline script) ── */
 const BG_IMG_KEY = 'sg_chat_bg_image';
 const _bgPatEl = $('tog-bg-pattern');
 const _bgPatDescEl = $('bg-pattern-desc');
-function _applyBgPattern(on) {
-  if (!!localStorage.getItem(BG_IMG_KEY)) return; // Don't apply pattern if custom bg is set
-  const chatArea = $('msgs');
-  if (!chatArea) return;
-  if (on) chatArea.style.backgroundImage = 'radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px)';
-  else chatArea.style.backgroundImage = '';
-  if (chatArea.style.backgroundImage) chatArea.style.backgroundSize = '20px 20px';
-}
 function _updatePatternLock() {
   const hasCustomBg = !!localStorage.getItem(BG_IMG_KEY);
   if (_bgPatEl) {
@@ -1492,15 +1483,8 @@ function _updatePatternLock() {
     }
   }
 }
-const _bgPatOn = (() => { try { return localStorage.getItem(BG_PAT_KEY) === '1'; } catch { return false; } })();
-if (_bgPatEl) { _bgPatEl.classList.toggle('on', _bgPatOn); _applyBgPattern(_bgPatOn); _updatePatternLock(); }
-if (_bgPatEl) _bgPatEl.onclick = () => {
-  if (_bgPatEl.disabled) return;
-  const on = !_bgPatEl.classList.contains('on');
-  _bgPatEl.classList.toggle('on', on);
-  _applyBgPattern(on);
-  try { localStorage.setItem(BG_PAT_KEY, on ? '1' : '0'); } catch { }
-};
+// Init lock state early so inline script's applyPatternSetting sees correct toggle
+_updatePatternLock();
 
 /* ── CUSTOM CHAT BACKGROUND IMAGE ───────────────────────── */
 const BG_IMG_EL_ID = 'chat-bg-custom';
@@ -1528,6 +1512,7 @@ function _applyCustomBg(dataUrl) {
     else if (blurLevel === 2) el.classList.add('blurred-med');
     else if (blurLevel === 1) el.classList.add('blurred');
     document.body.classList.add('no-pattern');
+    try { localStorage.setItem('sg_hide_pattern', 'true'); } catch {}
     const chatArea = $('msgs');
     if (chatArea) chatArea.style.backgroundImage = '';
     if (_bgImgRemove) _bgImgRemove.style.display = '';
@@ -1538,6 +1523,7 @@ function _applyCustomBg(dataUrl) {
   } else {
     if (el) el.remove();
     document.body.classList.remove('no-pattern');
+    try { localStorage.setItem('sg_hide_pattern', 'false'); } catch {}
     if (_bgImgRemove) _bgImgRemove.style.display = 'none';
     if (_bgImgStatus) _bgImgStatus.textContent = 'Не установлено';
     _updatePatternLock();

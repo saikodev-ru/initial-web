@@ -1392,7 +1392,7 @@ function makeMsgEl(m,newSender=true){
         _textSelActive=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
-        e.preventDefault(); // prevent default on short tap
+        if(e.cancelable) e.preventDefault(); // prevent default on short tap (guard for non-cancelable during scroll)
 
         // Long press (~450ms) → open context menu
         _ctxTimer=setTimeout(()=>{

@@ -1677,8 +1677,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Скрыть узор на фоне ──
   // tog ON = паттерн скрыт (инвертированная логика)
+  // Also respects custom bg image (sg_chat_bg_image) — pattern auto-hidden
   function applyPatternSetting() {
-    const hide = localStorage.getItem('sg_hide_pattern') === 'true';
+    const hide = localStorage.getItem('sg_hide_pattern') === 'true'
+      || !!localStorage.getItem('sg_chat_bg_image');
     document.body.classList.toggle('no-pattern', hide);
   }
   applyPatternSetting();
@@ -1687,10 +1689,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (togPattern) {
     if (localStorage.getItem('sg_hide_pattern') === 'true') togPattern.classList.add('on');
     togPattern.onclick = () => {
+      if (togPattern.disabled) return; // locked by custom bg
       togPattern.classList.toggle('on');
       localStorage.setItem('sg_hide_pattern', togPattern.classList.contains('on'));
       applyPatternSetting();
     };
+    // Sync lock state with app.js pattern lock (custom bg = disabled)
+    if (typeof _updatePatternLock === 'function') _updatePatternLock();
   }
 
   // ── Отключить blur-эффекты ──
