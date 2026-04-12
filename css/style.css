@@ -2558,8 +2558,8 @@ body[data-theme="light"] .st-sub-hdr.scrolled {
 .mrow.selected .msg-checkbox::after{content:'';width:5px;height:9px;border:2px solid #000;border-top:none;border-left:none;transform:rotate(45deg) translate(-1px,-1px)}
 
 /* ── Message dim on tap (mobile context) ── */
-.msg-dim-active .mrow{opacity:.4;transition:opacity .18s ease}
-.msg-dim-active .mrow.msg-ctx-target{opacity:1;box-shadow:0 0 0 2px rgba(139,92,246,.35);border-radius:18px}
+.msg-dim-active .mrow{opacity:.35;transition:opacity .18s ease}
+.msg-dim-active .mrow.msg-ctx-target{opacity:1;transition:none}
 
 /* ── Dim overlay behind context menu ── */
 .msg-ctx-dim{
@@ -2932,20 +2932,53 @@ body[data-theme="light"] .me .rxn.mine .rxn-n{color:rgba(0,0,0,.78)}
 .select-bar{
   position:absolute;bottom:0;left:0;right:0;
   height:64px;
-  background:#111111;
+  background:var(--solid1, #111);
   border-top:1px solid var(--b);
   display:none;align-items:center;justify-content:space-between;
   padding:0 20px;z-index:20;
   animation:slideUp .2s var(--ease);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
 }
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
 .select-bar.on{display:flex}
 .sel-count{font-size:15px;font-weight:800;color:var(--t1)}
 .sel-acts{display:flex;gap:8px}
-.sel-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border:1px solid var(--b);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--t2);transition:background .15s,color .15s}
+.sel-btn{display:flex;align-items:center;gap:6px;background:var(--s1, rgba(255,255,255,.07));border:1px solid var(--b);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13px;font-weight:700;color:var(--t2);transition:background .15s,color .15s}
 .sel-btn:hover{background:var(--s2);color:var(--t1)}
 .sel-btn.danger{color:var(--red)}.sel-btn.danger:hover{background:rgba(255,69,58,.15)}
 .sel-btn svg{width:15px;height:15px}
+/* Mobile select bar — pill buttons with glass background */
+@container app (max-width: 680px){
+  .select-bar{
+    height:auto;min-height:56px;
+    flex-direction:column;gap:8px;
+    padding:10px 12px 14px;
+    border-top:none;
+    background:rgba(var(--bg-rgb),.82);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  }
+  .sel-count{
+    font-size:13px;font-weight:700;
+    color:var(--t3);text-align:center;
+  }
+  .sel-acts{
+    width:100%;justify-content:center;
+    gap:6px;
+  }
+  .sel-btn{
+    flex:1;justify-content:center;
+    padding:9px 8px;border-radius:99px;
+    font-size:12.5px;font-weight:700;
+    background:var(--s1, rgba(255,255,255,.07));
+    border:none;
+    min-width:0;
+  }
+  .sel-btn.danger{
+    background:rgba(255,69,58,.12);
+    border:none;
+  }
+  .sel-btn svg{width:14px;height:14px;flex-shrink:0}
+}
 
 /* CHAT CTX MENU (sidebar) */
 #chat-ctxmenu{min-width:160px}

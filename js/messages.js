@@ -1378,9 +1378,8 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: scroll works normally | long press (~450ms) → ctx menu | long-long press (~800ms) → text selection ──
+      // ── Mobile: scroll works normally | long press 0.3s → ctx menu | hold to 0.7s → selection mode ──
       let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
-      let _textSelActive=false;
 
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
@@ -1389,13 +1388,12 @@ function makeMsgEl(m,newSender=true){
         _blocked=false;
         _moved=false;
         _longFired=false;
-        _textSelActive=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
         // Do NOT preventDefault here — it would kill native scroll.
         // body already has user-select:none, so short tap won't select text.
 
-        // Long press (~450ms) → open context menu
+        // Long press (300ms) → open context menu
         _ctxTimer=setTimeout(()=>{
           _ctxTimer=null;
           if(_moved||_blocked)return;
@@ -1410,25 +1408,16 @@ function makeMsgEl(m,newSender=true){
             }
             showCtx({clientX:t.clientX,clientY:t.clientY},m);
           }
-          // Even longer press (~350ms more = ~800ms total) → text selection mode
+          // Hold longer (400ms more = 700ms total) → close menu, enter selection mode
           _selTimer=setTimeout(()=>{
             _selTimer=null;
             if(_moved||_blocked)return;
-            _textSelActive=true;
             navigator.vibrate?.(25);
-            // Close context menu dimming
-            const msgsEl=row.closest('.msgs');
-            if(msgsEl){
-              msgsEl.classList.remove('msg-dim-active');
-              row.classList.remove('msg-ctx-target');
-            }
             hideCtx();
-            // Enable native text selection on this row
-            row.style.userSelect='text';
-            row.style.webkitUserSelect='text';
-            row.style.touchAction='auto';
-          },350);
-        },450);
+            enterSelectMode(m.id);
+            _longFired=false;
+          },400);
+        },300);
       },{passive:true});
       body.addEventListener('touchmove',e=>{
         const dx=Math.abs(e.touches[0].clientX-_startX);
@@ -1440,13 +1429,6 @@ function makeMsgEl(m,newSender=true){
           if(_longFired){
             // Context menu is open — prevent scroll from moving the view
             if(e.cancelable) e.preventDefault();
-          }
-          if(_textSelActive){
-            // Reset text selection after user scrolls away
-            row.style.userSelect='';
-            row.style.webkitUserSelect='';
-            row.style.touchAction='';
-            _textSelActive=false;
           }
         }
       },{passive:false});
@@ -1461,12 +1443,6 @@ function makeMsgEl(m,newSender=true){
         clearTimeout(_selTimer);_selTimer=null;
         _blocked=false;
         _longFired=false;
-        if(_textSelActive){
-          row.style.userSelect='';
-          row.style.webkitUserSelect='';
-          row.style.touchAction='';
-          _textSelActive=false;
-        }
       });
       body.addEventListener('contextmenu',e=>{e.preventDefault();});// block native on mobile
 
