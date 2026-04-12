@@ -520,33 +520,33 @@ function _updatePinBarContent() {
 
 /* ── Dynamic pin index: update pin bar when scrolling past pinned messages ── */
 /* DESC array: idx 0 = newest (bottom of chat DOM), idx N-1 = oldest (top of chat DOM)
-   Telegram behavior: show the newest pinned message that hasn't been fully scrolled above.
-   When the user scrolls UP past a pinned message, switch to the next older one. */
+   Telegram uses the BOTTOM of the visible area as reference:
+   - At bottom of chat → show newest pin (idx 0)
+   - Scroll UP → newest pin moves below viewport bottom → switch to next older
+   - Scroll DOWN → older pin rises above viewport bottom → switch back to newer */
 function _syncPinIndexOnScroll() {
   if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
   const area = $('msgs');
   if (!area) return;
   const areaRect = area.getBoundingClientRect();
-  const areaTop = areaRect.top;
+  const bottomLine = areaRect.bottom;
 
   // DESC: iterate from newest (0) to oldest (N-1)
-  // Find the first (newest) pinned message that is NOT fully above the viewport.
-  // A message is "scrolled past" when its bottom edge is above the viewport top.
-  // Messages in viewport or below viewport have r.bottom >= areaTop.
+  // Skip messages that are below viewport bottom (scrolled UP past them: r.top > bottomLine)
+  // First match = newest pin still at or above the bottom of the screen
   let bestIdx = -1;
   for (let i = 0; i < S.pinnedMsgs.length; i++) {
     const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
     if (!row) continue;
     const r = row.getBoundingClientRect();
-    if (r.bottom >= areaTop) {
+    if (r.top <= bottomLine) {
       bestIdx = i;
-      break; // First match = newest message not yet scrolled past
+      break;
     }
   }
 
-  // Fallback: ALL pinned messages are above viewport (user scrolled past everything)
-  // Show the newest (idx 0) — it's the last "current" context before scrolling away
-  if (bestIdx === -1) bestIdx = 0;
+  // Fallback: ALL pins are below viewport (user scrolled above all of them)
+  if (bestIdx === -1) bestIdx = S.pinnedMsgs.length - 1;
 
   if (bestIdx !== S.pinIndex) {
     S.pinIndex = bestIdx;
