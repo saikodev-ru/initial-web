@@ -4,6 +4,56 @@
 S.pinnedMsgs = [];   // Array of pinned messages per current chat
 S.pinIndex  = 0;     // Current visible index (0 = oldest)
 
+/* ── Show skeleton loading state on the pin bar ── */
+function showPinBarSkeleton() {
+  const bar = $('pin-bar');
+  if (!bar) return;
+  // Immediately hide previous content, show skeleton
+  bar.classList.remove('visible');
+  // Don't hide display — keep it visible for skeleton
+  const inner = bar.querySelector('.pin-bar-inner');
+  if (!inner) return;
+  // Swap content to skeleton
+  const content = $('pin-bar-content');
+  const dots = $('pin-dots');
+  const btn = $('pin-bar-list-btn');
+  if (content) content.style.display = 'none';
+  if (dots) dots.style.display = 'none';
+  if (btn) btn.style.display = 'none';
+  // Remove old skeleton if any
+  const oldSkel = inner.querySelector('.pin-skel-wrap');
+  if (oldSkel) oldSkel.remove();
+  // Create skeleton elements
+  const skelWrap = document.createElement('div');
+  skelWrap.className = 'pin-skel-wrap';
+  skelWrap.style.cssText = 'display:flex;align-items:center;gap:6px;flex:1;min-width:0;padding:3px 5px 3px 2px';
+  skelWrap.innerHTML = '<div class="pin-skel-dot"></div><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><div class="pin-skel-author"></div><div class="pin-skel-text"></div></div><div class="pin-skel-icon"></div>';
+  inner.appendChild(skelWrap);
+  bar.style.display = '';
+  // Force reflow then add skeleton class for transition
+  void bar.offsetWidth;
+  bar.classList.add('skel-loading');
+}
+
+/* ── Hide skeleton, restore normal content ── */
+function hidePinBarSkeleton() {
+  const bar = $('pin-bar');
+  if (!bar) return;
+  bar.classList.remove('skel-loading');
+  const inner = bar.querySelector('.pin-bar-inner');
+  if (!inner) return;
+  // Remove skeleton elements
+  const skel = inner.querySelector('.pin-skel-wrap');
+  if (skel) skel.remove();
+  // Restore visibility of normal elements
+  const content = $('pin-bar-content');
+  const dots = $('pin-dots');
+  const btn = $('pin-bar-list-btn');
+  if (content) content.style.display = '';
+  if (dots) dots.style.display = '';
+  if (btn) btn.style.display = '';
+}
+
 /* ── Fetch pinned messages for a chat (supports both single and array APIs) ── */
 async function fetchPinnedMsgs(chatId) {
   try {
@@ -22,15 +72,29 @@ async function fetchPinnedMsgs(chatId) {
     }
     // Default to most recently pinned (last in array)
     S.pinIndex = S.pinnedMsgs.length > 0 ? S.pinnedMsgs.length - 1 : 0;
+    hidePinBarSkeleton();
     updatePinBar();
   } catch {
     S.pinnedMsgs = [];
+    hidePinBarSkeleton();
     updatePinBar();
   }
 }
 
 /* Backwards-compatible alias */
 function fetchPinnedMsg(chatId) { return fetchPinnedMsgs(chatId); }
+
+/* ── Reset pin bar for chat switch — show skeleton immediately ── */
+function resetPinBarForChatSwitch() {
+  S.pinnedMsgs = [];
+  S.pinIndex = 0;
+  // Hide current pin bar content without animation delay
+  const bar = $('pin-bar');
+  if (!bar) return;
+  bar.classList.remove('visible');
+  // Show skeleton after a tiny delay so the hide transition doesn't conflict
+  setTimeout(() => showPinBarSkeleton(), 50);
+}
 
 /* ── Toggle pin for a specific message ── */
 async function togglePinMessage(m) {
@@ -82,6 +146,7 @@ function updatePinBar() {
   if (!bar) return;
 
   if (!S.pinnedMsgs || !S.pinnedMsgs.length) {
+    hidePinBarSkeleton();
     bar.classList.remove('visible');
     setTimeout(() => { if (!S.pinnedMsgs || !S.pinnedMsgs.length) bar.style.display = 'none'; }, 300);
     // Notify that pin bar height changed (for sticky date pill)
