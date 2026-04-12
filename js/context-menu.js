@@ -28,14 +28,6 @@ function showCtx(e, m) {
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
   $('ctx-del-partner').style.display = !isMe ? 'flex' : 'none';
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
-  // Mute user button: only show for other people's messages
-  const muteBtn = $('ctx-mute-user');
-  const muteLabel = $('ctx-mute-user-label');
-  if (muteBtn) {
-    const muted = isUserMuted(m.sender_id);
-    muteBtn.style.display = !isMe ? 'flex' : 'none';
-    if (muteLabel) muteLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
-  }
   
   const bar = $('ctx-rxn-bar');
   bar.innerHTML = '';
@@ -333,7 +325,7 @@ function showChatCtx(e, c) {
     muteChatBtn.style.display = canMute ? 'flex' : 'none';
     if (canMute && muteChatLabel) {
       const muted = isUserMuted(c.partner_id);
-      muteChatLabel.textContent = muted ? 'Разглушить пользователя' : 'Заглушить пользователя';
+      muteChatLabel.textContent = muted ? 'Вкл уведомления' : 'Выкл уведомления';
     }
   }
   
@@ -464,7 +456,7 @@ $('chat-ctx-mute-user').onclick = () => {
   if (!ctxChat || !ctxChat.partner_id) return; hideChatCtx();
   const chat = ctxChat; ctxChat = null;
   const nowMuted = toggleMuteUser(chat.partner_id);
-  toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+  toast(nowMuted ? 'Уведомления выключены' : 'Уведомления включены');
   // Force re-render by invalidating _chatData on the target element
   const el = document.querySelector(`.ci[data-chat-id="${chat.chat_id}"]`);
   if (el) { el._chatData = null; }
@@ -753,7 +745,7 @@ function showHdrMbCtx(e) {
     const partnerId = c.partner_id || c.id;
     const muted = isUserMuted(partnerId);
     muteMbBtn.style.display = (c.is_saved_msgs || c.is_protected || isSystemChat(c)) ? 'none' : '';
-    if (muteMbLabel) muteMbLabel.textContent = muted ? 'Разглушить' : 'Заглушить';
+    if (muteMbLabel) muteMbLabel.textContent = muted ? 'Вкл уведомления' : 'Выкл уведомления';
   }
 
   hdrMbCtx.style.display = 'block';
@@ -814,8 +806,10 @@ function hideHdrMbCtx() {
     startX = touch.clientX;
     startY = touch.clientY;
     fired = false;
+    navigator.vibrate?.(15); // light haptic on touch
     timer = setTimeout(() => {
       fired = true;
+      navigator.vibrate?.(25); // haptic when context menu appears
       showHdrMbCtx({ clientX: startX, clientY: startY });
     }, 400);
   }
@@ -945,14 +939,6 @@ function toggleMuteUser(userId) {
 
 // Mute from message context menu
 document.addEventListener('DOMContentLoaded', function() {
-  var ctxMuteBtn = $('ctx-mute-user');
-  if (ctxMuteBtn) ctxMuteBtn.addEventListener('click', function() {
-    hideCtx();
-    if (!ctxMsg || !ctxMsg.sender_id) return;
-    var nowMuted = toggleMuteUser(ctxMsg.sender_id);
-    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
-  });
-
   var hdrMuteBtn = $('hdr-mb-ctx-mute');
   if (hdrMuteBtn) hdrMuteBtn.addEventListener('click', function() {
     hideHdrMbCtx();
@@ -960,7 +946,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var partnerId = S.partner.partner_id || S.partner.id;
     if (!partnerId) return;
     var nowMuted = toggleMuteUser(partnerId);
-    toast(nowMuted ? 'Пользователь заглушен' : 'Пользователь разглушен');
+    toast(nowMuted ? 'Уведомления выключены' : 'Уведомления включены');
     // Force re-render of chat list item
     if (S.chatId) {
       var el = document.querySelector(`.ci[data-chat-id="${S.chatId}"]`);

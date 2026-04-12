@@ -5,6 +5,8 @@
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;height:100dvh;overflow:hidden}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#mfield,#pm-bio{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 @media(max-width:680px){html,body{min-height:100dvh}}
 :root{
   /* ── Graphite Palette — deep matte graphite ── */
@@ -544,6 +546,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 }
 .team-badge.lg{width:20px;height:20px}
 .team-badge.sm{width:14px;height:14px}
+.hdr-mute-icon{display:inline-flex;align-items:center;color:var(--t3);flex-shrink:0}
 
 /* ── Pinned chats ── */
 .ci-pin-icon{

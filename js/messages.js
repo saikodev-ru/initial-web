@@ -699,6 +699,7 @@ function renderMsgs(chatId){
     else{area.appendChild(makeMsgEl(g.msg,lastSender!==g.msg.sender_id));lastSender=g.msg.sender_id;}
   });
   applyGroupClasses(area);
+  requestAnimationFrame(() => { if (window._positionPill) window._positionPill(); });
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
@@ -1377,8 +1378,9 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: single tap → dim + ctx menu (instant) | long press (700ms) → select ──
-      let _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
+      // ── Mobile: tap → nothing | long press (~450ms) → ctx menu | long-long press (~800ms) → text selection ──
+      let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
+      let _textSelActive=false;
 
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
@@ -1387,43 +1389,77 @@ function makeMsgEl(m,newSender=true){
         _blocked=false;
         _moved=false;
         _longFired=false;
+        _textSelActive=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
+        e.preventDefault(); // prevent default on short tap
 
-        // Long press → selection mode (700ms)
-        _selTimer=setTimeout(()=>{
-          _selTimer=null;
+        // Long press (~450ms) → open context menu
+        _ctxTimer=setTimeout(()=>{
+          _ctxTimer=null;
           if(_moved||_blocked)return;
           _longFired=true;
-          navigator.vibrate&&navigator.vibrate(40);
-          enterSelectMode(m.id);
-          renderMsgsSelect();
-        },700);
-      },{passive:true});
+          navigator.vibrate?.(15);
+          const t=e.changedTouches?.[0];
+          if(t){
+            const msgsEl=row.closest('.msgs');
+            if(msgsEl){
+              msgsEl.classList.add('msg-dim-active');
+              row.classList.add('msg-ctx-target');
+            }
+            showCtx({clientX:t.clientX,clientY:t.clientY},m);
+          }
+          // Even longer press (~350ms more = ~800ms total) → text selection mode
+          _selTimer=setTimeout(()=>{
+            _selTimer=null;
+            if(_moved||_blocked)return;
+            _textSelActive=true;
+            navigator.vibrate?.(25);
+            // Close context menu dimming
+            const msgsEl=row.closest('.msgs');
+            if(msgsEl){
+              msgsEl.classList.remove('msg-dim-active');
+              row.classList.remove('msg-ctx-target');
+            }
+            hideCtx();
+            // Enable native text selection on this row
+            row.style.userSelect='text';
+            row.style.webkitUserSelect='text';
+            row.style.touchAction='auto';
+          },350);
+        },450);
+      },{passive:false});
       body.addEventListener('touchmove',e=>{
         if(Math.abs(e.touches[0].clientX-_startX)>10||Math.abs(e.touches[0].clientY-_startY)>10){
           _moved=true;
+          clearTimeout(_ctxTimer);_ctxTimer=null;
           clearTimeout(_selTimer);_selTimer=null;
+          if(_textSelActive){
+            // Reset text selection after user scrolls away
+            row.style.userSelect='';
+            row.style.webkitUserSelect='';
+            row.style.touchAction='';
+            _textSelActive=false;
+          }
         }
       },{passive:true});
       body.addEventListener('touchend',e=>{
+        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         if(_moved||_blocked||_longFired)return;
-        // Single tap → dim + context menu immediately
-        const t=e.changedTouches?.[0];
-        if(t){
-          const msgsEl=row.closest('.msgs');
-          if(msgsEl){
-            msgsEl.classList.add('msg-dim-active');
-            row.classList.add('msg-ctx-target');
-          }
-          showCtx({clientX:t.clientX,clientY:t.clientY},m);
-        }
+        // Short tap — do nothing (prevented default already)
       });
       body.addEventListener('touchcancel',()=>{
+        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         _blocked=false;
         _longFired=false;
+        if(_textSelActive){
+          row.style.userSelect='';
+          row.style.webkitUserSelect='';
+          row.style.touchAction='';
+          _textSelActive=false;
+        }
       });
       body.addEventListener('contextmenu',e=>{e.preventDefault();});// block native on mobile
 
@@ -2484,6 +2520,7 @@ function hideSBBtn(){
     pill.style.display='';
     pill.style.top=Math.round(hdrR.bottom)+'px';
   }
+  window._positionPill = _positionPill;
   // Update pill position on resize and header changes
   const _pillResizeObs=new ResizeObserver(_positionPill);
   const _pillHdr=document.getElementById('chat-hdr');

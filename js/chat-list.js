@@ -245,6 +245,7 @@ function openChat(c){
     // 3. scrollTop читает scrollHeight синхронно (layout уже выполнен),
     //    устанавливаем до первого paint — пользователь не видит прыжка
     restoreScrollPos(chatId);
+    requestAnimationFrame(() => { if (window._positionPill) window._positionPill(); });
 
     // 4. Фоновый network-запрос — не блокирует UI
     fetchMsgs(chatId,true);
@@ -1247,6 +1248,17 @@ function updateHeaderUI(c, name) {
         hn.style.minWidth = '0';
         hn.style.maxWidth = '100%';
         setTimeout(() => checkMarquee(span), 50);
+
+    // Mute indicator in header
+    const isMutedUser = (typeof isUserMuted === 'function' && c.partner_id) ? isUserMuted(c.partner_id) : false;
+    const existingMuteIcon = hn.querySelector('.hdr-mute-icon');
+    if (existingMuteIcon) existingMuteIcon.remove();
+    if (isMutedUser && !isSavedMsgs(c) && !isSystemChat(c)) {
+      const mi = document.createElement('span');
+      mi.className = 'hdr-mute-icon';
+      mi.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
+      hn.appendChild(mi);
+    }
   }
 
   // 2. Avatar (desktop)
