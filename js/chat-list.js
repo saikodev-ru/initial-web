@@ -265,6 +265,8 @@ function openChat(c){
     S.lastId[chatId]=0;
     fetchMsgs(chatId,true);
   }
+  // Fetch pinned message for this chat
+  if(typeof fetchPinnedMsg === 'function') fetchPinnedMsg(chatId);
 }
 function updateHdrSt(c){
   const el=$('hdr-st');if(!el)return;

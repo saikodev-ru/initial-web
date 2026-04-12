@@ -28,6 +28,14 @@ function showCtx(e, m) {
   $('ctx-del').style.display = isMe ? 'flex' : 'none';
   $('ctx-del-partner').style.display = !isMe ? 'flex' : 'none';
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
+  $('ctx-pin').style.display = m.body ? 'flex' : 'none';
+
+  // Update pin label
+  const pinLabel = $('ctx-pin-label');
+  if(pinLabel && m.body) {
+    const isPinned = S.pinnedMsg && S.pinnedMsg.message_id == m.id;
+    pinLabel.textContent = isPinned ? 'Открепить' : 'Закрепить';
+  }
   
   const bar = $('ctx-rxn-bar');
   bar.innerHTML = '';
@@ -229,6 +237,11 @@ $('ctx-sel').onclick = () => {
     return;
   }
   enterSelectMode(ctxMsg.id);
+};
+
+$('ctx-pin').onclick = () => {
+  if(!ctxMsg) return; hideCtx();
+  if(typeof togglePinMessage === 'function') togglePinMessage(ctxMsg);
 };
 
 $('ctx-reply').onclick = () => {
@@ -835,6 +848,7 @@ function hideHdrMbCtx() {
 (function() {
   const btn = $('hdr-mb-avatar');
   if (!btn) return;
+  const pill = btn.closest('.hdr-av-pill');
 
   let timer = null;
   let fired = false;
@@ -847,10 +861,10 @@ function hideHdrMbCtx() {
     startY = touch.clientY;
     fired = false;
     // JS-based press feedback (mobile :active is unreliable with preventDefault)
-    btn.classList.add('av-pressing');
+    if(pill) pill.classList.add('av-pressing');
     timer = setTimeout(() => {
       fired = true;
-      btn.classList.remove('av-pressing');
+      if(pill) pill.classList.remove('av-pressing');
       navigator.vibrate?.(25); // haptic when context menu appears
       showHdrMbCtx({ clientX: startX, clientY: startY });
     }, 400);
@@ -864,14 +878,14 @@ function hideHdrMbCtx() {
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
       clearTimeout(timer);
       timer = null;
-      btn.classList.remove('av-pressing');
+      if(pill) pill.classList.remove('av-pressing');
     }
   }
 
   function onEnd(e) {
     clearTimeout(timer);
     timer = null;
-    btn.classList.remove('av-pressing');
+    if(pill) pill.classList.remove('av-pressing');
     if (fired) {
       e.preventDefault();
       e.stopPropagation();
@@ -886,12 +900,12 @@ function hideHdrMbCtx() {
   btn.addEventListener('touchstart', onStart, { passive: false });
   btn.addEventListener('touchmove', onMove, { passive: true });
   btn.addEventListener('touchend', onEnd);
-  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; btn.classList.remove('av-pressing'); });
+  btn.addEventListener('touchcancel', () => { clearTimeout(timer); timer = null; if(pill) pill.classList.remove('av-pressing'); });
   // Mouse fallback for desktop testing
   btn.addEventListener('mousedown', onStart);
   btn.addEventListener('mousemove', onMove);
   btn.addEventListener('mouseup', onEnd);
-  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; btn.classList.remove('av-pressing'); });
+  btn.addEventListener('mouseleave', () => { clearTimeout(timer); timer = null; if(pill) pill.classList.remove('av-pressing'); });
   // Prevent native context menu on right-click / long-press
   btn.addEventListener('contextmenu', e => e.preventDefault());
 })();

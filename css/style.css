@@ -1272,12 +1272,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     background:none !important;
     border:none !important;
     padding:0 !important;
-    transition:transform .25s var(--sp),filter .2s ease;
+    transition:none;
   }
   /* Override global .hdr-mb-avatar:active .av-img — JS press class handles it */
   .hdr-mb-avatar:active .av-img{transform:none !important}
   /* JS-based press feedback (.av-pressing added by touchstart in context-menu.js) */
-  .hdr-mb-avatar.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
+  .hdr-av-pill.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
   .hdr-mb-avatar .av-img{
     width:42px !important;
     height:42px !important;
@@ -1414,12 +1414,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   background:none !important;
   border:none !important;
   padding:0 !important;
-  transition:transform .25s var(--sp),filter .2s ease;
+  transition:none;
 }
 /* Override global .hdr-mb-avatar:active .av-img — JS press class handles it */
 .desktop-pill-hdr .hdr-mb-avatar:active .av-img{transform:none !important}
 /* JS-based press feedback */
-.desktop-pill-hdr .hdr-mb-avatar.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
+.desktop-pill-hdr .hdr-av-pill.av-pressing{transform:scale(.96);filter:brightness(.92);transition:transform .1s ease,filter .1s ease}
 .desktop-pill-hdr .hdr-mb-avatar .av-img{
   width:42px !important;
   height:42px !important;
@@ -1543,6 +1543,83 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   .voice-mini-player:active{
     transform: scale(.98) !important;
     filter: brightness(.94);
+  }
+}
+
+/* ── Pinned message bar (Telegram-style) ── */
+.pin-bar{
+  position:absolute;
+  top:100%;left:0;right:0;
+  z-index:14;
+  padding:0 10px;
+  pointer-events:none;
+  transform:translateY(-100%);
+  opacity:0;
+  transition:transform .3s cubic-bezier(.34,1.1,.64,1), opacity .2s ease;
+}
+.pin-bar.visible{
+  transform:translateY(0);
+  opacity:1;
+  pointer-events:auto;
+}
+.pin-bar-inner{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:rgba(var(--bg-rgb),.50);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-radius:9999px;
+  box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
+  padding:6px 4px 6px 10px;
+  cursor:pointer;
+  max-width:100%;
+  transition:filter .15s ease,transform .15s ease;
+}
+.pin-bar-inner:active{filter:brightness(.92);transform:scale(.98)}
+.pin-bar-icon{
+  flex-shrink:0;
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--y2);
+}
+.pin-bar-content{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.pin-bar-text{
+  font-size:13px;
+  color:var(--t1);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  line-height:1.3;
+}
+.pin-bar-author{
+  font-size:11px;
+  color:var(--t3);
+  line-height:1.2;
+}
+.pin-bar-close{
+  flex-shrink:0;
+  width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:none;
+  color:var(--t3);
+  cursor:pointer;
+  border-radius:50%;
+  transition:background .12s,color .12s;
+  -webkit-tap-highlight-color:transparent;
+}
+.pin-bar-close:hover{background:rgba(255,255,255,.08);color:var(--t1)}
+.pin-bar-close:active{transform:scale(.88)}
+.pin-bar-close svg{width:14px;height:14px}
+@container app (max-width: 680px){
+  .pin-bar{
+    position:absolute;
+    top:100%;left:0;right:0;
+    z-index:14;
+    padding:0 8px;
   }
 }
 
