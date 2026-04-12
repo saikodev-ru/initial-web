@@ -4,10 +4,10 @@
   font-display:swap;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;height:100dvh;overflow:hidden}
+html,body{height:100%;height:100dvh;min-height:100vh;overflow:hidden}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #mfield,#pm-bio{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
-@media(max-width:680px){html,body{min-height:100dvh}}
+@media(max-width:680px){html,body{min-height:100vh}}
 :root{
   /* ── Graphite Palette — deep matte graphite ── */
   --bg: #111111; --bg-rgb: 17, 17, 17;
@@ -665,9 +665,9 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   background-color:transparent;
   isolation:isolate;
 }
-/* Custom chat background image — placed inside .layout to span sidebar + chat area */
+/* Custom chat background image — fixed to viewport so it never shrinks when keyboard opens */
 .chat-bg-custom{
-  position:absolute;
+  position:fixed;
   width:100vw;height:100vh;top:0;left:0;
   z-index:0;pointer-events:none;
   background-size:cover;background-position:center;background-repeat:no-repeat;
