@@ -361,6 +361,7 @@ $('hdr-clickable').onclick=()=>{
   function clearHighlights(){
     const area=$('msgs');
     if(!area)return;
+    area.classList.remove('search-dim-active');
     area.querySelectorAll('.search-match,.search-match-current').forEach(el=>{
       el.classList.remove('search-match','search-match-current');
       el.querySelectorAll('mark').forEach(mk=>mk.replaceWith(mk.textContent));
@@ -372,6 +373,7 @@ $('hdr-clickable').onclick=()=>{
   function highlightMatchesInDOM(ids){
     const area=$('msgs');
     if(!area)return;
+    area.classList.add('search-dim-active');
     ids.forEach(id=>{
       const row=area.querySelector(`.mrow[data-id="${id}"]`);
       if(row)row.classList.add('search-match');

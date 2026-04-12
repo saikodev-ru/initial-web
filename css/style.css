@@ -1236,11 +1236,15 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   .search-nav-btn svg{width:20px;height:20px}
   .search-nav-btn:disabled{opacity:.25;pointer-events:none}
 
-  /* Search match highlight */
-  .mrow.search-match .mbub{outline:2px solid var(--y);outline-offset:2px;border-radius:18px}
-  .mrow.search-match-current .mbub{outline:2px solid var(--y);outline-offset:2px;border-radius:18px;box-shadow:0 0 8px rgba(139,92,246,.3)}
+  /* Search match highlight — dim non-matches, brighten current */
+  .mrow.search-match{opacity:1;transition:opacity .18s ease}
+  .mrow.search-match-current{opacity:1;filter:brightness(1.06);transition:opacity .18s ease,filter .18s ease}
   .mrow.search-match mark{background:rgba(139,92,246,.3);border-radius:2px;padding:0 1px;color:inherit}
   .mrow.search-match-current mark{background:rgba(139,92,246,.5)}
+  /* Dim all messages when search is active */
+  #msgs.search-dim-active .mrow{opacity:.35;transition:opacity .18s ease}
+  #msgs.search-dim-active .mrow.search-match{opacity:1}
+  #msgs.search-dim-active .mrow.search-match-current{opacity:1;filter:brightness(1.06)}
 
   /* ── Right pill: avatar ── */
   .hdr-av-pill{
@@ -1269,6 +1273,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     border:none !important;
     padding:0 !important;
   }
+  /* Override global .hdr-mb-avatar:active .av-img — pill handles the press scale */
+  .hdr-mb-avatar:active .av-img{transform:none !important}
   .hdr-mb-avatar .av-img{
     width:42px !important;
     height:42px !important;
@@ -1406,6 +1412,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   border:none !important;
   padding:0 !important;
 }
+/* Override global .hdr-mb-avatar:active .av-img — pill handles the press scale */
+.desktop-pill-hdr .hdr-mb-avatar:active .av-img{transform:none !important}
 .desktop-pill-hdr .hdr-mb-avatar .av-img{
   width:42px !important;
   height:42px !important;
