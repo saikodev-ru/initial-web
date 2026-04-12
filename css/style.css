@@ -1583,7 +1583,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   }
 }
 
-/* ── Pinned message bar (Telegram-style multi-pin with dot indicators) ── */
+/* ── Pinned message bar (Telegram-style multi-pin with vertical dot indicators) ── */
 .pin-bar{
   flex-shrink:0;
   z-index:14;
@@ -1603,37 +1603,39 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-bar-inner{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:6px;
   background:rgba(var(--bg-rgb),.50);
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
   border-radius:9999px;
   box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
-  padding:6px 6px 6px 8px;
+  padding:5px 5px 5px 6px;
   cursor:pointer;
-  max-width:100%;
+  max-width:420px;
+  width:fit-content;
   transition:filter .15s ease,transform .15s ease;
 }
 .pin-bar-inner:active{filter:brightness(.92);transform:scale(.98)}
 
-/* ── Pin dot indicators ── */
+/* ── Pin dot indicators (vertical, Telegram-style) ── */
 .pin-dots{
   display:flex;
+  flex-direction:column;
   align-items:center;
   gap:3px;
   flex-shrink:0;
-  padding:4px 0;
+  padding:3px 5px 3px 2px;
 }
 .pin-dot{
   width:5px;height:5px;
   border-radius:50%;
   background:var(--t3);
   cursor:pointer;
-  transition:background .2s ease, transform .2s var(--sp), width .2s var(--sp);
+  transition:background .2s ease, transform .2s var(--sp), height .2s var(--sp);
   flex-shrink:0;
 }
 .pin-dot.active{
   background:var(--y);
-  width:14px;
+  height:14px;
   border-radius:3px;
   transform:scale(1.1);
 }
@@ -1682,20 +1684,22 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-bar-list-btn:active{transform:scale(.88)}
 .pin-bar-list-btn svg{width:16px;height:16px}
 
-/* Mobile: pill-style pin bar with narrower padding */
+/* Mobile: pill-style pin bar — narrower, with margin-top for spacing from header */
 @container app (max-width: 680px){
   .pin-bar.visible{
     max-height:64px;
-    padding:3px 4px;
+    padding:2px 4px;
+    margin-top:2px;
   }
   .pin-bar-inner{
-    padding:5px 5px 5px 8px;
-    gap:6px;
+    padding:4px 4px 4px 5px;
+    gap:5px;
     border-radius:9999px;
+    max-width:calc(100vw - 32px);
   }
-  .pin-dots{gap:2.5px;padding:3px 0}
+  .pin-dots{gap:2.5px;padding:3px 4px 3px 1px}
   .pin-dot{width:4px;height:4px}
-  .pin-dot.active{width:12px}
+  .pin-dot.active{height:12px}
   .pin-bar-author{font-size:10.5px}
   .pin-bar-text{font-size:12.5px}
   .pin-bar-list-btn{width:28px;height:28px}

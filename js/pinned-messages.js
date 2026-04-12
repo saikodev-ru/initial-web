@@ -237,9 +237,10 @@ function openPinListScreen() {
     item.className = 'pin-list-item';
     item.dataset.msgId = p.message_id;
 
-    // Avatar
-    const avHtml = p.sender_avatar
-      ? '<div class="pin-list-av"><img src="' + esc(p.sender_avatar) + '" alt=""></div>'
+    // Avatar — use getMediaUrl() for proper S3 URL construction
+    const avUrl = p.sender_avatar ? getMediaUrl(p.sender_avatar) : null;
+    const avHtml = avUrl
+      ? '<div class="pin-list-av"><img src="' + esc(avUrl) + '" alt=""></div>'
       : '<div class="pin-list-av pin-list-av-placeholder">' + esc((p.sender_name || '?')[0]) + '</div>';
 
     // Message body preview
