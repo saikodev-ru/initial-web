@@ -23,11 +23,14 @@ function showPinBarSkeleton() {
   // Remove old skeleton if any
   const oldSkel = inner.querySelector('.pin-skel-wrap');
   if (oldSkel) oldSkel.remove();
-  // Create skeleton elements
+  // Create skeleton elements matching real pin-bar layout:
+  // [dots (left)] [content (flex:1)] [list-btn (right)]
   const skelWrap = document.createElement('div');
   skelWrap.className = 'pin-skel-wrap';
-  skelWrap.style.cssText = 'display:flex;align-items:center;gap:6px;flex:1;min-width:0;padding:3px 5px 3px 2px';
-  skelWrap.innerHTML = '<div class="pin-skel-dot"></div><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><div class="pin-skel-author"></div><div class="pin-skel-text"></div></div><div class="pin-skel-icon"></div>';
+  skelWrap.innerHTML =
+    '<div class="pin-skel-dots"><div class="pin-skel-dot active"></div><div class="pin-skel-dot"></div></div>' +
+    '<div class="pin-skel-content"><div class="pin-skel-author"></div><div class="pin-skel-text"></div></div>' +
+    '<div class="pin-skel-btn"></div>';
   inner.appendChild(skelWrap);
   bar.style.display = '';
   // Force reflow then add skeleton class for transition
@@ -517,32 +520,33 @@ function _updatePinBarContent() {
 
 /* ── Dynamic pin index: update pin bar when scrolling past pinned messages ── */
 /* DESC array: idx 0 = newest (bottom of chat DOM), idx N-1 = oldest (top of chat DOM)
-   Logic: find the first (newest) pinned message whose top is at or below the viewport bottom.
-   This correctly handles messages that are IN the viewport as well as those scrolled above. */
+   Telegram behavior: show the newest pinned message that hasn't been fully scrolled above.
+   When the user scrolls UP past a pinned message, switch to the next older one. */
 function _syncPinIndexOnScroll() {
   if (!S.pinnedMsgs || !S.pinnedMsgs.length) return;
   const area = $('msgs');
   if (!area) return;
   const areaRect = area.getBoundingClientRect();
-  const bottomLine = areaRect.bottom;
+  const areaTop = areaRect.top;
 
   // DESC: iterate from newest (0) to oldest (N-1)
-  // Find the first pinned message whose top is at or below the viewport bottom
-  // (i.e., at least partially visible or scrolled above)
+  // Find the first (newest) pinned message that is NOT fully above the viewport.
+  // A message is "scrolled past" when its bottom edge is above the viewport top.
+  // Messages in viewport or below viewport have r.bottom >= areaTop.
   let bestIdx = -1;
   for (let i = 0; i < S.pinnedMsgs.length; i++) {
     const row = document.querySelector('.mrow[data-id="' + S.pinnedMsgs[i].message_id + '"]');
     if (!row) continue;
     const r = row.getBoundingClientRect();
-    if (r.top <= bottomLine) {
+    if (r.bottom >= areaTop) {
       bestIdx = i;
-      break; // First match = newest message at/below viewport bottom
+      break; // First match = newest message not yet scrolled past
     }
   }
 
-  // Fallback: if ALL pinned messages are below viewport (user above all pins),
-  // show the oldest one (last in DESC = first the user will encounter scrolling down)
-  if (bestIdx === -1) bestIdx = S.pinnedMsgs.length - 1;
+  // Fallback: ALL pinned messages are above viewport (user scrolled past everything)
+  // Show the newest (idx 0) — it's the last "current" context before scrolling away
+  if (bestIdx === -1) bestIdx = 0;
 
   if (bestIdx !== S.pinIndex) {
     S.pinIndex = bestIdx;

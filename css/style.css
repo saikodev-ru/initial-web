@@ -1625,7 +1625,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   align-items:center;
   gap:3px;
   flex-shrink:0;
-  padding:3px 5px 3px 2px;
+  padding:3px 5px 3px 6px;
 }
 .pin-dot{
   width:5px;height:5px;
@@ -1711,7 +1711,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     width:calc(100vw - 32px);
     flex-shrink:0;
   }
-  .pin-dots{gap:2.5px;padding:3px 4px 3px 1px}
+  .pin-dots{gap:2.5px;padding:3px 4px 3px 5px}
   .pin-dot{width:4px;height:4px}
   .pin-dot.active{height:12px}
   .pin-bar-author{font-size:10.5px}
@@ -1892,33 +1892,49 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 @container app (max-width: 680px){
   .pin-bar.skel-loading{max-height:64px!important;padding:3px 4px!important;margin-top:4px!important}
 }
-.pin-skel-author{
-  display:block;height:11px;width:80px;border-radius:6px;
-  background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
-  background-size:200% 100%;
-  animation:skelShimmer 1.3s ease-in-out infinite;
-  flex-shrink:0;
+/* Skeleton wrapper mirrors .pin-bar-inner layout exactly */
+.pin-skel-wrap{
+  display:flex;align-items:center;gap:6px;flex:1;min-width:0;
 }
-.pin-skel-text{
-  display:block;height:13px;width:65%;border-radius:6px;
-  background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
-  background-size:200% 100%;
-  animation:skelShimmer 1.3s ease-in-out infinite .15s;
-  flex:1;
+/* Skeleton dots — mirrors .pin-dots */
+.pin-skel-dots{
+  display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;padding:3px 5px 3px 6px;
 }
 .pin-skel-dot{
   width:5px;height:5px;border-radius:50%;
   background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
-  background-size:200% 100%;
-  animation:skelShimmer 1.3s ease-in-out infinite .1s;
-  flex-shrink:0;
+  background-size:200% 100%;animation:skelShimmer 1.3s ease-in-out infinite .1s;flex-shrink:0;
 }
-.pin-skel-icon{
-  width:16px;height:16px;border-radius:50%;
+.pin-skel-dot.active{
+  height:14px;border-radius:3px;
+}
+/* Skeleton content — mirrors .pin-bar-content */
+.pin-skel-content{
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;overflow:hidden;
+}
+.pin-skel-author{
+  display:block;height:11px;width:80px;border-radius:6px;
   background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
-  background-size:200% 100%;
-  animation:skelShimmer 1.3s ease-in-out infinite .2s;
-  flex-shrink:0;
+  background-size:200% 100%;animation:skelShimmer 1.3s ease-in-out infinite;flex-shrink:0;
+}
+.pin-skel-text{
+  display:block;height:13px;width:70%;border-radius:6px;
+  background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
+  background-size:200% 100%;animation:skelShimmer 1.3s ease-in-out infinite .15s;flex:1;
+}
+/* Skeleton button — mirrors .pin-bar-list-btn (32x32 circle) */
+.pin-skel-btn{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(90deg,var(--solid2) 0%,var(--solid3) 40%,var(--solid2) 100%);
+  background-size:200% 100%;animation:skelShimmer 1.3s ease-in-out infinite .2s;
+}
+@container app (max-width: 680px){
+  .pin-skel-wrap{gap:5px}
+  .pin-skel-dots{gap:2.5px;padding:3px 4px 3px 5px}
+  .pin-skel-dot{width:4px;height:4px}
+  .pin-skel-dot.active{height:12px}
+  .pin-skel-btn{width:28px;height:28px}
 }
 
 .chat-wrap{position:relative}
