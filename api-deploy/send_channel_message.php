@@ -36,7 +36,7 @@ if (!$hasText && !$hasMedia) json_err('empty_message', 'Сообщение не 
 $db = db();
 
 $stmt = $db->prepare(
-    'SELECT c.id, c.owner_id, cm.role
+    'SELECT c.id, c.owner_id, c.who_can_post, c.slow_mode_seconds, cm.role
      FROM channels c
      JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = ?
      WHERE c.id = ?
@@ -47,9 +47,26 @@ $membership = $stmt->fetch();
 
 if (!$membership) json_err('forbidden', 'Вы не участник этого канала', 403);
 
-// Only admin/owner can send
-if (!in_array($membership['role'], ['owner', 'admin'], true)) {
-    json_err('forbidden', 'Только администраторы могут отправлять сообщения в канал', 403);
+$whoCanPost = $membership['who_can_post'] ?: 'admins';
+$isAdmin = in_array($membership['role'], ['owner', 'admin'], true);
+
+// Check posting permission
+if ($whoCanPost === 'admins' && !$isAdmin) {
+    json_err('forbidden', 'Только администраторы могут отправлять сообщения в этот канал', 403);
+}
+
+// Check slow mode (non-owners only)
+if ($isAdmin && $membership['role'] !== 'owner' && (int) $membership['slow_mode_seconds'] > 0) {
+    $slowSec = (int) $membership['slow_mode_seconds'];
+    $lastStmt = $db->prepare(
+        'SELECT sent_at FROM channel_messages WHERE channel_id = ? AND sender_id = ? ORDER BY id DESC LIMIT 1'
+    );
+    $lastStmt->execute([$channelId, $uid]);
+    $lastMsg = $lastStmt->fetch();
+    if ($lastMsg && (time() - (int) $lastMsg['sent_at']) < $slowSec) {
+        $wait = $slowSec - (time() - (int) $lastMsg['sent_at']);
+        json_err('slow_mode', 'Медленный режим: подождите ' . $wait . ' сек.', 429);
+    }
 }
 
 if ($hasMedia) {

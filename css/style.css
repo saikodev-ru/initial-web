@@ -7284,6 +7284,39 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
 }
 .ch-views svg{opacity:.7}
 
+/* Mute icon in channel list */
+.ch-mute-ico{opacity:.45;flex-shrink:0}
+
+/* Toggle switch */
+.ch-toggle{
+  width:44px;height:24px;border-radius:12px;
+  background:var(--solid3);position:relative;
+  cursor:pointer;transition:background .25s;flex-shrink:0;
+}
+.ch-toggle.on{background:var(--y)}
+.ch-toggle-dot{
+  width:20px;height:20px;border-radius:50%;
+  background:#fff;position:absolute;top:2px;left:2px;
+  transition:transform .25s var(--sp);box-shadow:0 1px 3px rgba(0,0,0,.3);
+}
+.ch-toggle.on .ch-toggle-dot{transform:translateX(20px)}
+
+/* Context menu separator */
+.ctx-sep{height:1px;background:var(--b2);margin:4px 8px}
+
+/* System mute pill */
+.system-mute-pill{
+  text-align:center;padding:8px 16px;font-size:13px;
+  color:var(--t2);background:var(--s1);border-bottom:1px solid var(--b);
+}
+
+/* Channel settings avatar */
+.ch-settings-avatar:hover .av-img{opacity:.8}
+.ch-settings-avatar .av-img{transition:opacity .2s}
+
+/* Channel settings modal */
+.ch-settings-section{margin-bottom:0}
+
 /* Forward button on messages */
 .ch-fwd-btn{
   position:absolute;right:-40px;top:50%;transform:translateY(-50%);

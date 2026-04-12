@@ -14,7 +14,6 @@ $uid = (int) $me['id'];
 $db  = db();
 
 // Get all channels the user is a member of, with last message preview
-// Using a LEFT JOIN subquery for last message per channel
 $lastMsgSql = "
     SELECT channel_id, id AS last_msg_id, body, sender_id, sent_at, media_type
     FROM channel_messages
@@ -33,7 +32,11 @@ $stmt = $db->prepare(
         c.description,
         c.type,
         c.members_count,
+        c.owner_id,
+        c.slow_mode_seconds,
+        c.who_can_post,
         cm.role AS member_role,
+        cm.muted,
         lm.last_msg_id,
         lm.body AS last_msg_body,
         lm.sender_id AS last_sender_id,
@@ -45,7 +48,7 @@ $stmt = $db->prepare(
      LEFT JOIN ({$lastMsgSql}) lm ON lm.channel_id = c.id
      LEFT JOIN users u ON u.id = lm.sender_id
      WHERE cm.user_id = ?
-     ORDER BY lm.sent_at IS NULL, lm.sent_at DESC, c.created_at DESC"
+     ORDER BY cm.muted ASC, lm.sent_at IS NULL, lm.sent_at DESC, c.created_at DESC"
 );
 $stmt->execute([$uid]);
 $rows = $stmt->fetchAll();
@@ -62,15 +65,21 @@ $channels = array_map(function ($c) {
         ];
     }
     return [
-        'channel_id'    => (int) $c['channel_id'],
-        'name'          => $c['name'],
-        'username'      => $c['username'],
-        'avatar_url'    => $c['avatar_url'],
-        'description'   => $c['description'],
-        'type'          => $c['type'],
-        'member_role'   => $c['member_role'],
-        'members_count' => (int) $c['members_count'],
-        'last_message'  => $last,
+        'channel_id'         => (int) $c['channel_id'],
+        'name'               => $c['name'],
+        'username'           => $c['username'],
+        'avatar_url'         => $c['avatar_url'],
+        'description'        => $c['description'],
+        'type'               => $c['type'],
+        'member_role'        => $c['member_role'],
+        'my_role'            => $c['member_role'],
+        'owner_id'           => (int) $c['owner_id'],
+        'members_count'      => (int) $c['members_count'],
+        'muted'              => (bool) $c['muted'],
+        'slow_mode_seconds'  => (int) $c['slow_mode_seconds'],
+        'who_can_post'       => $c['who_can_post'] ?: 'admins',
+        'last_message'       => $last,
+        'last_message_time'  => $c['last_msg_sent_at'] !== null ? (int) $c['last_msg_sent_at'] : null,
     ];
 }, $rows);
 

@@ -8,6 +8,7 @@ S.channelMsgs = {};
 S.channelLastId = {};
 S.channelSSE = null;
 S._channelSSEActive = false;
+S.channelMuted = {}; // { channelId: true }
 
 /* ══ CACHE ════════════════════════════════════════════════════ */
 const CACHE_CH_PFX = 'sg_ch_';
@@ -39,6 +40,12 @@ function _chIsOwner(ch) {
   const myId = S.user?.id;
   if (ch.owner_id === myId) return true;
   return ch.my_role === 'owner';
+}
+function _chCanPost(ch) {
+  if (!ch) return false;
+  if (_chIsAdmin(ch)) return true;
+  if (ch.who_can_post === 'all') return true;
+  return false;
 }
 function _fmtViews(n) {
   if (!n && n !== 0) return '';
@@ -87,7 +94,13 @@ async function initChannels() {
 async function loadChannels() {
   const res = await api('get_channels');
   if (!res.ok) return;
-  S.channels = (res.channels || []).sort((a, b) => (b.last_message_time || 0) - (a.last_message_time || 0));
+  S.channels = (res.channels || []);
+  // Populate muted state
+  S.channelMuted = {};
+  S.channels.forEach(ch => {
+    if (ch.muted) S.channelMuted[ch.channel_id] = true;
+  });
+  S.channels.sort((a, b) => (b.last_message_time || 0) - (a.last_message_time || 0));
   renderChannelsList();
 }
 
@@ -114,6 +127,7 @@ function _makeChannelItem(ch) {
   const time = ch.last_message_time ? fmtChatTime(ch.last_message_time) : '';
   const unread = ch.unread_count || 0;
   const isPrivate = ch.type === 'private';
+  const isMuted = ch.muted || S.channelMuted[ch.channel_id];
 
   el.innerHTML =
     '<div class="ch-item-av">' + _chAvatarHtml(ch) + '</div>' +
@@ -121,6 +135,7 @@ function _makeChannelItem(ch) {
       '<div class="ch-item-row">' +
         '<div class="ch-item-name"><span class="marquee-inner">' + esc(name) + '</span>' +
           (isPrivate ? '<svg class="ch-lock-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>' : '') +
+          (isMuted ? '<svg class="ch-mute-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14" title="Без звука"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path stroke-linecap="round" d="M23 9l-6 6m0-6l6 6"/></svg>' : '') +
         '</div>' +
         '<div class="ch-item-ts">' + time + '</div>' +
       '</div>' +
@@ -128,12 +143,17 @@ function _makeChannelItem(ch) {
         '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
           (lastMsg ? esc(lastMsg) : (desc ? '<span style="color:var(--t3)">' + esc(desc) + '</span>' : '<span style="color:var(--t3)">Нет сообщений</span>')) +
         '</span>' +
-        (unread > 0 ? '<span class="badge">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
+        (unread > 0 && !isMuted ? '<span class="badge">' + (unread > 99 ? '99+' : unread) + '</span>' : '') +
       '</div>' +
     '</div>';
 
   el.onclick = () => openChannel(ch);
   el.oncontextmenu = (e) => { e.preventDefault(); _showChannelItemCtx(e, ch); };
+  // Long press for mobile
+  let lpTimer;
+  el.ontouchstart = () => { lpTimer = setTimeout(() => { e.preventDefault(); _showChannelItemCtx(e, ch); }, 500); };
+  el.ontouchend = () => clearTimeout(lpTimer);
+  el.ontouchmove = () => clearTimeout(lpTimer);
   wtn(el);
   const nameSpan = el.querySelector('.ch-item-name .marquee-inner');
   if (nameSpan) setTimeout(() => checkMarquee(nameSpan), 0);
@@ -141,13 +161,40 @@ function _makeChannelItem(ch) {
 }
 
 function _showChannelItemCtx(e, ch) {
+  const isAdmin = _chIsAdmin(ch);
+  const isOwner = _chIsOwner(ch);
+  const isMuted = ch.muted || S.channelMuted[ch.channel_id];
   const items = [];
+
   items.push({ label: 'Открыть', icon: '💬', action: () => openChannel(ch) });
-  if (_chIsAdmin(ch)) {
+
+  // Mute / Unmute
+  items.push({
+    label: isMuted ? 'Включить уведомления' : 'Без звука',
+    icon: isMuted ? '🔔' : '🔕',
+    action: () => _toggleMuteChannel(ch.channel_id, !isMuted)
+  });
+
+  // Mark as read
+  items.push({ label: 'Прочитать', icon: '✅', action: () => _markChannelRead(ch.channel_id) });
+
+  if (isAdmin) {
     items.push({ label: 'Настройки', icon: '⚙️', action: () => { openChannel(ch); setTimeout(() => showChannelSettings(ch), 200); } });
   }
+
   items.push({ label: 'Скопировать ссылку', icon: '🔗', action: () => copyChannelLink(ch) });
-  items.push({ label: 'Покинуть', icon: '🚪', action: () => _leaveChannel(ch.channel_id) });
+
+  // Pin / Unpin (if supported)
+  items.push({ label: 'Закрепить', icon: '📌', action: () => toast('Функция закрепления чатов в разработке', 'info') });
+
+  items.push({ divider: true });
+
+  if (!isOwner) {
+    items.push({ label: 'Покинуть канал', icon: '🚪', action: () => _leaveChannel(ch.channel_id), danger: true });
+  }
+  if (isOwner) {
+    items.push({ label: 'Удалить канал', icon: '🗑', action: () => _deleteChannel(ch), danger: true });
+  }
   _showCtxMenu(e, items);
 }
 
@@ -159,6 +206,13 @@ function _showCtxMenu(e, items) {
   menu.className = 'ctxmenu';
   menu.id = 'ch-ctxmenu';
   items.forEach((it, i) => {
+    if (it.divider) {
+      const sep = document.createElement('div');
+      sep.className = 'ctx-sep';
+      sep.style.cssText = 'height:1px;background:var(--b2);margin:4px 8px';
+      menu.appendChild(sep);
+      return;
+    }
     const d = document.createElement('div');
     d.className = 'ctx-it' + (it.danger ? ' danger' : '');
     d.innerHTML = '<span>' + it.label + '</span>';
@@ -211,14 +265,23 @@ function openChannel(ch) {
     if (mbNav) mbNav.classList.add('hidden');
   }
 
-  // Hide input zone for non-admins
+  // Hide input zone for non-posters
   const inpZone = $('input-zone');
-  const isAdmin = _chIsAdmin(ch);
-  if (inpZone) inpZone.style.display = isAdmin ? '' : 'none';
+  const canPost = _chCanPost(ch);
+  if (inpZone) inpZone.style.display = canPost ? '' : 'none';
 
-  // Remove system-mute-pill if present
+  // Show mute notification for muted users or non-posters
   const pill = $('system-mute-pill');
   if (pill) pill.remove();
+  if (!canPost && !_chIsAdmin(ch)) {
+    const mutePill = document.createElement('div');
+    mutePill.id = 'system-mute-pill';
+    mutePill.className = 'system-mute-pill';
+    mutePill.style.cssText = 'text-align:center;padding:8px 16px;font-size:13px;color:var(--t2);background:var(--s1);border-bottom:1px solid var(--b)';
+    mutePill.textContent = 'Только администраторы могут писать в этом канале';
+    const msgsEl = $('msgs');
+    if (msgsEl) msgsEl.parentNode.insertBefore(mutePill, msgsEl);
+  }
 
   // Render messages
   const area = $('msgs');
@@ -347,12 +410,15 @@ function renderChannelHeader(ch) {
   if (moreBtn) {
     moreBtn.onclick = (e) => {
       if (!S.activeChannel) return;
+      const ch = S.activeChannel;
+      const isMuted = ch.muted || S.channelMuted[ch.channel_id];
       const items = [
         { label: 'Поиск', icon: '🔍', action: () => { if (window._openChatSearch) window._openChatSearch(); } },
-        { label: 'Настройки', icon: '⚙️', action: () => showChannelSettings(S.activeChannel) },
-        { label: 'Скопировать ссылку', icon: '🔗', action: () => copyChannelLink(S.activeChannel) },
+        { label: isMuted ? 'Включить уведомления' : 'Без звука', icon: isMuted ? '🔔' : '🔕', action: () => _toggleMuteChannel(ch.channel_id, !isMuted) },
+        { label: 'Настройки', icon: '⚙️', action: () => showChannelSettings(ch) },
+        { label: 'Скопировать ссылку', icon: '🔗', action: () => copyChannelLink(ch) },
       ];
-      if (_chIsAdmin(S.activeChannel)) {
+      if (_chIsAdmin(ch)) {
         items.push({ label: 'Закрепить сообщение', icon: '📌', action: () => toast('Выберите сообщение для закрепления', 'info') });
       }
       _showCtxMenu(e, items);
@@ -818,7 +884,7 @@ async function _editChannelMsg(m) {
 async function sendChannelText() {
   const ch = S.activeChannel;
   if (!ch) return;
-  if (!_chIsAdmin(ch)) { toast('Только админы могут писать', 'err'); return; }
+  if (!_chCanPost(ch)) { toast('Вы не можете писать в этом канале', 'err'); return; }
 
   const mfield = $('mfield');
   if (!mfield) return;
@@ -1121,6 +1187,7 @@ function showChannelSettings(ch) {
   if (!ch) return;
   const isAdmin = _chIsAdmin(ch);
   const isOwner = _chIsOwner(ch);
+  const isMuted = ch.muted || S.channelMuted[ch.channel_id];
 
   let overlay = $('modal-ch-settings');
   if (overlay) overlay.remove();
@@ -1129,95 +1196,120 @@ function showChannelSettings(ch) {
   overlay.className = 'overlay';
   overlay.id = 'modal-ch-settings';
 
-  let html = '<div class="modal" style="width:420px;max-width:95vw;max-height:90vh;overflow-y:auto">' +
+  let html = '<div class="modal ch-settings-modal" style="width:440px;max-width:95vw;max-height:90vh;overflow-y:auto">' +
     '<div class="modal-hdr">' +
       '<div class="modal-title">Настройки канала</div>' +
       '<button class="modal-x" id="btn-ch-settings-close"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
     '</div>' +
     '<div class="modal-body" style="padding:20px">';
 
-  // Channel header
-  html += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">' +
-    '<div style="width:56px;height:56px;flex-shrink:0;border-radius:50%;overflow:hidden">' + _chAvatarHtml(ch) + '</div>' +
-    '<div style="min-width:0">' +
-      '<div style="font-size:17px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(ch.name) + '</div>' +
-      '<div style="font-size:13px;color:var(--t3)">' + (ch.type === 'private' ? '🔒 Приватный канал' : '🌐 Публичный канал') + '</div>' +
-      '<div style="font-size:13px;color:var(--t3)">' + _chRoleLabel(ch.my_role || '') + '</div>' +
+  // Channel header with avatar edit
+  html += '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">' +
+    '<div class="ch-settings-avatar" id="ch-set-avatar" style="width:64px;height:64px;flex-shrink:0;border-radius:50%;overflow:hidden;cursor:pointer;position:relative">' +
+      _chAvatarHtml(ch) +
+      (isAdmin ? '<div style="position:absolute;bottom:0;right:0;width:22px;height:22px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg2)">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>' +
+      '</div>' : '') +
+    '</div>' +
+    '<div style="min-width:0;flex:1">' +
+      '<div style="font-size:18px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(ch.name) + '</div>' +
+      '<div style="font-size:13px;color:var(--t3);margin-top:2px">' + (ch.type === 'private' ? '🔒 Приватный канал' : '🌐 Публичный канал') + '</div>' +
+      '<div style="font-size:13px;color:var(--t3)">' + _chRoleLabel(ch.my_role || '') + ' · ' + (ch.member_count || 0) + ' подписчиков</div>' +
     '</div>' +
   '</div>';
 
+  if (isAdmin) html += '<input type="file" id="ch-avatar-input" accept="image/*" style="display:none">';
+
   // Editable fields (admin only)
   if (isAdmin) {
-    html += '<div style="margin-bottom:14px">' +
-      '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Название</label>' +
-      '<input type="text" id="ch-set-name" value="' + esc(ch.name || '') + '" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:15px;outline:none" maxlength="100">' +
-    '</div>';
-
-    html += '<div style="margin-bottom:14px">' +
-      '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Описание</label>' +
-      '<textarea id="ch-set-desc" rows="3" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:14px;outline:none;resize:vertical" maxlength="500">' + esc(ch.description || '') + '</textarea>' +
-    '</div>';
-
+    html += '<div class="ch-settings-section">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Основное</div>';
+    html += '<div style="margin-bottom:14px"><label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Название</label><input type="text" id="ch-set-name" value="' + esc(ch.name || '') + '" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:15px;outline:none" maxlength="100"></div>';
+    html += '<div style="margin-bottom:14px"><label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Описание</label><textarea id="ch-set-desc" rows="3" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:14px;outline:none;resize:vertical" maxlength="500">' + esc(ch.description || '') + '</textarea></div>';
     if (ch.type === 'public') {
-      html += '<div style="margin-bottom:14px">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Username</label>' +
-        '<div style="display:flex;align-items:center;border-radius:12px;border:1px solid var(--br);background:var(--bg2);overflow:hidden">' +
-          '<span style="padding:10px 0 10px 14px;color:var(--t3);font-size:14px">@</span>' +
-          '<input type="text" id="ch-set-username" value="' + esc(ch.username || '') + '" style="flex:1;padding:10px 14px 10px 0;border:none;background:transparent;color:var(--t1);font-size:14px;outline:none" maxlength="32">' +
-        '</div>' +
-      '</div>';
+      html += '<div style="margin-bottom:14px"><label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Username</label><div style="display:flex;align-items:center;border-radius:12px;border:1px solid var(--br);background:var(--bg2);overflow:hidden"><span style="padding:10px 0 10px 14px;color:var(--t3);font-size:14px">@</span><input type="text" id="ch-set-username" value="' + esc(ch.username || '') + '" style="flex:1;padding:10px 14px 10px 0;border:none;background:transparent;color:var(--t1);font-size:14px;outline:none" maxlength="32"></div></div>';
     }
-
-    html += '<button class="btn" id="btn-ch-set-save" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;margin-bottom:16px">Сохранить изменения</button>';
+    html += '<button class="btn" id="btn-ch-set-save" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;margin-bottom:4px">Сохранить изменения</button></div>';
   }
 
-  // Link section
-  html += '<div style="border-top:1px solid var(--br);padding-top:16px;margin-top:4px">' +
-    '<div style="font-size:14px;font-weight:600;margin-bottom:10px">Ссылка на канал</div>';
+  // Permissions section (admin only)
+  if (isAdmin) {
+    html += '<div class="ch-settings-section" style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Права</div>';
+    html += '<div style="margin-bottom:14px"><label style="display:block;font-size:13px;color:var(--t3);margin-bottom:8px">Кто может писать</label><div style="display:flex;gap:8px">' +
+      '<label class="ch-perm-opt" style="flex:1;cursor:pointer"><input type="radio" name="ch-wcp" value="admins"' + (ch.who_can_post !== 'all' ? ' checked' : '') + ' style="display:none"><div style="padding:12px;border-radius:12px;border:2px solid ' + (ch.who_can_post !== 'all' ? 'var(--accent)' : 'var(--br)') + ';background:var(--bg2);text-align:center;font-size:13px;transition:border-color .2s"><div style="font-weight:600;margin-bottom:2px">Только админы</div><div style="font-size:11px;color:var(--t3)">Только администраторы могут отправлять сообщения</div></div></label>' +
+      '<label class="ch-perm-opt" style="flex:1;cursor:pointer"><input type="radio" name="ch-wcp" value="all"' + (ch.who_can_post === 'all' ? ' checked' : '') + ' style="display:none"><div style="padding:12px;border-radius:12px;border:2px solid ' + (ch.who_can_post === 'all' ? 'var(--accent)' : 'var(--br)') + ';background:var(--bg2);text-align:center;font-size:13px;transition:border-color .2s"><div style="font-weight:600;margin-bottom:2px">Все подписчики</div><div style="font-size:11px;color:var(--t3)">Каждый может отправлять сообщения</div></div></label></div></div>';
+    html += '<div style="margin-bottom:14px"><label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Медленный режим</label><select id="ch-set-slow" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:14px;outline:none;appearance:none"><option value="0"' + ((ch.slow_mode_seconds || 0) === 0 ? ' selected' : '') + '>Выключен</option><option value="10"' + ((ch.slow_mode_seconds || 0) === 10 ? ' selected' : '') + '>10 секунд</option><option value="30"' + ((ch.slow_mode_seconds || 0) === 30 ? ' selected' : '') + '>30 секунд</option><option value="60"' + ((ch.slow_mode_seconds || 0) === 60 ? ' selected' : '') + '>1 минута</option><option value="300"' + ((ch.slow_mode_seconds || 0) === 300 ? ' selected' : '') + '>5 минут</option></select></div>';
+    html += '<button class="btn" id="btn-ch-set-perms" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;margin-bottom:4px">Сохранить права</button></div>';
+  }
 
+  // Notifications
+  html += '<div class="ch-settings-section" style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">';
+  html += '<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Уведомления</div>';
+  html += '<div class="ch-settings-row" id="ch-set-mute" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:12px;background:var(--bg2);cursor:pointer"><div><div style="font-size:14px;font-weight:500">' + (isMuted ? 'Включить уведомления' : 'Без звука') + '</div><div style="font-size:12px;color:var(--t3)">' + (isMuted ? 'Вы получите уведомления о новых сообщениях' : 'Уведомления отключены для этого канала') + '</div></div><div class="ch-toggle' + (isMuted ? '' : ' on') + '" id="ch-mute-toggle"><div class="ch-toggle-dot"></div></div></div></div>';
+
+  // Link section
+  html += '<div class="ch-settings-section" style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">';
+  html += '<div style="font-size:13px;font-weight:600;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Ссылка на канал</div>';
   if (ch.type === 'public' && ch.username) {
-    html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--bg2);cursor:pointer" id="ch-link-copy">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' +
-      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@' + esc(ch.username) + '</span>' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
-    '</div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:var(--bg2);cursor:pointer" id="ch-link-copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">@' + esc(ch.username) + '</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div>';
   } else {
-    html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:var(--bg2);cursor:pointer" id="ch-link-copy">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>' +
-      '<span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ch-link-text">Загрузка...</span>' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>' +
-    '</div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:var(--bg2);cursor:pointer" id="ch-link-copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span style="flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="ch-link-text">Загрузка...</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></div>';
   }
   html += '</div>';
 
   // Members
-  html += '<div style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">' +
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
-      '<div style="font-size:14px;font-weight:600">Подписчики</div>' +
-      '<button class="ico-btn" id="btn-ch-members" style="font-size:13px;color:var(--accent);padding:4px 10px;border-radius:8px">Все (' + (ch.member_count || 0) + ')</button>' +
-    '</div>' +
-  '</div>';
+  html += '<div class="ch-settings-section" style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="font-size:13px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px">Подписчики</div><button class="ico-btn" id="btn-ch-members" style="font-size:13px;color:var(--accent);padding:4px 10px;border-radius:8px">Все (' + (ch.member_count || 0) + ')</button></div></div>';
 
   // Danger zone
-  html += '<div style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">';
-
-  if (!isOwner) {
-    html += '<button class="btn" id="btn-ch-leave" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;background:var(--red);box-shadow:0 4px 20px rgba(255,69,58,.35);margin-bottom:8px">Покинуть канал</button>';
-  }
-  if (isOwner) {
-    html += '<button class="btn" id="btn-ch-delete" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;background:var(--red);box-shadow:0 4px 20px rgba(255,69,58,.35)">Удалить канал</button>';
-  }
-  html += '</div>';
-
-  html += '</div></div>';
+  html += '<div class="ch-settings-section" style="border-top:1px solid var(--br);padding-top:16px;margin-top:16px">';
+  if (!isOwner) html += '<button class="btn" id="btn-ch-leave" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;background:transparent;color:var(--red);border:1px solid var(--red);margin-bottom:8px">Покинуть канал</button>';
+  if (isOwner) html += '<button class="btn" id="btn-ch-delete" style="width:100%;padding:11px;border-radius:12px;font-size:14px;font-weight:600;background:var(--red);box-shadow:0 4px 20px rgba(255,69,58,.35)">Удалить канал</button>';
+  html += '</div></div></div>';
 
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('on'));
 
-  // Close handlers
   $('btn-ch-settings-close').onclick = () => closeMod('modal-ch-settings');
   overlay.onclick = (e) => { if (e.target === overlay) closeMod('modal-ch-settings'); };
+
+  // Avatar upload
+  if (isAdmin) {
+    const avBtn = $('ch-set-avatar');
+    const avInput = $('ch-avatar-input');
+    if (avBtn && avInput) {
+      avBtn.onclick = () => avInput.click();
+      avInput.onchange = async () => {
+        const file = avInput.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { toast('Файл слишком большой (макс 5 МБ)', 'err'); return; }
+        toast('Загрузка аватара...', 'info');
+        try {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch(API + '/upload', {
+            method: 'POST',
+            headers: S.token ? { 'Authorization': 'Bearer ' + S.token } : {},
+            body: formData
+          });
+          const data = await res.json();
+          if (data.ok && data.url) {
+            const r = await api('edit_channel', 'POST', { channel_id: ch.channel_id, avatar_url: data.url });
+            if (r.ok) {
+              toast('Аватар обновлён', 'ok');
+              ch.avatar_url = data.url;
+              const idx = S.channels.findIndex(c => c.channel_id === ch.channel_id);
+              if (idx >= 0) S.channels[idx].avatar_url = data.url;
+              if (S.activeChannel) { S.activeChannel.avatar_url = data.url; renderChannelHeader(S.activeChannel); }
+              renderChannelsList();
+              showChannelSettings(ch);
+            } else toast(r.message || 'Ошибка сохранения', 'err');
+          } else toast('Ошибка загрузки', 'err');
+        } catch(e) { toast('Ошибка сети', 'err'); }
+      };
+    }
+  }
 
   // Load invite link for private channels
   if (ch.type !== 'public') {
@@ -1228,11 +1320,17 @@ function showChannelSettings(ch) {
     });
   }
 
-  // Copy link
   const linkCopy = $('ch-link-copy');
   if (linkCopy) linkCopy.onclick = () => copyChannelLink(ch);
 
-  // Save changes
+  // Permissions toggle UI
+  const permRadios = overlay.querySelectorAll('input[name="ch-wcp"]');
+  const permOpts = overlay.querySelectorAll('.ch-perm-opt > div');
+  permRadios.forEach((r) => {
+    r.onchange = () => { permOpts.forEach(o => o.style.borderColor = 'var(--br)'); r.nextElementSibling.style.borderColor = 'var(--accent)'; };
+  });
+
+  // Save basic changes
   const saveBtn = $('btn-ch-set-save');
   if (saveBtn) {
     saveBtn.onclick = async () => {
@@ -1240,18 +1338,11 @@ function showChannelSettings(ch) {
       if (!name) { toast('Введите название', 'err'); return; }
       const desc = $('ch-set-desc')?.value?.trim() || '';
       const username = $('ch-set-username')?.value?.trim() || '';
-
-      saveBtn.disabled = true;
-      saveBtn.textContent = 'Сохранение...';
-
+      saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...';
       const data = { channel_id: ch.channel_id, name: name, description: desc };
       if (ch.type === 'public' && username) data.username = username;
-
       const res = await api('edit_channel', 'POST', data);
-
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Сохранить изменения';
-
+      saveBtn.disabled = false; saveBtn.textContent = 'Сохранить изменения';
       if (res.ok) {
         toast('Сохранено!', 'ok');
         const idx = S.channels.findIndex(c => c.channel_id === ch.channel_id);
@@ -1261,38 +1352,80 @@ function showChannelSettings(ch) {
           renderChannelHeader(S.activeChannel);
         }
         renderChannelsList();
-      } else {
-        toast(res.message || 'Ошибка', 'err');
-      }
+      } else toast(res.message || 'Ошибка', 'err');
     };
   }
 
-  // Members button
+  // Save permissions
+  const permsBtn = $('btn-ch-set-perms');
+  if (permsBtn) {
+    permsBtn.onclick = async () => {
+      const wcp = overlay.querySelector('input[name="ch-wcp"]:checked')?.value || 'admins';
+      const slow = parseInt($('ch-set-slow')?.value || '0', 10);
+      permsBtn.disabled = true; permsBtn.textContent = 'Сохранение...';
+      const res = await api('edit_channel', 'POST', { channel_id: ch.channel_id, who_can_post: wcp, slow_mode_seconds: slow });
+      permsBtn.disabled = false; permsBtn.textContent = 'Сохранить права';
+      if (res.ok) {
+        toast('Права обновлены', 'ok');
+        ch.who_can_post = wcp; ch.slow_mode_seconds = slow;
+        const idx = S.channels.findIndex(c => c.channel_id === ch.channel_id);
+        if (idx >= 0) { S.channels[idx].who_can_post = wcp; S.channels[idx].slow_mode_seconds = slow; }
+        if (S.activeChannel) {
+          S.activeChannel.who_can_post = wcp; S.activeChannel.slow_mode_seconds = slow;
+          const canPost = _chCanPost(S.activeChannel);
+          const inpZone = $('input-zone');
+          if (inpZone) inpZone.style.display = canPost ? '' : 'none';
+        }
+      } else toast(res.message || 'Ошибка', 'err');
+    };
+  }
+
+  // Mute toggle
+  const muteBtn = $('ch-set-mute');
+  const muteToggle = $('ch-mute-toggle');
+  if (muteBtn && muteToggle) {
+    muteBtn.onclick = () => {
+      const newMuted = !muteToggle.classList.contains('on');
+      muteToggle.classList.toggle('on', newMuted);
+      _toggleMuteChannel(ch.channel_id, newMuted);
+    };
+  }
+
   const membersBtn = $('btn-ch-members');
-  if (membersBtn) {
-    membersBtn.onclick = () => {
-      closeMod('modal-ch-settings');
-      showChannelMembers(ch.channel_id);
-    };
-  }
+  if (membersBtn) membersBtn.onclick = () => { closeMod('modal-ch-settings'); showChannelMembers(ch.channel_id); };
 
-  // Leave
   const leaveBtn = $('btn-ch-leave');
-  if (leaveBtn) {
-    leaveBtn.onclick = () => {
-      closeMod('modal-ch-settings');
-      _leaveChannel(ch.channel_id);
-    };
-  }
+  if (leaveBtn) leaveBtn.onclick = () => { closeMod('modal-ch-settings'); _leaveChannel(ch.channel_id); };
 
-  // Delete
   const deleteBtn = $('btn-ch-delete');
-  if (deleteBtn) {
-    deleteBtn.onclick = () => {
-      closeMod('modal-ch-settings');
-      _deleteChannel(ch);
-    };
-  }
+  if (deleteBtn) deleteBtn.onclick = () => { closeMod('modal-ch-settings'); _deleteChannel(ch); };
+}
+
+/* ══ MUTE / UNMUTE CHANNEL ═════════════════════════════════════ */
+async function _toggleMuteChannel(chId, muted) {
+  const res = await api('mute_channel', 'POST', { channel_id: chId, muted: muted });
+  if (res.ok) {
+    if (muted) {
+      S.channelMuted[chId] = true;
+      toast('Уведомления отключены', 'ok');
+    } else {
+      delete S.channelMuted[chId];
+      toast('Уведомления включены', 'ok');
+    }
+    // Update channel data
+    const idx = S.channels.findIndex(c => c.channel_id === chId);
+    if (idx >= 0) S.channels[idx].muted = muted;
+    if (S.activeChannel && S.activeChannel.channel_id === chId) S.activeChannel.muted = muted;
+    renderChannelsList();
+  } else toast(res.message || 'Ошибка', 'err');
+}
+
+/* ══ MARK CHANNEL READ ══════════════════════════════════════════ */
+async function _markChannelRead(chId) {
+  // Reset unread count visually
+  const idx = S.channels.findIndex(c => c.channel_id === chId);
+  if (idx >= 0) { S.channels[idx].unread_count = 0; renderChannelsList(); }
+  toast('Прочитано', 'ok');
 }
 
 /* ══ LEAVE CHANNEL ════════════════════════════════════════════ */
