@@ -341,6 +341,40 @@ function closeChannel() {
   const hdrAvMb = $('hdr-av-mb');
   if (hdrAvMb) hdrAvMb.innerHTML = '';
 
+  // ── CRITICAL: Restore all header button overrides back to DM defaults ──
+  const hdrClick = $('hdr-clickable');
+  if (hdrClick) {
+    hdrClick.onclick = () => {
+      if (!S.partner) return;
+      if (typeof isSystemChat === 'function' && (isSystemChat(S.partner) || (typeof isSavedMsgs === 'function' && isSavedMsgs(S.partner)))) return;
+      if (typeof openPartnerModal === 'function') openPartnerModal();
+    };
+  }
+  const mbAvBtn = $('hdr-mb-avatar');
+  if (mbAvBtn) {
+    mbAvBtn.onclick = () => {
+      if (!S.partner) return;
+      if (typeof isSystemChat === 'function' && (isSystemChat(S.partner) || (typeof isSavedMsgs === 'function' && isSavedMsgs(S.partner)))) return;
+      if (typeof openPartnerModal === 'function') openPartnerModal();
+    };
+  }
+  const callBtn = $('btn-hdr-call');
+  if (callBtn) callBtn.style.display = '';
+  const moreBtn = $('btn-hdr-more');
+  if (moreBtn) moreBtn.onclick = null; // Uses default context menu
+  const closeBtn = $('btn-hdr-close');
+  if (closeBtn) closeBtn.onclick = null; // Uses default close behavior
+  const backBtn = $('btn-back-mb');
+  if (backBtn) {
+    backBtn.onclick = () => { history.back(); };
+  }
+  const sendBtn = $('btn-send');
+  if (sendBtn) sendBtn.onclick = null; // Let the default sendText flow handle it
+
+  // Remove any mute pill
+  const pill = $('system-mute-pill');
+  if (pill) pill.remove();
+
   // Show input zone again
   const inpZone = $('input-zone');
   if (inpZone) inpZone.style.display = '';
@@ -905,14 +939,31 @@ async function sendChannelText() {
 
   try {
     const res = await api('send_channel_message', 'POST', { channel_id: chId, body: body });
-    if (res.ok && res.message) {
-      const real = res.message;
-      if (real.media_url) real.media_url = getMediaUrl(real.media_url);
-      const idx = S.channelMsgs[chId].findIndex(x => x.id === tid);
-      if (idx >= 0) S.channelMsgs[chId][idx] = real;
-      S.channelLastId[chId] = Math.max(S.channelLastId[chId] || 0, real.id);
-      const el = document.querySelector('.mrow[data-id="' + tid + '"]');
-      if (el) { el.dataset.id = real.id; _patchChannelMsgDom(real); }
+    if (res.ok) {
+      // The API may return a full message object or just { message_id, sent_at }
+      if (res.message && res.message.id) {
+        const real = res.message;
+        if (real.media_url) real.media_url = getMediaUrl(real.media_url);
+        const idx = S.channelMsgs[chId].findIndex(x => x.id === tid);
+        if (idx >= 0) S.channelMsgs[chId][idx] = real;
+        S.channelLastId[chId] = Math.max(S.channelLastId[chId] || 0, real.id);
+        const el = document.querySelector('.mrow[data-id="' + tid + '"]');
+        if (el) { el.dataset.id = real.id; _patchChannelMsgDom(real); }
+      } else if (res.message_id) {
+        // API returned just the ID — promote temp message
+        const idx = S.channelMsgs[chId].findIndex(x => x.id === tid);
+        if (idx >= 0) {
+          S.channelMsgs[chId][idx].id = res.message_id;
+          S.channelMsgs[chId][idx].is_edited = 0;
+          if (res.sent_at) S.channelMsgs[chId][idx].sent_at = res.sent_at;
+        }
+        S.channelLastId[chId] = Math.max(S.channelLastId[chId] || 0, res.message_id);
+        const el = document.querySelector('.mrow[data-id="' + tid + '"]');
+        if (el) { el.dataset.id = res.message_id; }
+      }
+      // Remove sending state from temp bubble
+      const tmpEl = document.querySelector('.mrow[data-id="' + (res.message_id || tid) + '"]');
+      if (tmpEl) tmpEl.classList.remove('sending');
       cacheWriteChannel(chId, S.channelMsgs[chId]);
     } else {
       toast(res.message || 'Ошибка отправки', 'err');
@@ -1023,72 +1074,159 @@ function stopChannelSSE() {
   if (S.channelSSE) { S.channelSSE.abort(); S.channelSSE = null; }
 }
 
-/* ══ CREATE CHANNEL MODAL ══════════════════════════════════════ */
+/* ══ CREATE CHANNEL MODAL — Profile panel style ══════════════════ */
 function showCreateChannelModal() {
-  // Ensure modal overlay exists
   let overlay = $('modal-ch-create');
-  if (overlay) { overlay.remove(); }
+  if (overlay) overlay.remove();
 
   overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.id = 'modal-ch-create';
-  overlay.innerHTML = '<div class="modal" style="width:380px;max-width:95vw">' +
-    '<div class="modal-hdr">' +
-      '<div class="modal-title">Создать канал</div>' +
-      '<button class="modal-x" data-close="modal-ch-create"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
-    '</div>' +
-    '<div class="modal-body" style="padding:20px">' +
-      '<div style="margin-bottom:16px">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Название канала *</label>' +
-        '<input type="text" id="ch-create-name" placeholder="Мой канал" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:15px;outline:none" maxlength="100">' +
-      '</div>' +
-      '<div style="margin-bottom:16px">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Описание</label>' +
-        '<textarea id="ch-create-desc" placeholder="О чём этот канал..." rows="3" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:14px;outline:none;resize:vertical" maxlength="500"></textarea>' +
-      '</div>' +
-      '<div style="margin-bottom:16px">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Тип канала</label>' +
-        '<div style="display:flex;gap:8px">' +
-          '<label style="flex:1;cursor:pointer">' +
-            '<input type="radio" name="ch-type" value="public" checked style="display:none">' +
-            '<div class="ch-type-opt" style="padding:12px;border-radius:12px;border:2px solid var(--accent);background:var(--bg2);text-align:center;font-size:13px">' +
-              '<div style="font-weight:600;margin-bottom:2px">🌐 Публичный</div>' +
-              '<div style="font-size:12px;color:var(--t3)">Виден всем</div>' +
-            '</div>' +
-          '</label>' +
-          '<label style="flex:1;cursor:pointer">' +
-            '<input type="radio" name="ch-type" value="private" style="display:none">' +
-            '<div class="ch-type-opt" style="padding:12px;border-radius:12px;border:2px solid var(--br);background:var(--bg2);text-align:center;font-size:13px">' +
-              '<div style="font-weight:600;margin-bottom:2px">🔒 Приватный</div>' +
-              '<div style="font-size:12px;color:var(--t3)">По ссылке</div>' +
-            '</div>' +
-          '</label>' +
-        '</div>' +
-      '</div>' +
-      '<div style="margin-bottom:20px" id="ch-create-username-wrap">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Username (для публичного)</label>' +
-        '<div style="display:flex;align-items:center;border-radius:12px;border:1px solid var(--br);background:var(--bg2);overflow:hidden">' +
-          '<span style="padding:10px 0 10px 14px;color:var(--t3);font-size:14px">@</span>' +
-          '<input type="text" id="ch-create-username" placeholder="username" style="flex:1;padding:10px 14px 10px 0;border:none;background:transparent;color:var(--t1);font-size:14px;outline:none" maxlength="32">' +
-        '</div>' +
-      '</div>' +
-      '<button class="btn" id="btn-ch-create-submit" style="width:100%;padding:12px;border-radius:12px;font-size:15px;font-weight:600">Создать канал</button>' +
-    '</div>' +
-  '</div>';
+
+  overlay.innerHTML = `<div class="pm-panel" style="width:400px;max-width:100vw">
+    <div class="pm-hero-bg" id="ch-create-hero-bg">
+      <div class="blur-bg-img" style="background:linear-gradient(135deg, hsl(250,50%,45%), hsl(280,50%,35%))"></div>
+      <div class="blur-bg-ov"></div>
+    </div>
+    <button class="pm-close" data-close="modal-ch-create">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+
+    <div class="pm-scroll">
+      <div class="pm-header-zone" style="padding-top:56px">
+        <div class="pm-avi-wrap">
+          <label for="ch-create-avatar-input" class="pm-hero-avi" id="ch-create-av" style="cursor:pointer" title="Загрузить аватар">
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:hsl(250,50%,45%);color:#fff;border-radius:inherit">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5v-13A2.5 2.5 0 0 1 4.5 3zm0 2a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5h-15zM9 15.5l6-4.5-6-4.5v9z"/></svg>
+            </div>
+            <div style="position:absolute;bottom:2px;right:2px;width:28px;height:28px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </div>
+          </label>
+        </div>
+        <input type="file" id="ch-create-avatar-input" accept="image/*" style="display:none">
+        <div class="pm-name-row" style="margin-top:12px;width:100%;justify-content:center">
+          <input type="text" id="ch-create-name" placeholder="Название канала" maxlength="100" style="
+            background:transparent;border:none;outline:none;text-align:center;
+            font-size:20px;font-weight:700;color:var(--t1);width:100%;
+            font-family:var(--font);padding:4px 0;
+            border-bottom:2px solid transparent;
+            transition:border-color .2s;
+          " onfocus="this.style.borderBottomColor='var(--y)'" onblur="this.style.borderBottomColor='transparent'">
+        </div>
+        <div class="pm-status-pill" style="margin-top:6px;cursor:default">
+          <span id="ch-create-subtitle" style="font-size:13px;color:var(--t3)">Новый канал</span>
+        </div>
+      </div>
+
+      <div class="pm-body-zone" style="padding-top:8px">
+        <div class="tg-section">
+          <div class="tg-row" style="align-items:flex-start;cursor:text">
+            <div class="tg-row-ic" style="color:var(--y);background:transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </div>
+            <div class="tg-row-body" style="padding:6px 0">
+              <textarea id="ch-create-desc" placeholder="Описание (необязательно)" rows="2" maxlength="500" style="
+                width:100%;border:none;outline:none;background:transparent;color:var(--t1);
+                font-family:var(--font);font-size:15px;resize:vertical;line-height:1.5;
+                padding:0;
+              "></textarea>
+              <span class="tg-row-sub">О чём этот канал</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tg-section" style="margin-top:4px">
+          <div class="tg-row" style="cursor:text">
+            <div class="tg-row-ic" style="color:var(--y);background:transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="tg-row-body">
+              <input type="text" id="ch-create-username" placeholder="username" maxlength="32" style="
+                width:100%;border:none;outline:none;background:transparent;color:var(--t1);
+                font-family:var(--font);font-size:15px;padding:0;
+              ">
+              <span class="tg-row-sub">Публичный @username</span>
+            </div>
+            <span style="color:var(--t3);font-size:15px;margin-right:4px">@</span>
+          </div>
+        </div>
+
+        <div class="tg-section" style="margin-top:4px">
+          <div class="tg-row ch-create-type-row" id="ch-create-type-public" style="cursor:pointer" onclick="chCreateSetType('public')">
+            <div class="tg-row-ic" style="background:transparent">
+              <span style="font-size:22px">🌐</span>
+            </div>
+            <div class="tg-row-body">
+              <span class="tg-row-lbl">Публичный</span>
+              <span class="tg-row-sub">Виден всем, можно найти по @username</span>
+            </div>
+            <div class="ch-radio-dot on" id="ch-dot-public" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--y);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:var(--y)"></div></div>
+          </div>
+          <div class="tg-row-sep"></div>
+          <div class="tg-row ch-create-type-row" id="ch-create-type-private" style="cursor:pointer" onclick="chCreateSetType('private')">
+            <div class="tg-row-ic" style="background:transparent">
+              <span style="font-size:22px">🔒</span>
+            </div>
+            <div class="tg-row-body">
+              <span class="tg-row-lbl">Приватный</span>
+              <span class="tg-row-sub">Доступ только по ссылке-приглашению</span>
+            </div>
+            <div class="ch-radio-dot" id="ch-dot-private" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--b);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:transparent"></div></div>
+          </div>
+        </div>
+
+        <div style="padding:20px 0">
+          <button class="btn" id="btn-ch-create-submit" style="width:100%;padding:13px;border-radius:14px;font-size:15px;font-weight:600">Создать канал</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('on'));
 
   // Type toggle
-  const radios = overlay.querySelectorAll('input[name="ch-type"]');
-  const usernameWrap = $('ch-create-username-wrap');
-  radios.forEach(r => {
-    r.onchange = () => {
-      overlay.querySelectorAll('.ch-type-opt').forEach(o => { o.style.borderColor = 'var(--br)'; });
-      r.nextElementSibling.style.borderColor = 'var(--accent)';
-      if (usernameWrap) usernameWrap.style.display = r.value === 'public' ? '' : 'none';
+  window.chCreateSetType = function(type) {
+    const pubDot = $('ch-dot-public');
+    const prvDot = $('ch-dot-private');
+    const usernameRow = $('ch-create-username')?.closest('.tg-row');
+    if (type === 'public') {
+      pubDot.style.borderColor = 'var(--y)';
+      pubDot.querySelector('div').style.background = 'var(--y)';
+      prvDot.style.borderColor = 'var(--b)';
+      prvDot.querySelector('div').style.background = 'transparent';
+      if (usernameRow) usernameRow.style.display = '';
+    } else {
+      prvDot.style.borderColor = 'var(--y)';
+      prvDot.querySelector('div').style.background = 'var(--y)';
+      pubDot.style.borderColor = 'var(--b)';
+      pubDot.querySelector('div').style.background = 'transparent';
+      if (usernameRow) usernameRow.style.display = 'none';
+    }
+    window._chCreateType = type;
+  };
+  window._chCreateType = 'public';
+
+  // Avatar preview
+  const avInput = $('ch-create-avatar-input');
+  const avLabel = $('ch-create-av');
+  let _chCreateAvatarFile = null;
+  if (avInput) {
+    avInput.onchange = () => {
+      const file = avInput.files[0];
+      if (!file) return;
+      _chCreateAvatarFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (avLabel) {
+          avLabel.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">' +
+            '<div style="position:absolute;bottom:2px;right:2px;width:28px;height:28px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></div>';
+        }
+      };
+      reader.readAsDataURL(file);
     };
-  });
+  }
 
   // Close
   overlay.querySelector('[data-close="modal-ch-create"]').onclick = () => closeMod('modal-ch-create');
@@ -1099,13 +1237,26 @@ function showCreateChannelModal() {
     const name = $('ch-create-name')?.value?.trim();
     if (!name) { toast('Введите название канала', 'err'); $('ch-create-name')?.focus(); return; }
     const desc = $('ch-create-desc')?.value?.trim() || '';
-    const type = (overlay.querySelector('input[name="ch-type"]:checked')?.value) || 'public';
+    const type = window._chCreateType || 'public';
     const username = type === 'public' ? ($('ch-create-username')?.value?.trim() || '') : '';
 
     $('btn-ch-create-submit').disabled = true;
     $('btn-ch-create-submit').textContent = 'Создание...';
 
-    const res = await api('create_channel', 'POST', { name: name, description: desc, username: username, type: type });
+    let avatarUrl = null;
+    // Upload avatar first if selected
+    if (_chCreateAvatarFile) {
+      try {
+        const formData = new FormData();
+        formData.append('avatar', _chCreateAvatarFile);
+        const avRes = await api('upload_channel_avatar', 'POST', formData, true);
+        if (avRes.ok && avRes.avatar_url) avatarUrl = avRes.avatar_url;
+      } catch(e) { /* ignore avatar upload error */ }
+    }
+
+    const data = { name, description: desc, username, type };
+    if (avatarUrl) data.avatar_url = avatarUrl;
+    const res = await api('create_channel', 'POST', data);
 
     $('btn-ch-create-submit').disabled = false;
     $('btn-ch-create-submit').textContent = 'Создать канал';
@@ -1124,7 +1275,7 @@ function showCreateChannelModal() {
   setTimeout(() => $('ch-create-name')?.focus(), 300);
 }
 
-/* ══ JOIN CHANNEL MODAL ════════════════════════════════════════ */
+/* ══ JOIN CHANNEL MODAL — Profile panel style ══════════════════ */
 function showJoinChannelModal() {
   let overlay = $('modal-ch-join');
   if (overlay) overlay.remove();
@@ -1132,19 +1283,55 @@ function showJoinChannelModal() {
   overlay = document.createElement('div');
   overlay.className = 'overlay';
   overlay.id = 'modal-ch-join';
-  overlay.innerHTML = '<div class="modal" style="width:380px;max-width:95vw">' +
-    '<div class="modal-hdr">' +
-      '<div class="modal-title">Присоединиться к каналу</div>' +
-      '<button class="modal-x" data-close="modal-ch-join"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>' +
-    '</div>' +
-    '<div class="modal-body" style="padding:20px">' +
-      '<div style="margin-bottom:16px">' +
-        '<label style="display:block;font-size:13px;color:var(--t3);margin-bottom:6px">Ссылка-приглашение или @username</label>' +
-        '<input type="text" id="ch-join-input" placeholder="https://initial.su/join/... или @username" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid var(--br);background:var(--bg2);color:var(--t1);font-size:14px;outline:none">' +
-      '</div>' +
-      '<button class="btn" id="btn-ch-join-submit" style="width:100%;padding:12px;border-radius:12px;font-size:15px;font-weight:600">Присоединиться</button>' +
-    '</div>' +
-  '</div>';
+
+  overlay.innerHTML = `<div class="pm-panel" style="width:400px;max-width:100vw">
+    <div class="pm-hero-bg">
+      <div class="blur-bg-img" style="background:linear-gradient(135deg, hsl(200,50%,35%), hsl(160,50%,30%))"></div>
+      <div class="blur-bg-ov"></div>
+    </div>
+    <button class="pm-close" data-close="modal-ch-join">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+
+    <div class="pm-scroll">
+      <div class="pm-header-zone" style="padding-top:56px">
+        <div class="pm-avi-wrap">
+          <div class="pm-hero-avi" style="cursor:default">
+            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:hsl(200,50%,35%);color:#fff;border-radius:inherit">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="48" height="48"><path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="pm-name-row" style="margin-top:12px;justify-content:center">
+          <span class="pm-name" style="font-size:20px">Присоединиться</span>
+        </div>
+        <div class="pm-status-pill" style="margin-top:6px;cursor:default">
+          <span style="font-size:13px;color:var(--t3)">Найдите канал по ссылке или @username</span>
+        </div>
+      </div>
+
+      <div class="pm-body-zone" style="padding-top:8px">
+        <div class="tg-section">
+          <div class="tg-row" style="cursor:text">
+            <div class="tg-row-ic" style="color:var(--y);background:transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="tg-row-body">
+              <input type="text" id="ch-join-input" placeholder="https://initial.su/join/… или @username" style="
+                width:100%;border:none;outline:none;background:transparent;color:var(--t1);
+                font-family:var(--font);font-size:15px;padding:0;
+              ">
+              <span class="tg-row-sub">Ссылка-приглашение или @username</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="padding:20px 0">
+          <button class="btn" id="btn-ch-join-submit" style="width:100%;padding:13px;border-radius:14px;font-size:15px;font-weight:600">Присоединиться</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('on'));
@@ -1676,6 +1863,8 @@ window.sendText = function() {
     sendChannelText();
     return;
   }
+  // Not in a channel — make sure partner is set for DM
+  if (!S.partner) return;
   if (_origSendText) _origSendText();
 };
 
@@ -1705,7 +1894,7 @@ window.closeMod = function(id) {
     el.classList.remove('on');
     setTimeout(() => el.remove(), 300);
   }
-  if (_origCloseMod) _origCloseMod(id);
+  if (_origCloseMod && id !== 'modal-ch-create' && id !== 'modal-ch-join' && id !== 'modal-ch-settings' && id !== 'modal-ch-members' && id !== 'modal-ch-search') _origCloseMod(id);
 };
 
 /* ══ INIT ON BOOT ═════════════════════════════════════════════ */

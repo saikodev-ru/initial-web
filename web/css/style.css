@@ -1958,6 +1958,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   overflow:hidden;
 }
 #modal-partner.on .pm-panel{transform:none}
+#modal-ch-create.on .pm-panel,#modal-ch-join.on .pm-panel,#modal-ch-settings.on .pm-panel,#modal-ch-members.on .pm-panel,#modal-ch-search.on .pm-panel{transform:none}
 .pm-scroll{
   flex:1;overflow-y:auto;overflow-x:hidden;
   overscroll-behavior:contain;
@@ -7426,4 +7427,30 @@ input[name="ch-type"]:checked+.ch-type-opt{
 @media(max-width:680px){
   .ch-fwd-btn{right:-36px}
   .ch-msg .mbub{max-width:min(400px,92%)}
+}
+
+/* ── 10. Channel create panel — profile-panel style ──────── */
+#modal-ch-create .pm-name-row input::placeholder{
+  color:var(--t3);font-weight:400;
+}
+#modal-ch-create .tg-row textarea::placeholder,
+#modal-ch-create .tg-row input::placeholder{
+  color:var(--t3);
+}
+#modal-ch-create .tg-row textarea:focus,
+#modal-ch-create .tg-row input:focus{
+  outline:none;
+}
+.ch-create-type-row .tg-row-body{
+  cursor:pointer;
+}
+/* ── Mobile: channel create panel full-width ── */
+@media(max-width:480px){
+  #modal-ch-create .pm-panel,
+  #modal-ch-join .pm-panel,
+  #modal-ch-settings .pm-panel,
+  #modal-ch-members .pm-panel,
+  #modal-ch-search .pm-panel{
+    width:100vw!important;max-width:100vw!important;
+  }
 }

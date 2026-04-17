@@ -123,7 +123,9 @@ function hideRbar(inst=false){const rb=$('rbar');if(!rb||!rb.classList.contains(
 
 /* ══ OPEN CHAT ════════════════════════════════════════════════ */
 function openChat(c){
-  if(S.chatId===c.chat_id)return;
+  if(S.chatId===c.chat_id && !S.activeChannel)return;
+  // If currently viewing a channel, close it first
+  if(S.activeChannel && typeof closeChannel === 'function') closeChannel();
   // Hide in-app push banner when opening a chat
   var inappPush = $('inapp-push');
   if(inappPush) inappPush.classList.remove('visible');
