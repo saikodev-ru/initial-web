@@ -298,11 +298,17 @@ $('hdr-clickable').onclick=()=>{
   const searchEl=$('hdr-chat-search');
   const input=$('hdr-search-input');
   const closeBtn=$('hdr-search-close');
-  // Bottom navigation panel
+  const chatHdr=$('chat-hdr');
+  // Bottom navigation panel (mobile)
   const navPanel=$('search-nav-panel');
   const countEl=$('search-nav-count');
   const prevBtn=$('search-nav-prev');
   const nextBtn=$('search-nav-next');
+  // Desktop header navigation
+  const hdrSearchNav=$('hdr-search-nav');
+  const hdrCount=$('hdr-search-count');
+  const hdrPrev=$('hdr-search-prev');
+  const hdrNext=$('hdr-search-next');
   // Input zone (hidden while searching)
   const inputZone=$('input-zone');
   if(!pill||!searchEl||!input||!closeBtn||!navPanel||!countEl)return;
@@ -316,6 +322,8 @@ $('hdr-clickable').onclick=()=>{
   let _serverDone=false; // true when server response received
   let _skipNextPopstate=false; // prevent popstate loop when closing via history.back()
 
+  function isDesktop(){return !__isMobileView();}
+
   /* ── Open / Close ─────────────────────────────────────── */
   function open(){
     if(_active)return;
@@ -327,13 +335,23 @@ $('hdr-clickable').onclick=()=>{
     _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     _searchReq++;
     clearHighlights();
-    // Show bottom panel, hide input zone
-    if(inputZone) inputZone.style.display='none';
-    navPanel.classList.add('on');
-    countEl.textContent='Введите запрос';
-    countEl.classList.remove('has-results','searching-indicator');
-    prevBtn.disabled=true;
-    nextBtn.disabled=true;
+    if(isDesktop()){
+      // Desktop: transform entire header into search bar
+      chatHdr?.classList.add('search-active');
+      if(hdrCount){hdrCount.textContent='Введите запрос';hdrCount.classList.remove('has-results','searching-indicator');}
+      if(hdrPrev)hdrPrev.disabled=true;
+      if(hdrNext)hdrNext.disabled=true;
+      // Hide input zone on desktop too
+      if(inputZone)inputZone.style.display='none';
+    } else {
+      // Mobile: show bottom panel, hide input zone
+      if(inputZone) inputZone.style.display='none';
+      navPanel.classList.add('on');
+      countEl.textContent='Введите запрос';
+      countEl.classList.remove('has-results','searching-indicator');
+      prevBtn.disabled=true;
+      nextBtn.disabled=true;
+    }
     // Push history state so system back gesture closes search
     history.pushState({chatSearch:true},'');
     // Focus input after pill transition
@@ -353,9 +371,15 @@ $('hdr-clickable').onclick=()=>{
     _results=[];_currentIdx=-1;_totalInChat=0;_serverDone=false;
     clearHighlights();
     input.blur();
-    // Restore input zone
-    navPanel.classList.remove('on');
-    if(inputZone) inputZone.style.display='';
+    if(isDesktop()){
+      // Desktop: restore header
+      chatHdr?.classList.remove('search-active');
+      if(inputZone) inputZone.style.display='';
+    } else {
+      // Mobile: restore bottom panel
+      navPanel.classList.remove('on');
+      if(inputZone) inputZone.style.display='';
+    }
     // Go back in history (skip if called from popstate itself)
     if(!skipPopstate&&history.state?.chatSearch){
       _skipNextPopstate=true;
@@ -364,8 +388,12 @@ $('hdr-clickable').onclick=()=>{
   }
 
   function showNav(){
-    navPanel.classList.add('on');
-    if(inputZone) inputZone.style.display='none';
+    if(isDesktop()){
+      if(inputZone)inputZone.style.display='none';
+    } else {
+      navPanel.classList.add('on');
+      if(inputZone) inputZone.style.display='none';
+    }
   }
 
   /* ── Highlight management ─────────────────────────────── */
@@ -422,6 +450,24 @@ $('hdr-clickable').onclick=()=>{
     return msgs.filter(m=>m.body&&m.body.toLowerCase().includes(q)).map(m=>({id:m.id,body:m.body}));
   }
 
+  /* ── Sync nav UI across mobile + desktop ── */
+  function setNavText(text,classes){
+    if(!isDesktop()){
+      countEl.textContent=text;
+      countEl.className='search-nav-count'+(classes?' '+classes:'');
+    }
+    if(hdrCount){
+      hdrCount.textContent=text;
+      hdrCount.className='hdr-search-count'+(classes?' '+classes:'');
+    }
+  }
+  function setNavBtns(prevDisabled,nextDisabled){
+    prevBtn.disabled=prevDisabled;
+    nextBtn.disabled=nextDisabled;
+    if(hdrPrev)hdrPrev.disabled=prevDisabled;
+    if(hdrNext)hdrNext.disabled=nextDisabled;
+  }
+
   /* ── Main hybrid search ───────────────────────────────── */
   async function doSearch(query){
     clearHighlights();
@@ -430,10 +476,8 @@ $('hdr-clickable').onclick=()=>{
 
     if(!query.trim()||!S.chatId){
       showNav();
-      countEl.textContent='Введите запрос';
-      countEl.classList.remove('has-results','searching-indicator');
-      prevBtn.disabled=true;
-      nextBtn.disabled=true;
+      setNavText('Введите запрос','');
+      setNavBtns(true,true);
       return;
     }
 
@@ -447,18 +491,13 @@ $('hdr-clickable').onclick=()=>{
       cached.sort((a,b)=>b.id-a.id);
       _results=cached;
       highlightMatchesInDOM(_results.map(r=>r.id));
-      prevBtn.disabled=false;
-      nextBtn.disabled=false;
+      setNavBtns(false,false);
       _currentIdx=0; // newest first
       highlightCurrent();
-      countEl.textContent='1 из '+_results.length;
-      countEl.classList.add('has-results','searching-indicator');
+      setNavText('1 из '+_results.length,'has-results searching-indicator');
     } else {
-      countEl.textContent='Поиск…';
-      countEl.classList.remove('has-results');
-      countEl.classList.add('searching-indicator');
-      prevBtn.disabled=true;
-      nextBtn.disabled=true;
+      setNavText('Поиск…','searching-indicator');
+      setNavBtns(true,true);
     }
 
     // ── Phase 2: Server-side search (full chat) ──
@@ -466,11 +505,13 @@ $('hdr-clickable').onclick=()=>{
       const res=await api('search_messages?chat_id='+S.chatId+'&q='+encodeURIComponent(q)+'&limit=500');
       if(reqId!==_searchReq)return;
       _serverDone=true;
+      // Remove searching indicator from both
       countEl.classList.remove('searching-indicator');
+      if(hdrCount)hdrCount.classList.remove('searching-indicator');
 
       if(!res.ok||!res.messages){
         // Keep cached results if we have them
-        if(!_results.length) countEl.textContent='Ошибка';
+        if(!_results.length) setNavText('Ошибка','');
         return;
       }
 
@@ -484,15 +525,12 @@ $('hdr-clickable').onclick=()=>{
       highlightMatchesInDOM(_results.map(r=>r.id));
 
       if(!_results.length){
-        countEl.textContent='Ничего не найдено';
-        countEl.classList.remove('has-results');
-        prevBtn.disabled=true;
-        nextBtn.disabled=true;
+        setNavText('Ничего не найдено','');
+        setNavBtns(true,true);
         return;
       }
 
-      prevBtn.disabled=false;
-      nextBtn.disabled=false;
+      setNavBtns(false,false);
 
       // If cached results existed, try to keep current position
       if(cached.length&&_currentIdx>=0){
@@ -506,7 +544,8 @@ $('hdr-clickable').onclick=()=>{
       if(reqId!==_searchReq)return;
       _serverDone=true;
       countEl.classList.remove('searching-indicator');
-      if(!_results.length) countEl.textContent='Ошибка';
+      if(hdrCount)hdrCount.classList.remove('searching-indicator');
+      if(!_results.length) setNavText('Ошибка','');
     }
   }
 
@@ -538,8 +577,15 @@ $('hdr-clickable').onclick=()=>{
     const displayTotal=_totalInChat>_results.length?_totalInChat:_results.length;
     const extra=_totalInChat>_results.length?' ('+_totalInChat+')':'';
     if(_results.length){
-      countEl.textContent=(_currentIdx+1)+' из '+displayTotal+extra;
-      countEl.classList.add('has-results');
+      const text=(_currentIdx+1)+' из '+displayTotal+extra;
+      if(!isDesktop()){
+        countEl.textContent=text;
+        countEl.classList.add('has-results');
+      }
+      if(hdrCount){
+        hdrCount.textContent=text;
+        hdrCount.classList.add('has-results');
+      }
     }
   }
 
@@ -595,9 +641,13 @@ $('hdr-clickable').onclick=()=>{
     else if(e.key==='Escape'){e.preventDefault();close();}
   });
 
-  // Bottom navigation buttons
+  // Bottom navigation buttons (mobile)
   prevBtn.onclick=goPrev;
   nextBtn.onclick=goNext;
+
+  // Desktop header navigation buttons
+  if(hdrPrev)hdrPrev.onclick=goPrev;
+  if(hdrNext)hdrNext.onclick=goNext;
 
   // Close button (in header)
   closeBtn.onclick=close;
@@ -726,11 +776,18 @@ function openProfileModal(u, isSelf=false){
     if(hasBio){
       rowBio.style.display = 'flex';
       valBio.innerHTML = fmtText(bio);
+      valBio.style.color = '';
+      valBio.style.fontStyle = '';
       wtn(valBio);
-    } else { rowBio.style.display = 'none'; }
+    } else {
+      rowBio.style.display = 'flex';
+      valBio.textContent = 'Отсутствует';
+      valBio.style.color = 'var(--t3)';
+      valBio.style.fontStyle = 'italic';
+    }
   }
 
-  if(sep) sep.style.display = (hasSid && hasBio) ? 'block' : 'none';
+  if(sep) sep.style.display = hasSid ? 'block' : 'none';
   if($('pm-info-section')) $('pm-info-section').style.display = (hasSid || hasBio) ? 'flex' : 'none';
 
   // Action buttons

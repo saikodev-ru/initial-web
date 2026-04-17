@@ -179,9 +179,9 @@ function sysTost(msg){
   const ac=$('active-chat');if(!ac)return;ac.appendChild(el);
   setTimeout(()=>{el.style.animation='toastOut .25s ease forwards';setTimeout(()=>el.remove(),250);},2200);
 }
-function showScr(id){$$('.screen').forEach(s=>s.classList.add('hidden'));$(id).classList.remove('hidden');}
-function openMod(id){$(id).classList.add('on');}
-function closeMod(id){$(id).classList.remove('on');}
+function showScr(id){$$('.screen').forEach(s=>s.classList.add('hidden'));const el=$(id);if(el)el.classList.remove('hidden');}
+function openMod(id){const el=$(id);if(el)el.classList.add('on');}
+function closeMod(id){const el=$(id);if(el)el.classList.remove('on');}
 function showConfirm(title, text, onConfirm) {
   if (confirm(`${title}\n\n${text}`)) {
     onConfirm();

@@ -747,38 +747,94 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 /* Pill wrapper for mobile header — transparent on desktop */
 .hdr-pill{display:contents}
-/* ── Desktop search: override display:contents when searching ── */
+/* ── Desktop search: transform entire header into search bar ── */
 @container app (min-width: 681px){
-  .hdr-pill.searching{
+  .chat-hdr.search-active{
+    gap:8px;
+    padding:8px 14px;
+  }
+  .chat-hdr.search-active .hdr-back-pill,
+  .chat-hdr.search-active .hdr-av-pill,
+  .chat-hdr.search-active .hdr-acts{
+    display:none !important;
+  }
+  .chat-hdr.search-active .hdr-pill{
     display:flex !important;
     align-items:center;
     flex:1;
     max-width:none;
-    background:rgba(var(--bg-rgb),.50);
-    backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-    border-radius:22px;
-    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
-    padding:0 8px 0 6px;
-    gap:6px;
-    height:40px;
-    overflow:hidden;
+    gap:8px;
   }
-  .hdr-pill.searching .hdr-clickable{display:none !important}
-  .hdr-pill.searching .hdr-chat-search{
+  .chat-hdr.search-active .hdr-pill .hdr-clickable{display:none !important}
+  .chat-hdr.search-active .hdr-pill .hdr-chat-search{
     display:flex !important;
     opacity:1 !important;
     transform:none !important;
+    flex:1;
+    gap:8px;
+    align-items:center;
   }
-  .hdr-pill.searching .hdr-search-ico{color:var(--y2)}
-  .hdr-pill.searching .hdr-search-input{font-size:14px}
-  .hdr-pill.searching .hdr-search-close{width:28px;height:28px}
+  .chat-hdr.search-active .hdr-search-ico{color:var(--y2);flex-shrink:0}
+  .chat-hdr.search-active .hdr-search-input{
+    font-size:15px;
+    flex:1;
+    min-width:120px;
+  }
+  .chat-hdr.search-active .hdr-search-close{
+    width:32px;height:32px;
+    flex-shrink:0;
+  }
+  /* Desktop search navigation — integrated into header */
+  .chat-hdr.search-active .hdr-search-nav{
+    display:flex !important;
+    align-items:center;
+    gap:2px;
+    flex-shrink:0;
+  }
+  .chat-hdr.search-active .hdr-search-count{
+    font-size:13px;
+    font-weight:600;
+    color:var(--t2);
+    white-space:nowrap;
+    padding:0 8px;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:-.1px;
+    min-width:60px;
+    text-align:center;
+  }
+  .chat-hdr.search-active .hdr-search-count.has-results{color:var(--t1)}
+  .chat-hdr.search-active .hdr-search-count.searching-indicator::after{
+    content:'';
+    display:inline-block;
+    width:4px;height:4px;
+    background:var(--y2);
+    border-radius:50%;
+    margin-left:4px;
+    vertical-align:middle;
+    animation:searchDot .8s ease-in-out infinite;
+  }
+  .chat-hdr.search-active .hdr-search-nav-btn{
+    display:flex;align-items:center;justify-content:center;
+    width:32px;height:32px;
+    background:transparent;
+    border:none;
+    color:var(--t2);cursor:pointer;
+    border-radius:50%;
+    transition:background .12s,color .12s,transform .12s;
+  }
+  .chat-hdr.search-active .hdr-search-nav-btn:hover{background:var(--s1);color:var(--t1)}
+  .chat-hdr.search-active .hdr-search-nav-btn:active{transform:scale(.9)}
+  .chat-hdr.search-active .hdr-search-nav-btn svg{width:18px;height:18px}
+  .chat-hdr.search-active .hdr-search-nav-btn:disabled{opacity:.25;pointer-events:none}
+  /* Hide bottom search nav panel on desktop when header nav is active */
+  .chat-hdr.search-active ~ .search-nav-panel{
+    display:none !important;
+  }
   .hdr-search-btn-desk{
     display:flex;
   }
-  /* Desktop search nav panel styling */
-  .search-nav-panel{
-    margin:0 8px 8px 8px;
-  }
+  /* Hide desktop search nav element when not searching */
+  .hdr-search-nav{display:none !important}
 }
 /* Hide desktop search button on mobile */
 @container app (max-width: 680px){
@@ -1968,6 +2024,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-hero{
   position:relative;
   display:flex;flex-direction:column;
+  overflow:hidden;
 }
 /* Legacy header-zone class (used by dynamically created modals) */
 .pm-header-zone{
@@ -1976,22 +2033,24 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   padding:0 24px;
 }
 .pm-hero-bg{
-  position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;
+  position:absolute;top:0;left:0;right:0;bottom:0;
   pointer-events:none;z-index:0;
+  background:linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(14,165,233,0.1) 50%, rgba(var(--bg-rgb),0.8) 100%);
 }
 
 .blur-bg-img {
-  position: absolute; inset: -40px;
+  position: absolute; inset: -60px;
   background-size: cover; background-position: center;
-  filter: blur(40px) brightness(0.7) saturate(1.3);
-  -webkit-filter: blur(40px) brightness(0.7) saturate(1.3);
+  filter: blur(60px) brightness(0.6) saturate(1.4);
+  -webkit-filter: blur(60px) brightness(0.6) saturate(1.4);
   transform: translateZ(0);
+  will-change: transform;
   z-index: 0; pointer-events: none;
   opacity: var(--blur-op, 1);
 }
 .blur-bg-ov {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(139,92,246,0.08) 0%, transparent 40%, var(--bg) 100%);
+  background: linear-gradient(180deg, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0.03) 20%, transparent 40%, var(--bg) 100%);
   z-index: 1; pointer-events: none;
 }
 
@@ -2017,7 +2076,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-hero-overlay{
   position:relative;z-index:2;
   margin-top:-100px;
-  padding:0 24px 20px;
+  padding:0 24px 32px;
   background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
   display:flex;flex-direction:column;gap:8px;
 }
@@ -2058,42 +2117,64 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;text-shadow:none;}
 .pm-status-pill.off{color:var(--t3);text-shadow:none;}
 .pm-status-pill .pm-dot{display:none;}
-/* Action buttons row — iOS 26 style with specular borders */
+/* Action buttons row — iOS 26 style round buttons with text below */
 .pm-actions{
-  display:flex;gap:10px;margin-top:4px;
+  display:flex;gap:16px;margin-top:8px;
   position:relative;z-index:2;
+  justify-content:center;
 }
 .pm-action-btn{
-  flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   background:rgba(255,255,255,0.12);
   backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
-  border:1px solid rgba(255,255,255,0.25);
-  border-top-color:rgba(255,255,255,0.45);
-  border-radius:16px;
-  padding:12px 8px;cursor:pointer;color:var(--t1);
+  border:0.5px solid rgba(255,255,255,0.25);
+  border-top-color:rgba(255,255,255,0.5);
+  border-radius:50%;
+  width:56px;height:56px;
+  padding:0;cursor:pointer;color:var(--t1);
   transition:background .2s,transform .1s var(--sp),box-shadow .2s;
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.12) inset,0 0.5px 0 0 rgba(255,255,255,0.06) inset;
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.18) inset,
+             0 0.5px 0 0 rgba(255,255,255,0.08) inset,
+             0 2px 8px rgba(0,0,0,0.12);
+  flex:none;
 }
-.pm-action-btn:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.15),0 1px 0 0 rgba(255,255,255,0.15) inset}
-.pm-action-btn:active{transform:scale(0.97);background:rgba(255,255,255,0.08)}
-.pm-action-btn.muted{color:var(--y2);background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);border-top-color:rgba(139,92,246,.35)}
-.pm-action-btn.muted:hover{background:rgba(139,92,246,.15)}
+.pm-action-btn:hover{
+  background:rgba(255,255,255,0.2);
+  transform:translateY(-1px);
+  box-shadow:0 2px 12px rgba(0,0,0,.18),
+             0 1px 0 0 rgba(255,255,255,0.22) inset,
+             0 0.5px 0 0 rgba(255,255,255,0.1) inset;
+}
+.pm-action-btn:active{transform:scale(0.92);background:rgba(255,255,255,0.08)}
+.pm-action-btn.muted{color:var(--y2);background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.22);border-top-color:rgba(139,92,246,.4)}
+.pm-action-btn.muted:hover{background:rgba(139,92,246,.18)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
 .pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center}
-.pm-act-ic svg{width:26px;height:26px}
-.pm-action-btn span{font-size:11.5px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pm-act-ic svg{width:24px;height:24px}
+.pm-action-btn span{
+  position:absolute;
+  bottom:-20px;
+  left:50%;transform:translateX(-50%);
+  font-size:10.5px;font-weight:500;letter-spacing:0.1px;
+  white-space:nowrap;
+  color:rgba(255,255,255,0.8);
+  text-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
 /* Light theme: frosted glass buttons */
 body[data-theme="light"] .pm-action-btn{
   background:rgba(255,255,255,0.65);
-  border:1px solid rgba(0,0,0,0.06);
-  border-top-color:rgba(255,255,255,0.9);
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,0 1px 3px rgba(0,0,0,0.08);
+  border:0.5px solid rgba(0,0,0,0.08);
+  border-top-color:rgba(255,255,255,0.95);
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.6) inset,
+             0 1px 3px rgba(0,0,0,0.1);
 }
 body[data-theme="light"] .pm-action-btn:hover{
-  background:rgba(255,255,255,0.8);
-  box-shadow:0 2px 8px rgba(0,0,0,.1),0 1px 0 0 rgba(255,255,255,0.6) inset;
+  background:rgba(255,255,255,0.82);
+  box-shadow:0 2px 8px rgba(0,0,0,.1),
+             0 1px 0 0 rgba(255,255,255,0.7) inset;
 }
 body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
+body[data-theme="light"] .pm-action-btn span{color:var(--t2);text-shadow:none}
 
 .pm-body-zone{
   position:relative;z-index:2;display:flex;flex-direction:column;
@@ -2150,14 +2231,14 @@ body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
     width:100vw;height:100dvh;
     border:none;box-shadow:none;
   }
-  .pm-hero-overlay{padding:0 16px 16px;margin-top:-60px}
+  .pm-hero-overlay{padding:0 16px 28px;margin-top:-60px}
   .pm-body-zone{padding:0 16px 24px}
   .pm-hero-avi{font-size:48px}
   .pm-hero-avi.ch-profile-avi{aspect-ratio:1}
   .pm-name{font-size:20px}
-  .pm-actions{gap:8px}
-  .pm-action-btn{padding:10px 6px;border-radius:14px}
-  .pm-action-btn span{font-size:10.5px}
+  .pm-actions{gap:14px}
+  .pm-action-btn{width:50px;height:50px}
+  .pm-action-btn span{font-size:10px;bottom:-18px}
   .pm-act-ic svg{width:22px;height:22px}
 }
 
