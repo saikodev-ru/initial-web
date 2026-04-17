@@ -33,7 +33,11 @@ $stmt = $db->prepare(
         c.type,
         c.members_count,
         c.owner_id,
+        c.who_can_post,
+        c.slow_mode_seconds,
         cm.role AS member_role,
+        cm.muted AS is_muted,
+        cm.last_read_message_id,
         lm.last_msg_id,
         lm.body AS last_msg_body,
         lm.sender_id AS last_sender_id,
@@ -61,6 +65,21 @@ $channels = array_map(function ($c) {
             'media_type'  => $c['last_media_type'],
         ];
     }
+
+    // Count unread messages
+    $lastReadId = (int) ($c['last_read_message_id'] ?? 0);
+    $unreadCount = 0;
+    if ($lastReadId > 0 && $c['last_msg_id'] !== null) {
+        $ucStmt = $db->prepare('SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND is_deleted = 0');
+        $ucStmt->execute([(int) $c['channel_id'], $lastReadId]);
+        $unreadCount = (int) $ucStmt->fetchColumn();
+    } elseif ($c['last_msg_id'] !== null && $lastReadId === 0) {
+        // Never read any message — count all messages as unread
+        $ucStmt = $db->prepare('SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND is_deleted = 0');
+        $ucStmt->execute([(int) $c['channel_id']]);
+        $unreadCount = (int) $ucStmt->fetchColumn();
+    }
+
     return [
         'channel_id'         => (int) $c['channel_id'],
         'name'               => $c['name'],
@@ -72,7 +91,10 @@ $channels = array_map(function ($c) {
         'my_role'            => $c['member_role'],
         'owner_id'           => (int) $c['owner_id'],
         'members_count'      => (int) $c['members_count'],
-        'muted'              => false,
+        'who_can_post'       => $c['who_can_post'] ?? 'admins',
+        'slow_mode_seconds'  => (int) ($c['slow_mode_seconds'] ?? 0),
+        'muted'              => !empty($c['is_muted']),
+        'unread_count'       => $unreadCount,
         'last_message'       => $last,
         'last_message_time'  => $c['last_msg_sent_at'] !== null ? (int) $c['last_msg_sent_at'] : null,
     ];

@@ -2330,12 +2330,14 @@ document.addEventListener('selectionchange', () => {
 mfield.addEventListener('input',()=>{handleTyping();updateSendBtn();});
 mfield.onkeydown=e=>{
   if(e.key==='Enter'){
+    // If in channel mode, use channel send instead of DM send
+    const sendFn = (S.activeChannel && typeof sendChannelText === 'function') ? sendChannelText : sendText;
     if(S.enterSend){
       // Enter = отправить, Shift+Enter = перенос
-      if(!e.shiftKey&&!e.ctrlKey&&!e.metaKey){e.preventDefault();sendText();return;}
+      if(!e.shiftKey&&!e.ctrlKey&&!e.metaKey){e.preventDefault();sendFn();return;}
     } else {
       // Ctrl+Enter / Cmd+Enter = отправить, Enter = перенос
-      if(e.ctrlKey||e.metaKey){e.preventDefault();sendText();return;}
+      if(e.ctrlKey||e.metaKey){e.preventDefault();sendFn();return;}
     }
   }
     if(e.key==='ArrowUp' && !editingMsgId && !getFieldText()){

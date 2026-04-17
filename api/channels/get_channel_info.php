@@ -59,6 +59,8 @@ $response = [
     'member_role'        => $memberRole,
     'my_role'            => $memberRole,
     'owner_id'           => (int) $channel['owner_id'],
+    'who_can_post'       => $channel['who_can_post'] ?? 'admins',
+    'slow_mode_seconds'  => (int) ($channel['slow_mode_seconds'] ?? 0),
     'muted'              => false,
 ];
 

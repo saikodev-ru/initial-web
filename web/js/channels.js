@@ -380,7 +380,8 @@ function closeChannel() {
     backBtn.onclick = () => { history.back(); };
   }
   const sendBtn = $('btn-send');
-  if (sendBtn) sendBtn.onclick = null; // Let the default sendText flow handle it
+  // Restore original DM send handler (was overridden in renderChannelHeader)
+  if (sendBtn) sendBtn.onclick = function(e){ if(typeof sendText==='function') sendText(e); this.blur(); };
 
   // Remove any mute pill
   const pill = $('system-mute-pill');
@@ -423,10 +424,10 @@ function renderChannelHeader(ch) {
   }
 
   const members = ch.member_count || ch.members_count || ch.subscribers || 0;
-  const desc = ch.description || '';
   if (stEl) {
     stEl.className = 'hdr-st';
-    stEl.textContent = members ? members + ' подписчик' + _pluralRu(members) : (desc && desc.length > 30 ? desc.slice(0, 30) + '…' : desc);
+    // Always show subscriber count in channel header
+    stEl.textContent = members ? members + ' подписчик' + _pluralRu(members) : '0 подписчиков';
   }
 
   const aviContent = aviHtml(ch.name || 'Канал', ch.avatar_url);
@@ -979,12 +980,16 @@ async function sendChannelText() {
       if (tmpEl) tmpEl.classList.remove('sending');
       cacheWriteChannel(chId, S.channelMsgs[chId]);
     } else {
-      toast(res.message || 'Ошибка отправки', 'err');
+      // Show specific API error message for debugging
+      const errMsg = res.message || res.error || 'Ошибка отправки';
+      toast(errMsg, 'err');
+      console.warn('[channel] send error:', res);
       const el = document.querySelector('.mrow[data-id="' + tid + '"]');
       if (el) { el.classList.add('msg-err'); }
     }
   } catch(e) {
     toast('Ошибка сети', 'err');
+    console.warn('[channel] send network error:', e);
     const el = document.querySelector('.mrow[data-id="' + tid + '"]');
     if (el) el.classList.add('msg-err');
   }
@@ -1097,16 +1102,16 @@ function showCreateChannelModal() {
   overlay.id = 'modal-ch-create';
 
   overlay.innerHTML = `<div class="pm-panel" style="width:400px;max-width:100vw">
-    <div class="pm-hero-bg" id="ch-create-hero-bg">
-      <div class="blur-bg-img" style="background:linear-gradient(135deg, hsl(250,50%,45%), hsl(280,50%,35%))"></div>
-      <div class="blur-bg-ov"></div>
-    </div>
     <button class="pm-close" data-close="modal-ch-create">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>
 
     <div class="pm-scroll">
-      <div class="pm-header-zone" style="padding-top:56px">
+      <div class="pm-hero">
+        <div class="pm-hero-bg" id="ch-create-hero-bg">
+          <div class="blur-bg-img" style="background:linear-gradient(135deg, hsl(250,50%,45%), hsl(280,50%,35%))"></div>
+          <div class="blur-bg-ov"></div>
+        </div>
         <div class="pm-avi-wrap">
           <label for="ch-create-avatar-input" class="pm-hero-avi" id="ch-create-av" style="cursor:pointer" title="Загрузить аватар">
             <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:hsl(250,50%,45%);color:#fff;border-radius:inherit">
@@ -1118,17 +1123,21 @@ function showCreateChannelModal() {
           </label>
         </div>
         <input type="file" id="ch-create-avatar-input" accept="image/*" style="display:none">
-        <div class="pm-name-row" style="margin-top:12px;width:100%;justify-content:center">
-          <input type="text" id="ch-create-name" placeholder="Название канала" maxlength="100" style="
-            background:transparent;border:none;outline:none;text-align:center;
-            font-size:20px;font-weight:700;color:var(--t1);width:100%;
-            font-family:var(--font);padding:4px 0;
-            border-bottom:2px solid transparent;
-            transition:border-color .2s;
-          " onfocus="this.style.borderBottomColor='var(--y)'" onblur="this.style.borderBottomColor='transparent'">
-        </div>
-        <div class="pm-status-pill" style="margin-top:6px;cursor:default">
-          <span id="ch-create-subtitle" style="font-size:13px;color:var(--t3)">Новый канал</span>
+        <div class="pm-hero-overlay" style="margin-top:-60px">
+          <div class="pm-hero-info">
+            <div class="pm-name-row" style="width:100%;justify-content:center">
+              <input type="text" id="ch-create-name" placeholder="Название канала" maxlength="100" style="
+                background:transparent;border:none;outline:none;text-align:left;
+                font-size:20px;font-weight:700;color:var(--t1);width:100%;
+                font-family:var(--font);padding:4px 0;
+                border-bottom:2px solid transparent;
+                transition:border-color .2s;
+              " onfocus="this.style.borderBottomColor='var(--y)'" onblur="this.style.borderBottomColor='transparent'">
+            </div>
+            <div class="pm-status-pill" style="cursor:default">
+              <span id="ch-create-subtitle" style="font-size:13px;color:var(--t3)">Новый канал</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1412,13 +1421,14 @@ function openChannelProfile(ch) {
   const tBadge = $('pm-team-badge');
   if (tBadge) tBadge.style.display = 'none';
 
-  // Status: subscriber count + channel type
+  // Status: subscriber count + channel type (white text on avatar gradient)
   const pill = $('pm-partner-status');
   const pillTxt = $('pm-partner-status-text');
   if (pill && pillTxt) {
-    pill.className = 'pm-status-pill off';
-    const typeLabel = ch.type === 'private' ? 'Приватный канал' : 'Публичный канал';
-    pillTxt.textContent = members ? members + ' подписчик' + _pluralRu(members) : typeLabel;
+    pill.className = 'pm-status-pill on'; // Use 'on' class for white text on gradient
+    const subsText = members ? members + ' подписчик' + _pluralRu(members) : '0 подписчиков';
+    const typeLabel = ch.type === 'private' ? ' · Приватный' : ' · Публичный';
+    pillTxt.textContent = subsText + typeLabel;
   }
 
   // Info rows
@@ -1529,6 +1539,10 @@ function openChannelProfile(ch) {
 
   // Add channel-specific info rows (link, role)
   _addChannelProfileExtras(ch);
+
+  // Update media section header for channels
+  const mediaHeader = $('pm-media-section')?.querySelector('.pm-media-header span');
+  if (mediaHeader) mediaHeader.textContent = 'Медиа канала';
 
   openMod('modal-partner');
 }

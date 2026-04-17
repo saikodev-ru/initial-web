@@ -652,6 +652,10 @@ function openProfileModal(u, isSelf=false){
   // Remove any channel extras
   document.querySelectorAll('.ch-profile-extra').forEach(e => e.remove());
 
+  // Reset media section header for user profile
+  const mediaHeader = document.getElementById('pm-media-section')?.querySelector('.pm-media-header span');
+  if (mediaHeader) mediaHeader.textContent = 'Медиа, файлы и ссылки';
+
   // Avatar & Background blur
   const aviEl=$('pm-hero-avi');
   if(aviEl) {

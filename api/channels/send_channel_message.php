@@ -36,7 +36,7 @@ if (!$hasText && !$hasMedia) json_err('empty_message', 'Сообщение не 
 $db = db();
 
 $stmt = $db->prepare(
-    'SELECT c.id, c.owner_id, cm.role
+    'SELECT c.id, c.owner_id, c.who_can_post, cm.role
      FROM channels c
      JOIN channel_members cm ON cm.channel_id = c.id AND cm.user_id = ?
      WHERE c.id = ?
@@ -48,9 +48,10 @@ $membership = $stmt->fetch();
 if (!$membership) json_err('forbidden', 'Вы не участник этого канала', 403);
 
 $isAdmin = in_array($membership['role'], ['owner', 'admin'], true);
+$whoCanPost = $membership['who_can_post'] ?? 'admins';
 
-// Only admins can post (default until migration 006 is applied)
-if (!$isAdmin) {
+// Check posting permissions: admins always can, others only if who_can_post === 'all'
+if (!$isAdmin && $whoCanPost !== 'all') {
     json_err('forbidden', 'Только администраторы могут отправлять сообщения в этот канал', 403);
 }
 

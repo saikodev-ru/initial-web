@@ -1964,11 +1964,16 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   overscroll-behavior:contain;
   position:relative;z-index:2;
 }
+/* ── Hero: full-width square avatar with gradient overlay ── */
+.pm-hero{
+  position:relative;
+  display:flex;flex-direction:column;
+}
+/* Legacy header-zone class (used by dynamically created modals) */
 .pm-header-zone{
   display:flex;flex-direction:column;align-items:center;
   position:relative;
-  padding-bottom:0;
-  overflow:visible;
+  padding:0 24px;
 }
 .pm-hero-bg{
   position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;
@@ -1990,17 +1995,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   z-index: 1; pointer-events: none;
 }
 
-.pm-body-zone{
-  position:relative;z-index:2;display:flex;flex-direction:column;
-  padding:0 24px 24px;
-}
-
 .pm-avi-wrap{
   display:flex;justify-content:center;
   margin:0;width:100%;
-  position:relative;
+  position:relative;z-index:1;
 }
-/* Avatar — square full-width with gradient fade at bottom */
+/* Avatar — square full-width */
 .pm-hero-avi{
   width:100%;aspect-ratio:1;border-radius:0;
   background:var(--solid2);overflow:hidden;
@@ -2013,11 +2013,16 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-hero-avi.ch-profile-avi{
   aspect-ratio:1;border-radius:0;
 }
-/* Gradient overlay at bottom of avatar */
-.pm-avi-wrap::after{
-  content:'';position:absolute;bottom:0;left:0;right:0;height:50%;
-  background:linear-gradient(180deg,transparent 0%,var(--bg) 100%);
-  pointer-events:none;z-index:1;
+/* Gradient overlay at bottom of avatar area — covers name + buttons */
+.pm-hero-overlay{
+  position:relative;z-index:2;
+  margin-top:-100px;
+  padding:0 24px 20px;
+  background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
+  display:flex;flex-direction:column;gap:8px;
+}
+.pm-hero-info{
+  display:flex;flex-direction:column;gap:2px;
 }
 /* Close button */
 .pm-close{
@@ -2032,30 +2037,31 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-close:hover{background:rgba(0,0,0,.5);transform:scale(1.08)}
 .pm-close:active{transform:scale(0.95)}
 .pm-close svg{width:14px;height:14px}
-/* Name row with optional verified badge — positioned over gradient */
+/* Name row with optional verified badge — on top of gradient */
 .pm-name-row{
   display:flex;align-items:center;gap:7px;
-  margin-bottom:2px;max-width:100%;padding:0 24px;
+  margin-bottom:0;max-width:100%;
   position:relative;z-index:2;
-  margin-top:-40px;
 }
-.pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%;}
+.pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%;text-shadow:0 1px 3px rgba(0,0,0,.3);}
 /* Verified badge — see .verified-badge global rule */
 .pm-badge{cursor:pointer;transition:transform .2s var(--sp),filter .2s var(--ease);will-change:transform,filter;display:inline-flex;align-items:center;justify-content:center;}
 .pm-badge:hover{transform:scale(1.15);filter:drop-shadow(0 0 6px currentColor);}
 /* Status pill */
 .pm-status-pill{
-  font-size:14px;color:var(--t3);
-  text-align:left;margin-bottom:8px;
-  font-weight:400;background:transparent;border:none;padding:0 24px;display:block;
+  font-size:13px;color:rgba(255,255,255,.75);
+  text-align:left;margin-bottom:2px;
+  font-weight:500;background:transparent;border:none;padding:0;display:block;
   position:relative;z-index:2;
+  text-shadow:0 1px 2px rgba(0,0,0,.25);
 }
-.pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;}
+.pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;text-shadow:none;}
+.pm-status-pill.off{color:var(--t3);text-shadow:none;}
 .pm-status-pill .pm-dot{display:none;}
 /* Action buttons row — iOS 26 style with specular borders */
 .pm-actions{
-  display:flex;gap:10px;margin-bottom:20px;
-  padding:0 24px;position:relative;z-index:2;
+  display:flex;gap:10px;margin-top:4px;
+  position:relative;z-index:2;
 }
 .pm-action-btn{
   flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
@@ -2088,6 +2094,12 @@ body[data-theme="light"] .pm-action-btn:hover{
   box-shadow:0 2px 8px rgba(0,0,0,.1),0 1px 0 0 rgba(255,255,255,0.6) inset;
 }
 body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
+
+.pm-body-zone{
+  position:relative;z-index:2;display:flex;flex-direction:column;
+  padding:0 24px 24px;
+}
+
 /* ── Danger buttons (block/report) — единый контейнер как pm-info-section ── */
 .pm-danger-actions{
   margin-top:12px;padding-bottom:8px;
@@ -2138,15 +2150,15 @@ body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
     width:100vw;height:100dvh;
     border:none;box-shadow:none;
   }
-  .pm-header-zone{padding:0 16px}
+  .pm-hero-overlay{padding:0 16px 16px;margin-top:-60px}
   .pm-body-zone{padding:0 16px 24px}
-  .pm-avi-wrap{margin-top:0;margin-bottom:0}
-  .pm-hero-avi{width:100%;aspect-ratio:1;font-size:48px}
+  .pm-hero-avi{font-size:48px}
   .pm-hero-avi.ch-profile-avi{aspect-ratio:1}
-  .pm-name-row{margin-top:-32px;padding:0 16px}
   .pm-name{font-size:20px}
-  .pm-status-pill{padding:0 16px}
-  .pm-actions{gap:8px;padding:0 16px}
+  .pm-actions{gap:8px}
+  .pm-action-btn{padding:10px 6px;border-radius:14px}
+  .pm-action-btn span{font-size:10.5px}
+  .pm-act-ic svg{width:22px;height:22px}
 }
 
 /* ── Media section in profile panel ── */
@@ -2155,17 +2167,23 @@ body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
   font-size:13px;font-weight:700;color:var(--t2);
   padding:8px 0 10px;
   border-top:1px solid var(--b);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.pm-media-header::after{
+  content:'';display:flex;gap:2px;
 }
 .pm-media-grid{
   display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
   max-height:320px;overflow-y:auto;
   overscroll-behavior:contain;
+  border-radius:12px;overflow:hidden;
 }
 .pm-media-grid img,.pm-media-grid video{
   width:100%;aspect-ratio:1;object-fit:cover;
-  border-radius:6px;background:var(--solid2);
-  cursor:pointer;
+  background:var(--solid2);
+  cursor:pointer;transition:opacity .15s;
 }
+.pm-media-grid img:hover,.pm-media-grid video:hover{opacity:.85}
 .pm-media-empty{
   grid-column:1/-1;
   text-align:center;padding:24px 16px;
