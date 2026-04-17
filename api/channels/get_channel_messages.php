@@ -1,0 +1,156 @@
+<?php
+// GET /api/get_channel_messages?channel_id=X&limit=50&after_id=0&before_id=0&init=0
+// Header: Authorization: Bearer <token>
+// Response: { messages: [...], last_read_id? }
+declare(strict_types=1);
+require_once __DIR__ . '/../helpers.php';
+
+set_cors_headers();
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Только GET', 405);
+
+$me       = auth_user();
+$uid      = (int) $me['id'];
+$channelId = (int) ($_GET['channel_id'] ?? 0);
+$afterId  = (int) ($_GET['after_id'] ?? 0);
+$beforeId = (int) ($_GET['before_id'] ?? 0);
+$limit    = min(max((int) ($_GET['limit'] ?? 50), 1), 100);
+$isInit   = ($_GET['init'] ?? '0') === '1';
+$markRead = ($_GET['mark_read'] ?? '0') === '1';
+
+if ($channelId <= 0) json_err('invalid_id', 'Некорректный channel_id');
+
+$db = db();
+
+// Check membership
+$stmt = $db->prepare(
+    'SELECT cm.role FROM channel_members cm JOIN channels c ON c.id = cm.channel_id WHERE cm.channel_id = ? AND cm.user_id = ? LIMIT 1'
+);
+$stmt->execute([$channelId, $uid]);
+$membership = $stmt->fetch();
+
+if (!$membership) {
+    // Allow for public channels (view-only)
+    $pubStmt = $db->prepare('SELECT id FROM channels WHERE id = ? AND type = ? LIMIT 1');
+    $pubStmt->execute([$channelId, 'public']);
+    if (!$pubStmt->fetch()) json_err('forbidden', 'Нет доступа к этому каналу', 403);
+} elseif ($markRead) {
+    // Update last_read_message_id
+    if ($afterId > 0) {
+        $db->prepare('UPDATE channel_members SET last_read_message_id = ? WHERE channel_id = ? AND user_id = ?')
+            ->execute([$afterId, $channelId, $uid]);
+    }
+}
+
+// ── Fetch messages ─────────────────────────────────────────────
+$messages = [];
+
+if ($isInit) {
+    // Initial load: get latest N messages
+    $stmt = $db->prepare(
+        'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
+                m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
+                m.sent_at, m.is_edited, m.views_count,
+                u.nickname AS sender_name, u.avatar_url AS sender_avatar
+         FROM channel_messages m
+         JOIN users u ON u.id = m.sender_id
+         WHERE m.channel_id = ? AND m.is_deleted = 0
+         ORDER BY m.sent_at DESC LIMIT ?'
+    );
+    $stmt->execute([$channelId, $limit]);
+    $messages = array_reverse($stmt->fetchAll());
+} elseif ($beforeId > 0) {
+    // Pagination: older messages
+    $stmt = $db->prepare(
+        'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
+                m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
+                m.sent_at, m.is_edited, m.views_count,
+                u.nickname AS sender_name, u.avatar_url AS sender_avatar
+         FROM channel_messages m
+         JOIN users u ON u.id = m.sender_id
+         WHERE m.channel_id = ? AND m.is_deleted = 0 AND m.id < ?
+         ORDER BY m.id DESC LIMIT ?'
+    );
+    $stmt->execute([$channelId, $beforeId, $limit]);
+    $messages = array_reverse($stmt->fetchAll());
+} else {
+    // New messages after after_id
+    $stmt = $db->prepare(
+        'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
+                m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
+                m.sent_at, m.is_edited, m.views_count,
+                u.nickname AS sender_name, u.avatar_url AS sender_avatar
+         FROM channel_messages m
+         JOIN users u ON u.id = m.sender_id
+         WHERE m.channel_id = ? AND m.is_deleted = 0 AND m.id > ?
+         ORDER BY m.sent_at ASC LIMIT ?'
+    );
+    $stmt->execute([$channelId, $afterId, $limit]);
+    $messages = $stmt->fetchAll();
+}
+
+// ── Increment views_count for fetched messages ──────────────────
+if (!empty($messages) && $membership) {
+    $ids = array_column($messages, 'id');
+    $ph  = implode(',', array_fill(0, count($ids), '?'));
+    $db->prepare("UPDATE channel_messages SET views_count = views_count + 1 WHERE id IN ($ph)")
+        ->execute($ids);
+}
+
+// ── Reactions ──────────────────────────────────────────────────
+$reactionsMap = [];
+if (!empty($messages)) {
+    $ids = array_column($messages, 'id');
+    $ph  = implode(',', array_fill(0, count($ids), '?'));
+    $stmt2 = $db->prepare(
+        "SELECT message_id, emoji, COUNT(*) AS cnt,
+                SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS by_me
+         FROM channel_reactions
+         WHERE message_id IN ($ph)
+         GROUP BY message_id, emoji
+         ORDER BY cnt DESC, emoji"
+    );
+    $stmt2->execute(array_merge([$uid], $ids));
+    foreach ($stmt2->fetchAll() as $r) {
+        $reactionsMap[$r['message_id']][] = [
+            'emoji' => $r['emoji'],
+            'count' => (int) $r['cnt'],
+            'by_me' => (bool) $r['by_me'],
+        ];
+    }
+}
+
+// ── last_read_id ──────────────────────────────────────────────
+$lastReadId = null;
+if ($membership) {
+    $lrStmt = $db->prepare('SELECT last_read_message_id FROM channel_members WHERE channel_id = ? AND user_id = ? LIMIT 1');
+    $lrStmt->execute([$channelId, $uid]);
+    $lastReadId = (int) ($lrStmt->fetchColumn() ?: 0);
+    if ($lastReadId <= 0) $lastReadId = null;
+}
+
+// ── Normalize ─────────────────────────────────────────────────
+$messages = array_map(function ($m) use ($reactionsMap) {
+    return [
+        'id'              => (int) $m['id'],
+        'sender_id'       => (int) $m['sender_id'],
+        'sender_name'     => $m['sender_name'] ?? '',
+        'sender_avatar'   => $m['sender_avatar'] ?? null,
+        'body'            => $m['body'],
+        'media_url'       => $m['media_url']        ?? null,
+        'media_type'      => $m['media_type']       ?? null,
+        'media_spoiler'   => (int) ($m['media_spoiler'] ?? 0),
+        'batch_id'        => $m['batch_id']         ?? null,
+        'reply_to'        => isset($m['reply_to']) ? (int) $m['reply_to'] : null,
+        'media_file_name' => $m['media_file_name']  ?? null,
+        'media_file_size' => isset($m['media_file_size']) ? (int) $m['media_file_size'] : null,
+        'sent_at'         => (int) $m['sent_at'],
+        'is_edited'       => (int) $m['is_edited'],
+        'views_count'     => (int) $m['views_count'],
+        'reactions'       => $reactionsMap[$m['id']] ?? [],
+    ];
+}, $messages);
+
+json_ok([
+    'messages'     => $messages,
+    'last_read_id' => $lastReadId,
+]);
