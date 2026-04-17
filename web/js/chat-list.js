@@ -714,6 +714,18 @@ function openProfileModal(u, isSelf=false){
   }
   applyBlurredAvatarBg('pm-hero-bg', name, avatar);
 
+  // Top control buttons: show appropriate button for device
+  const ctrlBack = $('pm-ctrl-back');
+  const ctrlClose = $('pm-ctrl-close');
+  const isMobile = __isMobileView();
+  if(ctrlBack) {
+    ctrlBack.classList.toggle('is-active', isMobile);
+    ctrlBack.onclick = () => { closeMod('modal-partner'); };
+  }
+  if(ctrlClose) {
+    ctrlClose.classList.toggle('is-active', !isMobile);
+  }
+
   // Name
   const nameEl=$('pm-partner-name');
   if(nameEl) { nameEl.textContent=name; wtn(nameEl); }
@@ -796,6 +808,7 @@ function openProfileModal(u, isSelf=false){
   const btnMute   = $('pm-btn-mute');
   const btnCall   = $('pm-btn-call');
   const btnVideo  = $('pm-btn-video');
+  const btnSearch = $('pm-btn-search');
   const dangerRow = $('pm-danger-actions');
 
   if(isSelf){
@@ -803,8 +816,9 @@ function openProfileModal(u, isSelf=false){
     if(btnMute)   btnMute.style.display   = 'none';
     if(btnCall)   btnCall.style.display   = 'none';
     if(btnVideo)  btnVideo.style.display  = 'none';
+    if(btnSearch) btnSearch.style.display  = 'none';
     if(dangerRow) dangerRow.style.display = 'none';
-    if(actsRow)   actsRow.style.display   = sid ? 'flex' : 'none';
+    if(actsRow)   actsRow.style.display   = 'none';
   } else {
     if(actsRow) actsRow.style.display = 'flex';
 
@@ -831,7 +845,7 @@ function openProfileModal(u, isSelf=false){
     }
     if(btnMute){
       if (!u.chat_id) {
-        btnMute.style.display = 'none'; // Скрываем звук если чата еще нет
+        btnMute.style.display = 'none';
       } else {
         btnMute.style.display = 'flex';
         const muteTxt = $('pm-mute-txt');
@@ -859,6 +873,15 @@ function openProfileModal(u, isSelf=false){
             if(S.chatId===u.chat_id) openChat(S.partner);
           } else toast(res.message||'Ошибка','err');
         };
+      }
+    }
+    // Search button — opens message search in current chat
+    if(btnSearch){
+      if(u.chat_id && u.chat_id === S.chatId){
+        btnSearch.style.display = 'flex';
+        btnSearch.onclick = () => { closeMod('modal-partner'); if(typeof toggleSearch==='function') toggleSearch(); };
+      } else {
+        btnSearch.style.display = 'none';
       }
     }
 

@@ -2002,6 +2002,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   background:rgba(0,0,0,.4);
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
 }
+
+/* ══ PROFILE PANEL — Premium Hero Layout ════════════════════ */
 .pm-panel{
   width:400px;max-width:100vw;height:100vh;
   background:var(--bg);
@@ -2020,11 +2022,13 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   overscroll-behavior:contain;
   position:relative;z-index:2;
 }
-/* ── Hero: full-width square avatar with gradient overlay ── */
+
+/* ── HERO SECTION ── */
 .pm-hero{
   position:relative;
   display:flex;flex-direction:column;
   overflow:hidden;
+  min-height:52vh;
 }
 /* Legacy header-zone class (used by dynamically created modals) */
 .pm-header-zone{
@@ -2032,17 +2036,18 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   position:relative;
   padding:0 24px;
 }
+/* Blurred avatar background — fills entire hero */
 .pm-hero-bg{
   position:absolute;top:0;left:0;right:0;bottom:0;
   pointer-events:none;z-index:0;
-  background:linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(14,165,233,0.1) 50%, rgba(var(--bg-rgb),0.8) 100%);
+  background:linear-gradient(135deg, rgba(var(--bg-rgb),0.3) 0%, var(--bg) 100%);
 }
 
 .blur-bg-img {
   position: absolute; inset: -60px;
   background-size: cover; background-position: center;
-  filter: blur(60px) brightness(0.6) saturate(1.4);
-  -webkit-filter: blur(60px) brightness(0.6) saturate(1.4);
+  filter: blur(60px) brightness(0.5) saturate(1.6);
+  -webkit-filter: blur(60px) brightness(0.5) saturate(1.6);
   transform: translateZ(0);
   will-change: transform;
   z-index: 0; pointer-events: none;
@@ -2050,29 +2055,117 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 .blur-bg-ov {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(139,92,246,0.06) 0%, rgba(139,92,246,0.03) 20%, transparent 40%, var(--bg) 100%);
+  background: linear-gradient(180deg,
+    rgba(var(--bg-rgb),0.1) 0%,
+    rgba(var(--bg-rgb),0.4) 40%,
+    rgba(var(--bg-rgb),0.95) 75%,
+    var(--bg) 100%);
   z-index: 1; pointer-events: none;
 }
 
+/* Hero gradient overlay — ensures text readability at bottom */
+.pm-hero-gradient{
+  position:absolute;bottom:0;left:0;right:0;
+  height:65%;
+  background:linear-gradient(180deg, transparent 0%, rgba(var(--bg-rgb),0.4) 30%, rgba(var(--bg-rgb),0.85) 65%, var(--bg) 100%);
+  z-index:2;pointer-events:none;
+}
+
+/* Avatar wrapper — centered, large */
+.pm-hero-avi-wrap{
+  display:flex;justify-content:center;align-items:center;
+  width:100%;
+  position:relative;z-index:1;
+  padding-top:56px;
+  flex:1 1 auto;
+  min-height:0;
+}
+/* Avatar — large centered circle */
+.pm-hero-avi{
+  width:min(180px, 45vw);height:min(180px, 45vw);
+  border-radius:50%;
+  background:var(--solid2);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  font-size:64px;font-weight:900;color:var(--t2);
+  position:relative;
+  border:3px solid rgba(var(--bg-rgb),0.6);
+  box-shadow:0 4px 24px rgba(0,0,0,.3);
+}
+.pm-hero-avi img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.pm-hero-avi canvas{border-radius:50%}
+/* Channel profile: rounded square avatar */
+.pm-hero-avi.ch-profile-avi{
+  border-radius:22%;
+}
+
+/* ── TOP CONTROL BUTTONS — Unified glass system ── */
+.pm-ctrl-btn{
+  position:absolute;
+  top:16px;left:16px;
+  width:36px;height:36px;
+  background:rgba(var(--bg-rgb),0.35);
+  backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
+  border:0.5px solid rgba(255,255,255,0.18);
+  border-top-color:rgba(255,255,255,0.35);
+  border-radius:50%;cursor:pointer;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  z-index:20;
+  transition:background .2s,transform .15s var(--sp),box-shadow .2s;
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.12) inset,
+             0 0.5px 0 0 rgba(255,255,255,0.06) inset,
+             0 2px 8px rgba(0,0,0,0.15);
+}
+.pm-ctrl-btn:hover{
+  background:rgba(var(--bg-rgb),0.55);
+  transform:scale(1.06);
+  box-shadow:0 2px 12px rgba(0,0,0,.2),
+             0 1px 0 0 rgba(255,255,255,0.18) inset;
+}
+.pm-ctrl-btn:active{transform:scale(0.94)}
+
+/* Show back on mobile, close on desktop — toggled by JS */
+.pm-ctrl-back{display:none}
+.pm-ctrl-close{display:flex}
+.pm-ctrl-back.is-active{display:flex}
+.pm-ctrl-close.is-active{display:flex}
+
+/* Light theme: glass control buttons */
+body[data-theme="light"] .pm-ctrl-btn{
+  background:rgba(255,255,255,0.55);
+  border:0.5px solid rgba(0,0,0,0.06);
+  border-top-color:rgba(255,255,255,0.9);
+  color:var(--t1);
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,
+             0 1px 3px rgba(0,0,0,0.08);
+}
+body[data-theme="light"] .pm-ctrl-btn:hover{
+  background:rgba(255,255,255,0.72);
+  box-shadow:0 2px 8px rgba(0,0,0,.1),
+             0 1px 0 0 rgba(255,255,255,0.6) inset;
+}
+
+/* Legacy .pm-close — still used by channel modals (ch-create, ch-join etc.) */
+.pm-close{
+  position:absolute;top:16px;right:16px;
+  width:36px;height:36px;
+  background:rgba(var(--bg-rgb),0.35);
+  backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
+  border:0.5px solid rgba(255,255,255,0.18);
+  border-top-color:rgba(255,255,255,0.35);
+  border-radius:50%;cursor:pointer;color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  z-index:20;
+  transition:background .2s,transform .15s var(--sp);
+}
+.pm-close:hover{background:rgba(var(--bg-rgb),0.55);transform:scale(1.06)}
+.pm-close:active{transform:scale(0.94)}
+.pm-close svg{width:14px;height:14px}
+/* Legacy avi-wrap / hero-overlay for channel modals */
 .pm-avi-wrap{
   display:flex;justify-content:center;
   margin:0;width:100%;
   position:relative;z-index:1;
 }
-/* Avatar — square full-width */
-.pm-hero-avi{
-  width:100%;aspect-ratio:1;border-radius:0;
-  background:var(--solid2);overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-  font-size:64px;font-weight:900;color:var(--t2);
-  position:relative;
-}
-.pm-hero-avi img{width:100%;height:100%;object-fit:cover}
-/* Channel profile: rounded square avatar */
-.pm-hero-avi.ch-profile-avi{
-  aspect-ratio:1;border-radius:0;
-}
-/* Gradient overlay at bottom of avatar area — covers name + buttons */
 .pm-hero-overlay{
   position:relative;z-index:2;
   margin-top:-100px;
@@ -2080,108 +2173,110 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
   display:flex;flex-direction:column;gap:8px;
 }
+
+/* ── HERO CONTENT — name, status, actions at bottom ── */
+.pm-hero-content{
+  position:relative;z-index:3;
+  padding:16px 24px 20px;
+  display:flex;flex-direction:column;gap:12px;
+}
 .pm-hero-info{
-  display:flex;flex-direction:column;gap:2px;
+  display:flex;flex-direction:column;gap:3px;
 }
-/* Close button */
-.pm-close{
-  position:absolute;top:16px;right:16px;
-  width:32px;height:32px;
-  background:rgba(0,0,0,.35);
-  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border:none;border-radius:50%;cursor:pointer;color:#fff;
-  display:flex;align-items:center;justify-content:center;
-  z-index:20;transition:background .15s,transform .15s var(--sp);
-}
-.pm-close:hover{background:rgba(0,0,0,.5);transform:scale(1.08)}
-.pm-close:active{transform:scale(0.95)}
-.pm-close svg{width:14px;height:14px}
-/* Name row with optional verified badge — on top of gradient */
+/* Name row with optional verified badge */
 .pm-name-row{
   display:flex;align-items:center;gap:7px;
   margin-bottom:0;max-width:100%;
   position:relative;z-index:2;
 }
-.pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%;text-shadow:0 1px 3px rgba(0,0,0,.3);}
+.pm-name{
+  font-size:24px;font-weight:700;letter-spacing:-.3px;
+  color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  min-width:0;max-width:100%;
+}
 /* Verified badge — see .verified-badge global rule */
-.pm-badge{cursor:pointer;transition:transform .2s var(--sp),filter .2s var(--ease);will-change:transform,filter;display:inline-flex;align-items:center;justify-content:center;}
+.pm-badge{cursor:pointer;transition:transform .2s var(--sp),filter .2s var(--ease);will-change:transform,filter;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .pm-badge:hover{transform:scale(1.15);filter:drop-shadow(0 0 6px currentColor);}
 /* Status pill */
 .pm-status-pill{
-  font-size:13px;color:rgba(255,255,255,.75);
-  text-align:left;margin-bottom:2px;
+  font-size:13px;color:var(--t2);
+  text-align:left;margin-bottom:0;
   font-weight:500;background:transparent;border:none;padding:0;display:block;
   position:relative;z-index:2;
-  text-shadow:0 1px 2px rgba(0,0,0,.25);
 }
-.pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;text-shadow:none;}
-.pm-status-pill.off{color:var(--t3);text-shadow:none;}
+.pm-status-pill.on{color:var(--green)}
+.pm-status-pill.on .pm-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:4px;vertical-align:middle;box-shadow:0 0 4px var(--green)}
+.pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;}
+.pm-status-pill.off{color:var(--t3);}
 .pm-status-pill .pm-dot{display:none;}
-/* Action buttons row — iOS 26 style round buttons with text below */
+
+/* ── ACTION BUTTONS ROW — iOS 26 glass style ── */
 .pm-actions{
-  display:flex;gap:16px;margin-top:8px;
+  display:flex;gap:20px;margin-top:4px;
   position:relative;z-index:2;
-  justify-content:center;
+  justify-content:flex-start;
+  flex-wrap:wrap;
 }
 .pm-action-btn{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  background:rgba(255,255,255,0.12);
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  background:rgba(var(--bg-rgb),0.35);
   backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
-  border:0.5px solid rgba(255,255,255,0.25);
-  border-top-color:rgba(255,255,255,0.5);
+  border:0.5px solid rgba(255,255,255,0.2);
+  border-top-color:rgba(255,255,255,0.4);
   border-radius:50%;
-  width:56px;height:56px;
+  width:54px;height:54px;
   padding:0;cursor:pointer;color:var(--t1);
-  transition:background .2s,transform .1s var(--sp),box-shadow .2s;
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.18) inset,
-             0 0.5px 0 0 rgba(255,255,255,0.08) inset,
-             0 2px 8px rgba(0,0,0,0.12);
+  transition:background .2s,transform .15s var(--sp),box-shadow .2s;
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.14) inset,
+             0 0.5px 0 0 rgba(255,255,255,0.06) inset,
+             0 2px 8px rgba(0,0,0,0.1);
   flex:none;
+  position:relative;
 }
 .pm-action-btn:hover{
-  background:rgba(255,255,255,0.2);
+  background:rgba(var(--bg-rgb),0.5);
   transform:translateY(-1px);
-  box-shadow:0 2px 12px rgba(0,0,0,.18),
-             0 1px 0 0 rgba(255,255,255,0.22) inset,
-             0 0.5px 0 0 rgba(255,255,255,0.1) inset;
+  box-shadow:0 3px 12px rgba(0,0,0,.15),
+             0 1px 0 0 rgba(255,255,255,0.2) inset;
 }
-.pm-action-btn:active{transform:scale(0.92);background:rgba(255,255,255,0.08)}
-.pm-action-btn.muted{color:var(--y2);background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.22);border-top-color:rgba(139,92,246,.4)}
-.pm-action-btn.muted:hover{background:rgba(139,92,246,.18)}
+.pm-action-btn:active{transform:scale(0.92);background:rgba(var(--bg-rgb),0.25)}
+.pm-action-btn.muted{color:var(--y2);background:rgba(var(--ybg-rgb, 139,92,246),.12);border-color:rgba(var(--ybg-rgb, 139,92,246),.22);border-top-color:rgba(var(--ybg-rgb, 139,92,246),.4)}
+.pm-action-btn.muted:hover{background:rgba(var(--ybg-rgb, 139,92,246),.18)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
 .pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center}
-.pm-act-ic svg{width:24px;height:24px}
-.pm-action-btn span{
+.pm-act-ic svg{width:22px;height:22px}
+.pm-act-lbl{
   position:absolute;
-  bottom:-20px;
+  bottom:-18px;
   left:50%;transform:translateX(-50%);
   font-size:10.5px;font-weight:500;letter-spacing:0.1px;
   white-space:nowrap;
-  color:rgba(255,255,255,0.8);
-  text-shadow:0 1px 2px rgba(0,0,0,0.3);
+  color:var(--t2);
 }
+
 /* Light theme: frosted glass buttons */
 body[data-theme="light"] .pm-action-btn{
-  background:rgba(255,255,255,0.65);
-  border:0.5px solid rgba(0,0,0,0.08);
-  border-top-color:rgba(255,255,255,0.95);
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.6) inset,
-             0 1px 3px rgba(0,0,0,0.1);
+  background:rgba(255,255,255,0.6);
+  border:0.5px solid rgba(0,0,0,0.06);
+  border-top-color:rgba(255,255,255,0.9);
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,
+             0 1px 3px rgba(0,0,0,0.08);
 }
 body[data-theme="light"] .pm-action-btn:hover{
-  background:rgba(255,255,255,0.82);
-  box-shadow:0 2px 8px rgba(0,0,0,.1),
-             0 1px 0 0 rgba(255,255,255,0.7) inset;
+  background:rgba(255,255,255,0.78);
+  box-shadow:0 2px 8px rgba(0,0,0,.08),
+             0 1px 0 0 rgba(255,255,255,0.6) inset;
 }
-body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
-body[data-theme="light"] .pm-action-btn span{color:var(--t2);text-shadow:none}
+body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.45)}
+body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
 
+/* ── INFO SHEET — below hero ── */
 .pm-body-zone{
   position:relative;z-index:2;display:flex;flex-direction:column;
   padding:0 24px 24px;
 }
 
-/* ── Danger buttons (block/report) — единый контейнер как pm-info-section ── */
+/* ── Danger buttons (block/report) ── */
 .pm-danger-actions{
   margin-top:12px;padding-bottom:8px;
 }
@@ -2221,7 +2316,7 @@ body[data-theme="light"] .pm-action-btn span{color:var(--t2);text-shadow:none}
 }
 .pm-last-seen svg{width:12px;height:12px;opacity:.6}
 
-/* Mobile: profile panel fullscreen */
+/* ── Mobile: profile panel fullscreen ── */
 @container app (max-width: 680px){
   #modal-partner{
     background:var(--bg);
@@ -2231,15 +2326,32 @@ body[data-theme="light"] .pm-action-btn span{color:var(--t2);text-shadow:none}
     width:100vw;height:100dvh;
     border:none;box-shadow:none;
   }
-  .pm-hero-overlay{padding:0 16px 28px;margin-top:-60px}
-  .pm-body-zone{padding:0 16px 24px}
-  .pm-hero-avi{font-size:48px}
-  .pm-hero-avi.ch-profile-avi{aspect-ratio:1}
+  .pm-hero{
+    min-height:52vh;
+  }
+  .pm-hero-avi-wrap{
+    padding-top:calc(48px + env(safe-area-inset-top, 0px));
+  }
+  .pm-hero-avi{
+    width:min(140px, 38vw);height:min(140px, 38vw);
+    font-size:48px;
+  }
+  .pm-ctrl-btn{
+    top:calc(12px + env(safe-area-inset-top, 0px));
+  }
+  .pm-hero-content{
+    padding:12px 16px 16px;
+    gap:10px;
+  }
   .pm-name{font-size:20px}
   .pm-actions{gap:14px}
-  .pm-action-btn{width:50px;height:50px}
-  .pm-action-btn span{font-size:10px;bottom:-18px}
-  .pm-act-ic svg{width:22px;height:22px}
+  .pm-action-btn{width:48px;height:48px}
+  .pm-act-lbl{font-size:10px;bottom:-16px}
+  .pm-act-ic svg{width:20px;height:20px}
+  .pm-body-zone{padding:0 16px 24px}
+  /* Mobile: show back button, hide close button */
+  .pm-ctrl-back{display:flex !important}
+  .pm-ctrl-close{display:none !important}
 }
 
 /* ── Media section in profile panel ── */
@@ -4840,7 +4952,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:rgba(var(--bg-rgb),1);
 }
-.no-blur .pm-close{
+.no-blur .pm-ctrl-btn{
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:rgba(0,0,0,.5);
 }
