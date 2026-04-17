@@ -475,11 +475,7 @@ if (window._swSupported) {
         </div>
         <!-- Servers panel -->
         <div class="sb-panel nav-panel" id="panel-servers" style="transform:translateX(100%);opacity:0;pointer-events:none">
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:40px;text-align:center;color:var(--t3)">
-            <div style="font-size:48px;margin-bottom:16px;opacity:.3">🖥️</div>
-            <div style="font-size:16px;font-weight:700;color:var(--t2);margin-bottom:8px">Хабы</div>
-            <div style="font-size:13px;max-width:240px">Скоро здесь появятся хабы и сообщества</div>
-          </div>
+          <!-- Content rendered dynamically by channels.js -->
         </div>
       </div>
       <div class="sb-foot"><div class="prof-row" id="prof-row"><div class="av"><div class="av-img" id="foot-av"></div></div><div class="prof-meta"><div class="prof-name" id="foot-name">—</div><div class="prof-id" id="foot-id"></div></div></div></div>
@@ -1405,16 +1401,18 @@ if (window._swSupported) {
       <div class="cm-tab-content" id="cm-tab-channel">
         <div class="cm-empty-state">
           <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-          <div class="cm-empty-title">Скоро</div>
-          <div class="cm-empty-sub">Создание каналов будет доступно в ближайшем обновлении</div>
+          <div class="cm-empty-title">Канал</div>
+          <div class="cm-empty-sub">Нажмите для создания канала</div>
+          <button class="ch-form-submit" style="margin-top:16px" onclick="showCreateChannelModal()">Создать канал</button>
         </div>
       </div>
       <!-- Server tab -->
       <div class="cm-tab-content" id="cm-tab-server">
         <div class="cm-empty-state">
           <div class="cm-empty-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
-          <div class="cm-empty-title">Скоро</div>
-          <div class="cm-empty-sub">Создание хабов будет доступно в ближайшем обновлении</div>
+          <div class="cm-empty-title">Хаб</div>
+          <div class="cm-empty-sub">Нажмите для создания хаба</div>
+          <button class="ch-form-submit" style="margin-top:16px" onclick="showCreateHubModal()">Создать хаб</button>
         </div>
       </div>
     </div>
@@ -1600,6 +1598,7 @@ if (window._swSupported) {
 <script src="js/auth.js"></script>
 <script src="js/app.js"></script>
 <script src="js/call.js"></script>
+<script src="js/channels.js"></script>
 <script>
 // QR approval on load (if ?qr= in URL and already logged in)
 document.addEventListener('DOMContentLoaded', () => {

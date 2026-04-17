@@ -6254,3 +6254,203 @@ body[data-theme="light"] .mrow.me .voice-play-btn { background: rgba(255,255,255
   font-family:var(--font);
   word-break:break-word;
 }
+/* ═══════════════════════════════════════════════════════════════
+   CHANNELS & HUBS — Хабы и каналы (Telegram-style)
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Servers panel wrapper ── */
+.ch-servers-panel{
+  padding:8px 0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+/* ── Create buttons bar ── */
+.ch-create-bar{
+  display:flex;
+  gap:6px;
+  padding:4px 12px 8px;
+}
+.ch-create-btn{
+  flex:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  background:var(--s1);
+  border:1px solid var(--b);
+  border-radius:12px;
+  color:var(--t1);
+  font-family:var(--font);
+  font-size:12.5px;
+  font-weight:600;
+  padding:9px 10px;
+  cursor:pointer;
+  transition:background .15s,border-color .15s,transform .12s var(--sp);
+}
+.ch-create-btn:hover{background:var(--s2);border-color:var(--yb)}
+.ch-create-btn:active{transform:scale(.97)}
+.ch-create-btn svg{width:14px;height:14px;flex-shrink:0}
+
+/* ── Section labels ── */
+.ch-section-label{
+  font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+  color:var(--t3);padding:10px 16px 4px;
+}
+
+/* ── Channel item in list ── */
+.ch-channel-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px;cursor:pointer;
+  transition:background .12s;
+  border-radius:0;
+}
+.ch-channel-item:hover{background:var(--s0)}
+.ch-channel-item.ch-in-hub{padding-left:24px}
+
+/* Channel avatar */
+.ch-ch-av{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--solid1);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.ch-ch-av img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-ch-av span{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;border-radius:inherit;color:#fff}
+
+/* Channel info */
+.ch-ch-info{flex:1;min-width:0}
+.ch-ch-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:1px}
+.ch-ch-name{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-ch-time{font-size:10.5px;color:var(--t3);flex-shrink:0}
+.ch-ch-prev{
+  font-size:12px;color:var(--t2);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  display:flex;align-items:center;gap:4px;
+}
+
+/* ── Hub group ── */
+.ch-hub-group{margin-bottom:2px}
+.ch-hub-header{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 12px;cursor:pointer;
+  transition:background .12s;
+}
+.ch-hub-header:hover{background:var(--s0)}
+.ch-hub-av{
+  width:38px;height:38px;border-radius:12px;
+  background:var(--solid1);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.ch-hub-av img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-hub-av span{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border-radius:inherit;color:#fff}
+.ch-hub-info{flex:1;min-width:0}
+.ch-hub-name{font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-hub-meta{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-hub-chevron{
+  width:18px;height:18px;flex-shrink:0;color:var(--t3);
+  transition:transform .2s ease;
+}
+.ch-hub-channels{
+  /* Expanded by default */
+}
+.ch-empty-hint{
+  font-size:12px;color:var(--t3);
+  padding:6px 24px;
+}
+.ch-add-channel-btn{
+  display:flex;align-items:center;gap:6px;
+  background:none;border:none;
+  color:var(--y);font-family:var(--font);
+  font-size:12px;font-weight:600;
+  padding:6px 24px;cursor:pointer;
+  transition:opacity .15s;
+}
+.ch-add-channel-btn:hover{opacity:.7}
+
+/* ── Discover items ── */
+.ch-discover-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px;cursor:pointer;
+  transition:background .12s;
+}
+.ch-discover-item:hover{background:var(--s0)}
+.ch-discover-av{width:36px;height:36px;border-radius:50%}
+.ch-join-btn{
+  background:var(--ybg);border:1px solid var(--yb);
+  border-radius:99px;color:var(--y2);
+  font-family:var(--font);font-size:11.5px;font-weight:700;
+  padding:5px 12px;cursor:pointer;flex-shrink:0;
+  transition:background .15s,transform .12s var(--sp);
+}
+.ch-join-btn:hover{background:rgba(139,92,246,.2)}
+.ch-join-btn:active{transform:scale(.95)}
+
+/* ── Empty state ── */
+.ch-empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:40px 20px;text-align:center;color:var(--t2);
+}
+
+/* ── Create forms ── */
+.ch-create-form{
+  padding:16px 20px;
+  display:flex;flex-direction:column;gap:14px;
+}
+.ch-form-group{
+  display:flex;flex-direction:column;gap:4px;
+}
+.ch-form-label{
+  font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--t3);
+}
+.ch-form-input{
+  width:100%;background:var(--solid1);border:1px solid var(--b);
+  border-radius:12px;color:var(--t1);font-family:var(--font);
+  font-size:14px;font-weight:500;padding:10px 14px;outline:none;
+  transition:border-color .2s,background .2s;
+  resize:vertical;
+}
+.ch-form-input::placeholder{color:var(--t3)}
+.ch-form-input:focus{border-color:var(--yb);background:var(--ybg)}
+.ch-form-row{
+  flex-direction:row!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+}
+.ch-form-submit{
+  width:100%;background:#fff;color:#000;border:none;border-radius:12px;
+  font-family:var(--font);font-size:15px;font-weight:700;
+  padding:13px;cursor:pointer;
+  transition:transform .15s var(--sp),box-shadow .15s,opacity .15s;
+  box-shadow:0 4px 12px rgba(255,255,255,.1);
+}
+.ch-form-submit:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(255,255,255,.15)}
+.ch-form-submit:active{transform:scale(.97)}
+
+/* ── Toggle switch ── */
+.ch-toggle{
+  position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0;
+}
+.ch-toggle input{opacity:0;width:0;height:0}
+.ch-toggle-slider{
+  position:absolute;inset:0;cursor:pointer;
+  background:var(--solid3);border-radius:24px;
+  transition:background .25s;
+}
+.ch-toggle-slider::before{
+  content:'';position:absolute;
+  width:18px;height:18px;border-radius:50%;
+  left:3px;bottom:3px;background:#fff;
+  transition:transform .25s var(--ease);
+}
+.ch-toggle input:checked+.ch-toggle-slider{background:var(--y)}
+.ch-toggle input:checked+.ch-toggle-slider::before{transform:translateX(20px)}
+
+/* ── Channel chat message: views counter ── */
+.mrow .msg-views{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:11px;color:var(--t3);margin-left:6px;
+}
+.mrow .msg-views svg{width:12px;height:12px}

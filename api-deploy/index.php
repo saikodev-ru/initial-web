@@ -53,6 +53,7 @@ $routes = [
     'edit_message'        => 'edit_message.php',
     'register_fcm'        => 'register_fcm.php',
     'poll_updates'        => 'poll_updates.php',
+    'channels'            => 'channels.php',
 ];
 
 // ── Запрещённые маршруты ────────────────────────────────────────

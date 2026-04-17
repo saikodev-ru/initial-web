@@ -119,6 +119,10 @@ function hideRbar(inst=false){const rb=$('rbar');if(!rb||!rb.classList.contains(
 /* ══ OPEN CHAT ════════════════════════════════════════════════ */
 function openChat(c){
   if(S.chatId===c.chat_id)return;
+  // Stop channel poll if switching from a channel chat
+  if(typeof stopChannelPoll==='function') stopChannelPoll();
+  // Remove channel mute pill if present
+  var chPill=document.getElementById('system-mute-pill');if(chPill)chPill.remove();
   // Hide in-app push banner when opening a chat
   var inappPush = $('inapp-push');
   if(inappPush) inappPush.classList.remove('visible');
