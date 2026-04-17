@@ -706,24 +706,33 @@ function openProfileModal(u, isSelf=false){
   const mediaHeader = document.getElementById('pm-media-section')?.querySelector('.pm-media-header span');
   if (mediaHeader) mediaHeader.textContent = 'Медиа, файлы и ссылки';
 
-  // Avatar & Background blur
-  const aviEl=$('pm-hero-avi');
-  if(aviEl) {
-    aviEl.innerHTML=aviHtml(name,avatar);
-    aviEl.classList.remove('ch-profile-avi');
-  }
+  // Avatar as full-screen background (avatar IS the hero)
   applyBlurredAvatarBg('pm-hero-bg', name, avatar);
+
+  // Reset scroll position to top
+  const pmScroll = $('pm-scroll');
+  if(pmScroll) pmScroll.scrollTop = 0;
 
   // Top control buttons: show appropriate button for device
   const ctrlBack = $('pm-ctrl-back');
   const ctrlClose = $('pm-ctrl-close');
   const isMobile = __isMobileView();
   if(ctrlBack) {
-    ctrlBack.classList.toggle('is-active', isMobile);
+    if(isMobile) {
+      ctrlBack.classList.add('is-active');
+    } else {
+      ctrlBack.classList.remove('is-active');
+    }
     ctrlBack.onclick = () => { closeMod('modal-partner'); };
   }
   if(ctrlClose) {
-    ctrlClose.classList.toggle('is-active', !isMobile);
+    if(!isMobile) {
+      ctrlClose.classList.add('is-active');
+    } else {
+      ctrlClose.classList.remove('is-active');
+    }
+    // Ensure close handler is always set (fixes reopen bug)
+    ctrlClose.onclick = () => { closeMod('modal-partner'); };
   }
 
   // Name
@@ -802,13 +811,12 @@ function openProfileModal(u, isSelf=false){
   if(sep) sep.style.display = hasSid ? 'block' : 'none';
   if($('pm-info-section')) $('pm-info-section').style.display = (hasSid || hasBio) ? 'flex' : 'none';
 
-  // Action buttons
+  // Action buttons (search button removed per user request)
   const actsRow   = $('pm-actions-row');
   const btnMsg    = $('pm-btn-message');
   const btnMute   = $('pm-btn-mute');
   const btnCall   = $('pm-btn-call');
   const btnVideo  = $('pm-btn-video');
-  const btnSearch = $('pm-btn-search');
   const dangerRow = $('pm-danger-actions');
 
   if(isSelf){
@@ -816,7 +824,6 @@ function openProfileModal(u, isSelf=false){
     if(btnMute)   btnMute.style.display   = 'none';
     if(btnCall)   btnCall.style.display   = 'none';
     if(btnVideo)  btnVideo.style.display  = 'none';
-    if(btnSearch) btnSearch.style.display  = 'none';
     if(dangerRow) dangerRow.style.display = 'none';
     if(actsRow)   actsRow.style.display   = 'none';
   } else {
@@ -873,15 +880,6 @@ function openProfileModal(u, isSelf=false){
             if(S.chatId===u.chat_id) openChat(S.partner);
           } else toast(res.message||'Ошибка','err');
         };
-      }
-    }
-    // Search button — opens message search in current chat
-    if(btnSearch){
-      if(u.chat_id && u.chat_id === S.chatId){
-        btnSearch.style.display = 'flex';
-        btnSearch.onclick = () => { closeMod('modal-partner'); if(typeof toggleSearch==='function') toggleSearch(); };
-      } else {
-        btnSearch.style.display = 'none';
       }
     }
 

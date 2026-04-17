@@ -1165,21 +1165,17 @@ if (window._swSupported) {
 <!-- PARTNER PROFILE MODAL -->
 <div class="overlay" id="modal-partner">
   <div class="pm-panel" id="pm-panel">
-    <div class="pm-scroll">
-      <!-- ══ HERO SECTION ══ -->
+    <div class="pm-scroll" id="pm-scroll">
+      <!-- ══ HERO SECTION — full-screen square avatar ══ -->
       <div class="pm-hero" id="pm-hero">
-        <!-- Blurred avatar background -->
+        <!-- Full-screen avatar background -->
         <div class="pm-hero-bg" id="pm-hero-bg"></div>
-        <!-- Large centered avatar photo -->
-        <div class="pm-hero-avi-wrap">
-          <div class="pm-hero-avi" id="pm-hero-avi"></div>
-        </div>
-        <!-- Gradient overlay for text readability -->
+        <!-- Gradient blur transition at bottom where buttons overlay -->
         <div class="pm-hero-gradient"></div>
 
         <!-- Top-left control: Back (mobile) / Close (desktop) -->
         <button class="pm-ctrl-btn pm-ctrl-back" id="pm-ctrl-back" aria-label="Назад">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <button class="pm-ctrl-btn pm-ctrl-close" id="pm-ctrl-close" data-close="modal-partner" aria-label="Закрыть">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1216,10 +1212,6 @@ if (window._swSupported) {
             <button class="pm-action-btn" id="pm-btn-mute" title="Уведомления">
               <div class="pm-act-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg></div>
               <span class="pm-act-lbl" id="pm-mute-txt">Звук</span>
-            </button>
-            <button class="pm-action-btn" id="pm-btn-search" title="Поиск">
-              <div class="pm-act-ic"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-              <span class="pm-act-lbl">Поиск</span>
             </button>
           </div>
         </div>

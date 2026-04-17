@@ -747,8 +747,18 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-mb-avatar .av-dot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 /* Pill wrapper for mobile header — transparent on desktop */
 .hdr-pill{display:contents}
+/* ── Chat search base styles — hidden by default ── */
+.hdr-chat-search{
+  display:none;
+  flex:1;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.hdr-search-nav{display:none}
+.hdr-search-btn-desk{display:none}
 /* ── Desktop search: transform entire header into search bar ── */
-@container app (min-width: 681px){
+@media(min-width:681px){
   .chat-hdr.search-active{
     gap:8px;
     padding:8px 14px;
@@ -837,7 +847,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   .hdr-search-nav{display:none !important}
 }
 /* Hide desktop search button on mobile */
-@container app (max-width: 680px){
+@media(max-width:680px){
   .hdr-search-btn-desk{display:none !important}
 }
 /* Avatar pill wrapper — transparent on desktop */
@@ -2023,7 +2033,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   position:relative;z-index:2;
 }
 
-/* ── HERO SECTION ── */
+/* ── HERO SECTION — full-screen square avatar ── */
 .pm-hero{
   position:relative;
   display:flex;flex-direction:column;
@@ -2036,7 +2046,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   position:relative;
   padding:0 24px;
 }
-/* Blurred avatar background — fills entire hero */
+/* Full-screen avatar background — the avatar IS the hero background */
 .pm-hero-bg{
   position:absolute;top:0;left:0;right:0;bottom:0;
   pointer-events:none;z-index:0;
@@ -2044,10 +2054,10 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 
 .blur-bg-img {
-  position: absolute; inset: -60px;
-  background-size: cover; background-position: center;
-  filter: blur(60px) brightness(0.5) saturate(1.6);
-  -webkit-filter: blur(60px) brightness(0.5) saturate(1.6);
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center top;
+  filter: blur(0px) brightness(0.55) saturate(1.4);
+  -webkit-filter: blur(0px) brightness(0.55) saturate(1.4);
   transform: translateZ(0);
   will-change: transform;
   z-index: 0; pointer-events: none;
@@ -2055,50 +2065,34 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 .blur-bg-ov {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg,
-    rgba(var(--bg-rgb),0.1) 0%,
-    rgba(var(--bg-rgb),0.4) 40%,
-    rgba(var(--bg-rgb),0.95) 75%,
-    var(--bg) 100%);
+  background: transparent;
   z-index: 1; pointer-events: none;
 }
 
-/* Hero gradient overlay — ensures text readability at bottom */
+/* Hero gradient — sharp blur-to-solid transition at button area */
 .pm-hero-gradient{
   position:absolute;bottom:0;left:0;right:0;
-  height:65%;
-  background:linear-gradient(180deg, transparent 0%, rgba(var(--bg-rgb),0.4) 30%, rgba(var(--bg-rgb),0.85) 65%, var(--bg) 100%);
+  height:70%;
+  background:linear-gradient(180deg,
+    transparent 0%,
+    rgba(var(--bg-rgb),0.15) 25%,
+    rgba(var(--bg-rgb),0.55) 45%,
+    rgba(var(--bg-rgb),0.92) 65%,
+    var(--bg) 85%);
   z-index:2;pointer-events:none;
 }
 
-/* Avatar wrapper — centered, large */
+/* Avatar wrapper — removed (avatar IS the background now) */
 .pm-hero-avi-wrap{
-  display:flex;justify-content:center;align-items:center;
-  width:100%;
-  position:relative;z-index:1;
-  padding-top:56px;
-  flex:1 1 auto;
-  min-height:0;
+  display:none;
 }
-/* Avatar — large centered circle */
+/* Avatar — hidden (replaced by full-screen background) */
 .pm-hero-avi{
-  width:min(180px, 45vw);height:min(180px, 45vw);
-  border-radius:50%;
-  background:var(--solid2);overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-  font-size:64px;font-weight:900;color:var(--t2);
-  position:relative;
-  border:3px solid rgba(var(--bg-rgb),0.6);
-  box-shadow:0 4px 24px rgba(0,0,0,.3);
-}
-.pm-hero-avi img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.pm-hero-avi canvas{border-radius:50%}
-/* Channel profile: rounded square avatar */
-.pm-hero-avi.ch-profile-avi{
-  border-radius:22%;
+  display:none;
 }
 
-/* ── TOP CONTROL BUTTONS — Unified glass system ── */
+/* ── TOP CONTROL BUTTONS ── */
+/* Desktop: glass circle close button */
 .pm-ctrl-btn{
   position:absolute;
   top:16px;left:16px;
@@ -2142,6 +2136,42 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
   background:rgba(255,255,255,0.72);
   box-shadow:0 2px 8px rgba(0,0,0,.1),
              0 1px 0 0 rgba(255,255,255,0.6) inset;
+}
+/* Light theme: mobile back button pill in profile */
+@media(max-width:680px){
+  body[data-theme="light"] .pm-ctrl-back{
+    background:rgba(var(--bg-rgb),.30) !important;
+    box-shadow:0 1px 4px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5) !important;
+  }
+  body[data-theme="light"] .pm-ctrl-back:hover{
+    background:rgba(var(--bg-rgb),.45) !important;
+  }
+}
+
+/* Mobile: back button styled like chat header "Назад" pill button */
+@media(max-width:680px){
+  .pm-ctrl-back{
+    top:calc(8px + env(safe-area-inset-top, 0px)) !important;
+    left:8px !important;
+    width:48px !important;height:48px !important;
+    background:rgba(var(--bg-rgb),0.50) !important;
+    backdrop-filter:blur(24px) saturate(1.8) !important;
+    -webkit-backdrop-filter:blur(24px) saturate(1.8) !important;
+    border:none !important;
+    border-radius:9999px !important;
+    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12) !important;
+    color:var(--t1) !important;
+  }
+  .pm-ctrl-back:hover{
+    background:rgba(var(--bg-rgb),0.65) !important;
+    transform:scale(1.02) !important;
+  }
+  .pm-ctrl-back:active{
+    transform:scale(0.88) !important;
+    opacity:.7 !important;
+  }
+  .pm-ctrl-back svg{width:18px;height:18px}
+  .pm-ctrl-close{display:none !important}
 }
 
 /* Legacy .pm-close — still used by channel modals (ch-create, ch-join etc.) */
@@ -2243,7 +2273,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 .pm-action-btn.muted{color:var(--y2);background:rgba(var(--ybg-rgb, 139,92,246),.12);border-color:rgba(var(--ybg-rgb, 139,92,246),.22);border-top-color:rgba(var(--ybg-rgb, 139,92,246),.4)}
 .pm-action-btn.muted:hover{background:rgba(var(--ybg-rgb, 139,92,246),.18)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
-.pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center}
+.pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center;width:100%;height:100%}
 .pm-act-ic svg{width:22px;height:22px}
 .pm-act-lbl{
   position:absolute;
@@ -2317,7 +2347,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
 .pm-last-seen svg{width:12px;height:12px;opacity:.6}
 
 /* ── Mobile: profile panel fullscreen ── */
-@container app (max-width: 680px){
+@media(max-width:680px){
   #modal-partner{
     background:var(--bg);
     backdrop-filter:none;-webkit-backdrop-filter:none;
@@ -2329,16 +2359,6 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
   .pm-hero{
     min-height:52vh;
   }
-  .pm-hero-avi-wrap{
-    padding-top:calc(48px + env(safe-area-inset-top, 0px));
-  }
-  .pm-hero-avi{
-    width:min(140px, 38vw);height:min(140px, 38vw);
-    font-size:48px;
-  }
-  .pm-ctrl-btn{
-    top:calc(12px + env(safe-area-inset-top, 0px));
-  }
   .pm-hero-content{
     padding:12px 16px 16px;
     gap:10px;
@@ -2349,9 +2369,6 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
   .pm-act-lbl{font-size:10px;bottom:-16px}
   .pm-act-ic svg{width:20px;height:20px}
   .pm-body-zone{padding:0 16px 24px}
-  /* Mobile: show back button, hide close button */
-  .pm-ctrl-back{display:flex !important}
-  .pm-ctrl-close{display:none !important}
 }
 
 /* ── Media section in profile panel ── */
