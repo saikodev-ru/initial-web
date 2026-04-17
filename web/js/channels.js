@@ -2094,11 +2094,19 @@ document.addEventListener('keydown', (e) => {
 /* ══ MODAL CLOSE HELPERS ════════════════════════════════════════ */
 // Extend closeMod to handle our custom modals
 const _origCloseMod = typeof closeMod === 'function' ? closeMod : null;
+// Static modals that exist in index.html — must NOT be removed from DOM
+const _staticModals = new Set([
+  'modal-partner','modal-verified','modal-team','modal-preview',
+  'modal-crop','modal-create','modal-qr'
+]);
 window.closeMod = function(id) {
   const el = $(id);
   if (el) {
     el.classList.remove('on');
-    setTimeout(() => el.remove(), 300);
+    // Only remove dynamically-created channel modals from DOM
+    if (!_staticModals.has(id)) {
+      setTimeout(() => el.remove(), 300);
+    }
   }
   if (_origCloseMod && id !== 'modal-ch-create' && id !== 'modal-ch-join' && id !== 'modal-ch-settings' && id !== 'modal-ch-members' && id !== 'modal-ch-search') _origCloseMod(id);
 };

@@ -723,7 +723,7 @@ function openProfileModal(u, isSelf=false){
     } else {
       ctrlBack.classList.remove('is-active');
     }
-    ctrlBack.onclick = () => { closeMod('modal-partner'); };
+    ctrlBack.onclick = () => { _closeProfileModal(); };
   }
   if(ctrlClose) {
     if(!isMobile) {
@@ -732,7 +732,7 @@ function openProfileModal(u, isSelf=false){
       ctrlClose.classList.remove('is-active');
     }
     // Ensure close handler is always set (fixes reopen bug)
-    ctrlClose.onclick = () => { closeMod('modal-partner'); };
+    ctrlClose.onclick = () => { _closeProfileModal(); };
   }
 
   // Name
@@ -832,7 +832,7 @@ function openProfileModal(u, isSelf=false){
     if(btnMsg){
       btnMsg.style.display = 'flex';
       btnMsg.onclick = () => { 
-        closeMod('modal-partner'); 
+        _closeProfileModal(); 
         if(u.chat_id && u.chat_id !== S.chatId) {
             const existing = S.chats.find(c => c.chat_id === u.chat_id);
             if(existing) openChat(existing);
@@ -844,11 +844,11 @@ function openProfileModal(u, isSelf=false){
     }
     if(btnCall){
       btnCall.style.display = 'flex';
-      btnCall.onclick = () => { closeMod('modal-partner'); toast('Звонки пока не поддерживаются','info'); };
+      btnCall.onclick = () => { _closeProfileModal(); toast('Звонки пока не поддерживаются','info'); };
     }
     if(btnVideo){
       btnVideo.style.display = 'flex';
-      btnVideo.onclick = () => { closeMod('modal-partner'); toast('Видеозвонки пока не поддерживаются','info'); };
+      btnVideo.onclick = () => { _closeProfileModal(); toast('Видеозвонки пока не поддерживаются','info'); };
     }
     if(btnMute){
       if (!u.chat_id) {
@@ -860,12 +860,12 @@ function openProfileModal(u, isSelf=false){
         const isMuted = !!u.is_muted;
         if(isMuted){
           btnMute.classList.add('muted');
-          if(muteTxt) muteTxt.textContent = 'Звук вкл';
-          if(muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+          if(muteTxt) muteTxt.textContent = 'звук вкл';
+          if(muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
         } else {
           btnMute.classList.remove('muted');
-          if(muteTxt) muteTxt.textContent = 'Звук';
-          if(muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
+          if(muteTxt) muteTxt.textContent = 'звук';
+          if(muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>';
         }
         btnMute.onclick = async () => {
           const res = await api('mute_chat','POST',{ chat_id: u.chat_id });
@@ -893,13 +893,42 @@ function openProfileModal(u, isSelf=false){
       if(reportLbl) reportLbl.textContent = 'Пожаловаться на ' + partnerName;
       const btnBlock  = $('pm-btn-block');
       const btnReport = $('pm-btn-report');
-      if(btnBlock)  btnBlock.onclick  = () => { closeMod('modal-partner'); toast('Пользователь заблокирован','ok'); };
-      if(btnReport) btnReport.onclick = () => { closeMod('modal-partner'); toast('Жалоба отправлена','ok'); };
+      if(btnBlock)  btnBlock.onclick  = () => { _closeProfileModal(); toast('Пользователь заблокирован','ok'); };
+      if(btnReport) btnReport.onclick = () => { _closeProfileModal(); toast('Жалоба отправлена','ok'); };
     }
   }
 
   openMod('modal-partner');
+
+  // On mobile: push history state so system back gesture closes the profile
+  if(__isMobileView()){
+    history.pushState({profileModal:true},'');
+  }
 }
+
+// Close profile modal and handle history on mobile
+let _closingProfileModal = false; // prevent popstate loop
+function _closeProfileModal(){
+  closeMod('modal-partner');
+  // On mobile: go back in history to remove our pushed state (skip if already handling popstate)
+  if(__isMobileView() && !_closingProfileModal){
+    _closingProfileModal = true;
+    history.back();
+  }
+}
+
+// Popstate handler for profile modal (system back gesture on mobile)
+window.addEventListener('popstate', function(e){
+  if(_closingProfileModal){
+    _closingProfileModal = false;
+    return;
+  }
+  // If the profile modal is open when popstate fires, close it
+  const overlay = $('modal-partner');
+  if(overlay && overlay.classList.contains('on') && __isMobileView()){
+    closeMod('modal-partner');
+  }
+});
 
 function openPartnerModal(){
   if(!S.partner)return;
@@ -1538,8 +1567,15 @@ async function startChat(u){
   mfield.focus();
 }
 /* ══ MISC ════════════════════════════════════════════════════ */
-$$('[data-close]').forEach(b=>b.onclick=()=>closeMod(b.dataset.close));
-$$('.overlay').forEach(o=>o.onclick=e=>{if(e.target===o)closeMod(o.id);});
+$$('[data-close]').forEach(b=>b.onclick=()=>{
+  if(b.dataset.close==='modal-partner') _closeProfileModal();
+  else closeMod(b.dataset.close);
+});
+$$('.overlay').forEach(o=>o.onclick=e=>{
+  if(e.target!==o) return;
+  if(o.id==='modal-partner') _closeProfileModal();
+  else closeMod(o.id);
+});
 // chat-q merged into sb-q
 function goBackToList(){
   if(S.chatId)saveScrollPos(S.chatId);

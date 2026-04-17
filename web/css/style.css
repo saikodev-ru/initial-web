@@ -2152,7 +2152,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 @media(max-width:680px){
   .pm-ctrl-back{
     top:calc(8px + env(safe-area-inset-top, 0px)) !important;
-    left:8px !important;
+    left:14px !important;
     width:48px !important;height:48px !important;
     background:rgba(var(--bg-rgb),0.50) !important;
     backdrop-filter:blur(24px) saturate(1.8) !important;
@@ -2207,8 +2207,9 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 /* ── HERO CONTENT — name, status, actions at bottom ── */
 .pm-hero-content{
   position:relative;z-index:3;
-  padding:16px 24px 20px;
-  display:flex;flex-direction:column;gap:12px;
+  padding:16px 24px 24px;
+  display:flex;flex-direction:column;gap:10px;
+  margin-top:auto;
 }
 .pm-hero-info{
   display:flex;flex-direction:column;gap:3px;
@@ -2240,27 +2241,28 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 .pm-status-pill.off{color:var(--t3);}
 .pm-status-pill .pm-dot{display:none;}
 
-/* ── ACTION BUTTONS ROW — iOS 26 glass style ── */
+/* ── ACTION BUTTONS ROW — iOS-style filled icons ── */
 .pm-actions{
-  display:flex;gap:20px;margin-top:4px;
+  display:flex;gap:10px;margin-top:4px;
   position:relative;z-index:2;
-  justify-content:flex-start;
-  flex-wrap:wrap;
+  justify-content:space-evenly;
+  flex-wrap:nowrap;
+  width:100%;
 }
 .pm-action-btn{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
   background:rgba(var(--bg-rgb),0.35);
   backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
   border:0.5px solid rgba(255,255,255,0.2);
   border-top-color:rgba(255,255,255,0.4);
-  border-radius:50%;
-  width:54px;height:54px;
-  padding:0;cursor:pointer;color:var(--t1);
+  border-radius:16px;
+  min-width:60px;height:62px;
+  flex:1;max-width:none;
+  padding:8px 6px;cursor:pointer;color:var(--t1);
   transition:background .2s,transform .15s var(--sp),box-shadow .2s;
   box-shadow:0 1px 0 0 rgba(255,255,255,0.14) inset,
              0 0.5px 0 0 rgba(255,255,255,0.06) inset,
              0 2px 8px rgba(0,0,0,0.1);
-  flex:none;
   position:relative;
 }
 .pm-action-btn:hover{
@@ -2273,15 +2275,12 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 .pm-action-btn.muted{color:var(--y2);background:rgba(var(--ybg-rgb, 139,92,246),.12);border-color:rgba(var(--ybg-rgb, 139,92,246),.22);border-top-color:rgba(var(--ybg-rgb, 139,92,246),.4)}
 .pm-action-btn.muted:hover{background:rgba(var(--ybg-rgb, 139,92,246),.18)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
-.pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center;width:100%;height:100%}
-.pm-act-ic svg{width:22px;height:22px}
+.pm-act-ic{color:var(--t1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pm-act-ic svg{width:26px;height:26px}
 .pm-act-lbl{
-  position:absolute;
-  bottom:-18px;
-  left:50%;transform:translateX(-50%);
-  font-size:10.5px;font-weight:500;letter-spacing:0.1px;
+  font-size:12px;font-weight:500;letter-spacing:0.1px;
   white-space:nowrap;
-  color:var(--t2);
+  color:var(--t1);
 }
 
 /* Light theme: frosted glass buttons */
@@ -2298,7 +2297,7 @@ body[data-theme="light"] .pm-action-btn:hover{
              0 1px 0 0 rgba(255,255,255,0.6) inset;
 }
 body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.45)}
-body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
+body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 
 /* ── INFO SHEET — below hero ── */
 .pm-body-zone{
@@ -2357,17 +2356,17 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t2)}
     border:none;box-shadow:none;
   }
   .pm-hero{
-    min-height:52vh;
+    min-height:50vh;
   }
   .pm-hero-content{
-    padding:12px 16px 16px;
+    padding:12px 16px 20px;
     gap:10px;
   }
   .pm-name{font-size:20px}
-  .pm-actions{gap:14px}
-  .pm-action-btn{width:48px;height:48px}
-  .pm-act-lbl{font-size:10px;bottom:-16px}
-  .pm-act-ic svg{width:20px;height:20px}
+  .pm-actions{gap:8px}
+  .pm-action-btn{min-width:56px;height:58px}
+  .pm-act-lbl{font-size:11px}
+  .pm-act-ic svg{width:24px;height:24px}
   .pm-body-zone{padding:0 16px 24px}
 }
 
