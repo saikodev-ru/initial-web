@@ -2589,3 +2589,122 @@ document.getElementById('panel-backdrop')?.addEventListener('click', function() 
     row = bub = null;
   }, { passive: true });
 })();
+
+/* ══ SEARCH IN CHAT (desktop header transform) ═════════════════
+   Clicking the search icon in chat header transforms the header
+   into a search bar. X button cancels and restores normal header.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  const hdr = document.getElementById('chat-hdr');
+  const btnSearch = document.getElementById('btn-hdr-search');
+  const btnClose = document.getElementById('btn-hdr-search-close');
+  const btnClear = document.getElementById('btn-hdr-search-clear');
+  const input = document.getElementById('hdr-search-q');
+  const countEl = document.getElementById('hdr-search-count');
+  const msgsContainer = document.getElementById('msgs');
+
+  if (!hdr || !btnSearch || !input) return;
+
+  let searchActive = false;
+  let matchEls = [];
+  let currentIdx = -1;
+
+  function enterChatSearch() {
+    if (searchActive) return;
+    searchActive = true;
+    hdr.classList.add('hdr-searching');
+    input.value = '';
+    if (btnClear) btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    setTimeout(() => input.focus(), 200);
+  }
+
+  function exitChatSearch() {
+    if (!searchActive) return;
+    searchActive = false;
+    hdr.classList.remove('hdr-searching');
+    input.value = '';
+    if (btnClear) btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    input.blur();
+  }
+
+  function clearHighlights() {
+    matchEls.forEach(el => {
+      el.classList.remove('hdr-search-match', 'hdr-search-current');
+    });
+    matchEls = [];
+    currentIdx = -1;
+  }
+
+  function doSearch() {
+    clearHighlights();
+    const q = input.value.trim().toLowerCase();
+    if (!q || !msgsContainer) {
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+    const rows = msgsContainer.querySelectorAll('.mrow');
+    let count = 0;
+    rows.forEach(row => {
+      const txt = row.querySelector('.msg-txt') || row;
+      if (txt && txt.textContent.toLowerCase().includes(q)) {
+        row.classList.add('hdr-search-match');
+        matchEls.push(row);
+        count++;
+      }
+    });
+    if (countEl) countEl.textContent = count > 0 ? count + ' из ' + rows.length : '0';
+    if (matchEls.length > 0) {
+      currentIdx = matchEls.length - 1;
+      scrollToMatch(currentIdx);
+    }
+  }
+
+  function scrollToMatch(idx) {
+    matchEls.forEach(el => el.classList.remove('hdr-search-current'));
+    if (idx >= 0 && idx < matchEls.length) {
+      matchEls[idx].classList.add('hdr-search-current');
+      matchEls[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  btnSearch.addEventListener('click', enterChatSearch);
+  if (btnClose) btnClose.addEventListener('click', exitChatSearch);
+  if (btnClear) btnClear.addEventListener('click', () => {
+    input.value = '';
+    btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    input.focus();
+  });
+
+  input.addEventListener('input', () => {
+    if (btnClear) btnClear.style.display = input.value ? 'flex' : 'none';
+    doSearch();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matchEls.length > 0) {
+        currentIdx = (currentIdx - 1 + matchEls.length) % matchEls.length;
+        scrollToMatch(currentIdx);
+      }
+    }
+    if (e.key === 'Escape') {
+      exitChatSearch();
+    }
+  });
+
+  // Exit search when chat changes
+  const origOpenChat = window._openChat;
+  if (origOpenChat) {
+    window._openChat = function() {
+      if (searchActive) exitChatSearch();
+      return origOpenChat.apply(this, arguments);
+    };
+  }
+})();
