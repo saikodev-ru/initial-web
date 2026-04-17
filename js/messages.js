@@ -366,8 +366,6 @@ async function fetchMsgs(chatId,init=false){
           const m=g.msg;
           // Уже существующие — патчим
           if(oldIds.has(m.id)){ patchMsgDom(m); return; }
-          // DOM-level dedup: catch messages sent during init (not in oldIds snapshot)
-          if(area.querySelector('.mrow[data-id="'+m.id+'"]')){ patchMsgDom(m); return; }
           const rows=area.querySelectorAll('.mrow');
           const lastRow=rows[rows.length-1];
           const newSender=!lastRow||lastRow.dataset.sid!==String(m.sender_id);
@@ -445,20 +443,10 @@ async function fetchMsgs(chatId,init=false){
         // patch_only: server returned an edited msg outside current window — skip
         if(m.patch_only) return;
         // Before appending: check if this is our own pending temp message
-        // _pendingTids is a Map<tempId, fingerprint> awaiting server confirmation.
-        // Match by content fingerprint (not FIFO) to handle rapid-fire sends correctly.
-        const pending=S._pendingTids;
-        let matchTid=null;
-        if(m.sender_id===S.user?.id&&pending&&pending.size){
-          const incomingFp=(m.body||'')+'|'+(m.media_type||'')+'|'+(m.batch_id||'');
-          // Exact fingerprint match only (no FIFO — prevents wrong-match with rapid multi-send)
-          for(const [t,storedFp] of pending){
-            if(storedFp&&storedFp===incomingFp&&S.msgs[chatId]?.some(x=>x.id===t)){matchTid=t;break;}
-          }
-        }
+        const pending=S._pendingTids||new Map();
+        const matchTid=[...pending.entries()].find(([,b])=>b===m.body&&m.sender_id===S.user?.id)?.[0];
         if(matchTid){
           // Swap temp → real in state and DOM without adding duplicate
-          pending.delete(matchTid);
           const tidIdx=S.msgs[chatId]?.findIndex(x=>x.id===matchTid)??-1;
           if(tidIdx>=0)S.msgs[chatId][tidIdx]=m;
           S.rxns[m.id]=S.rxns[matchTid]||[];delete S.rxns[matchTid];
@@ -467,8 +455,6 @@ async function fetchMsgs(chatId,init=false){
           S.lastId[chatId]=Math.max(S.lastId[chatId]||0,m.id);
           return;
         }
-        // Own message with no pending match — skip (send_message handler will promote it)
-        if(m.sender_id===S.user?.id)return;
         S.msgs[chatId]=S.msgs[chatId]||[];S.msgs[chatId].push(m);
         appendMsg(chatId,m);
         if(m.sender_id!==S.user?.id){
@@ -483,7 +469,6 @@ async function fetchMsgs(chatId,init=false){
           showRichNotif({
               senderName: m.nickname || 'Initial',
               senderAvatar: m.avatar_url || null,
-              senderId: m.sender_id,
               body: m.body || txt,
               chatId: chatId,
               onClick: function() { if (S.chatId !== chatId) { var c = S.chats.find(function(ch){ return ch.chat_id === chatId; }); if (c) openChat(c); } }
@@ -698,13 +683,6 @@ function renderEmptyChat(chatId){
 function renderMsgs(chatId){
   const area=$('msgs'),all=S.msgs[chatId]||[],groups=groupMsgs(all);
   if(!all.length){ renderEmptyChat(chatId); return; }
-  // Re-create sticky-date-pill if it was wiped by innerHTML=''
-  if(!document.getElementById('sticky-date-pill')){
-    const pill=document.createElement('div');
-    pill.className='sticky-date-pill';pill.id='sticky-date-pill';
-    pill.innerHTML='<span></span>';
-    area.prepend(pill);
-  }
   let lastDate=null,lastSender=null;
   groups.forEach(g=>{
     const first=g.type==='grid'?g.msgs[0]:g.msg;const d=fmtDate(first.sent_at);
@@ -713,7 +691,6 @@ function renderMsgs(chatId){
     else{area.appendChild(makeMsgEl(g.msg,lastSender!==g.msg.sender_id));lastSender=g.msg.sender_id;}
   });
   applyGroupClasses(area);
-  requestAnimationFrame(() => { if (window._positionPill) window._positionPill(); });
   // Sentinel всегда первым для IntersectionObserver
   if(window._histSentinel){const s=window._histSentinel;if(area.firstChild!==s)area.insertBefore(s,area.firstChild);}
 }
@@ -771,60 +748,45 @@ function animateSend(tempId) {
   // Stretch: visible from button to message position, then fade out
   var flight = clone.animate([
     // Start: small at button
-    { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', opacity: 1 },
+    { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', opacity: 0.9 },
     // Mid: halfway, slightly overshoot
     {
       transform: 'translate(' + (dx * 0.3) + 'px,' + (dy * 0.25) + 'px) scale(1.04)',
-      opacity: 1,
-      offset: 0.55
+      opacity: 0.95,
+      offset: 0.6
     },
-    // Fade-out: near target position, start dissolving
-    {
-      transform: 'translate(' + (dx * 0.05) + 'px,' + (dy * 0.03) + 'px) scale(1.01)',
-      opacity: 0.6,
-      offset: 0.85
-    },
-    // End: at target, fully dissolved
+    // Fade-out: at target position, dissolve away
     { transform: 'translate(0,0) scale(1)', opacity: 0 }
   ], {
-    duration: 400,
+    duration: 380,
     easing: 'cubic-bezier(.22,1.1,.36,1)',
     fill: 'forwards'
   });
 
   // Pulse the send button
-  sendBtn.classList.remove('send-pulse');
-  void sendBtn.offsetWidth; // force reflow to restart animation
   sendBtn.classList.add('send-pulse');
-  sendBtn.addEventListener('animationend', function handler() {
-    sendBtn.classList.remove('send-pulse');
-    sendBtn.removeEventListener('animationend', handler);
-  });
+  setTimeout(function() { sendBtn.classList.remove('send-pulse'); }, 420);
 
   // Hide real message during flight
   bubble.style.opacity = '0';
   bubble.style.transition = 'none';
 
-  // Start fading in real message before clone finishes so no gap
-  setTimeout(function() {
-    bubble.style.transition = 'opacity .15s ease-out';
+  // Fade-in real message as clone fades out
+  flight.onfinish = function() {
+    clone.remove();
+
+    bubble.style.transition = 'opacity .2s ease-out';
     bubble.style.opacity = '1';
+
     setTimeout(function() {
       bubble.style.transition = '';
       bubble.style.opacity = '';
-    }, 180);
-  }, 320);
-
-  // Clean up clone after animation
-  flight.onfinish = function() {
-    clone.remove();
+    }, 220);
   };
 }
 
 function appendMsg(chatId,m){
   const area=$('msgs'),all=S.msgs[chatId]||[];
-  // DOM-level dedup: prevent visual duplication from concurrent SSE + fetchMsgs
-  if(area.querySelector('.mrow[data-id="'+m.id+'"]'))return;
   const empty=area.querySelector('.chat-empty-state');
   if(empty) empty.remove();
   const prev=all[all.length-2];
@@ -1392,8 +1354,8 @@ function makeMsgEl(m,newSender=true){
 
   if(!sending){
     if(_isTouch()){
-      // ── Mobile: scroll works normally | long press 0.3s → ctx menu | hold to 0.7s → selection mode ──
-      let _ctxTimer=null, _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
+      // ── Mobile: single tap → dim + ctx menu (instant) | long press (700ms) → select ──
+      let _selTimer=null, _moved=false, _startX=0, _startY=0, _blocked=false, _longFired=false;
 
       body.addEventListener('touchstart',e=>{
         if(S.selectMode)return; // in select mode, tap = checkbox
@@ -1404,56 +1366,38 @@ function makeMsgEl(m,newSender=true){
         _longFired=false;
         _startX=e.touches[0].clientX;
         _startY=e.touches[0].clientY;
-        // Do NOT preventDefault here — it would kill native scroll.
-        // body already has user-select:none, so short tap won't select text.
 
-        // Long press (300ms) → open context menu
-        _ctxTimer=setTimeout(()=>{
-          _ctxTimer=null;
+        // Long press → selection mode (700ms)
+        _selTimer=setTimeout(()=>{
+          _selTimer=null;
           if(_moved||_blocked)return;
           _longFired=true;
-          navigator.vibrate?.(15);
-          const t=e.changedTouches?.[0];
-          if(t){
-            const msgsEl=row.closest('.msgs');
-            if(msgsEl){
-              msgsEl.classList.add('msg-dim-active');
-              row.classList.add('msg-ctx-target');
-            }
-            showCtx({clientX:t.clientX,clientY:t.clientY},m);
-          }
-          // Hold longer (400ms more = 700ms total) → close menu, enter selection mode
-          _selTimer=setTimeout(()=>{
-            _selTimer=null;
-            if(_moved||_blocked)return;
-            navigator.vibrate?.(25);
-            hideCtx();
-            enterSelectMode(m.id);
-            _longFired=false;
-          },400);
-        },300);
+          navigator.vibrate&&navigator.vibrate(40);
+          enterSelectMode(m.id);
+          renderMsgsSelect();
+        },700);
       },{passive:true});
       body.addEventListener('touchmove',e=>{
-        const dx=Math.abs(e.touches[0].clientX-_startX);
-        const dy=Math.abs(e.touches[0].clientY-_startY);
-        if(dx>10||dy>10){
+        if(Math.abs(e.touches[0].clientX-_startX)>10||Math.abs(e.touches[0].clientY-_startY)>10){
           _moved=true;
-          clearTimeout(_ctxTimer);_ctxTimer=null;
           clearTimeout(_selTimer);_selTimer=null;
-          if(_longFired){
-            // Context menu is open — prevent scroll from moving the view
-            if(e.cancelable) e.preventDefault();
-          }
         }
-      },{passive:false});
+      },{passive:true});
       body.addEventListener('touchend',e=>{
-        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         if(_moved||_blocked||_longFired)return;
-        // Short tap — do nothing (body has user-select:none, no text selection happens)
+        // Single tap → dim + context menu immediately
+        const t=e.changedTouches?.[0];
+        if(t){
+          const msgsEl=row.closest('.msgs');
+          if(msgsEl){
+            msgsEl.classList.add('msg-dim-active');
+            row.classList.add('msg-ctx-target');
+          }
+          showCtx({clientX:t.clientX,clientY:t.clientY},m);
+        }
       });
       body.addEventListener('touchcancel',()=>{
-        clearTimeout(_ctxTimer);_ctxTimer=null;
         clearTimeout(_selTimer);_selTimer=null;
         _blocked=false;
         _longFired=false;
@@ -2350,7 +2294,7 @@ mfield.onkeydown=e=>{
       }
     }
 };
-$('btn-send').onclick=function(e){sendText(e);this.blur();};
+$('btn-send').onclick=sendText;
 
 // ── Send/Voice button toggle ──
 function updateSendBtn(){
@@ -2430,8 +2374,7 @@ async function sendText(){
   S.msgs[S.chatId]=S.msgs[S.chatId]||[];S.msgs[S.chatId].push(tmp);S.rxns[tid]=[];
   // Register pending tid so polling/SSE can swap instead of duplicate
   S._pendingTids=S._pendingTids||new Map();
-  // Fingerprint format must match SSE/fetchMsgs comparison: (body||'')+'|'+(media_type||'')+'|'+(batch_id||'')
-  S._pendingTids.set(tid, (body||'')+'||');
+  S._pendingTids.set(tid, body);
   appendMsg(S.chatId,tmp);scrollBot();
   animateSend(tid);
   const payload={to_signal_id:toSid,body};if(replyId)payload.reply_to=replyId;
@@ -2440,8 +2383,6 @@ async function sendText(){
   if(!res.ok){toast('Ошибка: '+(res.message||''),'err');document.querySelector(`.mrow[data-id="${tid}"]`)?.remove();if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter(m=>m.id!==tid);return;}
   // Promote temp → real id in state and DOM
   if(S.msgs[S.chatId]){const idx=S.msgs[S.chatId].findIndex(m=>m.id===tid);if(idx>=0)S.msgs[S.chatId][idx].id=res.message_id;}
-  // Dedup: remove any duplicate real IDs left by race with SSE/fetchMsgs
-  if(S.msgs[S.chatId])S.msgs[S.chatId]=S.msgs[S.chatId].filter((m,i,arr)=>{const ri=arr.findIndex(x=>x.id===m.id);return ri===i;});
   S.rxns[res.message_id]=S.rxns[tid]||[];delete S.rxns[tid];
   const tmpEl=document.querySelector(`.mrow[data-id="${tid}"]`);
   if(tmpEl){tmpEl.dataset.id=res.message_id;}
@@ -2500,97 +2441,34 @@ function hideSBBtn(){
   },{passive:true});
 
   // ── Sticky date pill: shows current visible date while scrolling ──
-  // Ensure pill exists (innerHTML='' wipes may remove it)
-  if(!document.getElementById('sticky-date-pill')){
-    const pill=document.createElement('div');
-    pill.className='sticky-date-pill';
-    pill.id='sticky-date-pill';
-    pill.innerHTML='<span></span>';
-    area.prepend(pill);
+  const stickyPill=$('sticky-date-pill');
+  if(stickyPill){
+    const stickySpan=stickyPill.querySelector('span');
+    const datePills=()=>area.querySelectorAll('.date-pill');
+    let _stickyTimer;
+    area.addEventListener('scroll',()=>{
+      if(_stickyTimer)return;
+      _stickyTimer=requestAnimationFrame(()=>{
+        _stickyTimer=0;
+        const pills=datePills();
+        if(!pills.length){stickyPill.classList.remove('visible');return;}
+        const aTop=area.scrollTop;
+        const aBot=aTop+area.clientHeight;
+        let visible=null;
+        for(let i=pills.length-1;i>=0;i--){
+          const r=pills[i].getBoundingClientRect();
+          const aRect=area.getBoundingClientRect();
+          if(r.top<=aRect.top+40){visible=pills[i].querySelector('span')?.textContent;break;}
+        }
+        if(visible&&visible!==stickySpan.textContent){
+          stickySpan.textContent=visible;
+          stickyPill.classList.add('visible');
+        }else if(!visible){
+          stickyPill.classList.remove('visible');
+        }
+      });
+    },{passive:true});
   }
-  // Pill is position:fixed — JS sets top/left/width to match chat area
-  let _userScrolled=false; // only show pill after real user scroll, not on chat open
-  function _positionPill(){
-    const pill=document.getElementById('sticky-date-pill');
-    if(!pill)return;
-    const chatEl=document.getElementById('active-chat');
-    const hdr=document.getElementById('chat-hdr');
-    if(!chatEl||!hdr){pill.style.display='none';return;}
-    const chatR=chatEl.getBoundingClientRect();
-    const hdrR=hdr.getBoundingClientRect();
-    // Hide pill if header is off-screen (chat not visible)
-    if(hdrR.bottom<=0||hdr.width===0){pill.style.display='none';return;}
-    // Calculate offset below all top panels: chat-hdr + pin-bar + mini-player
-    let topOffset = hdrR.bottom;
-    const pinBar = document.getElementById('pin-bar');
-    if (pinBar && pinBar.classList.contains('visible')) {
-      const pinR = pinBar.getBoundingClientRect();
-      topOffset = Math.max(topOffset, pinR.bottom);
-    }
-    const miniPlayer = document.getElementById('voice-mini-player');
-    if (miniPlayer && miniPlayer.classList.contains('visible')) {
-      const mpR = miniPlayer.getBoundingClientRect();
-      topOffset = Math.max(topOffset, mpR.bottom);
-    }
-    pill.style.display='';
-    pill.style.top=Math.round(topOffset)+'px';
-    pill.style.left=Math.round(chatR.left)+'px';
-    pill.style.width=Math.round(chatR.width)+'px';
-  }
-  // Hide pill (called from openChat to reset on chat switch)
-  function _hidePill(){
-    const pill=document.getElementById('sticky-date-pill');
-    if(pill){pill.classList.remove('visible');_userScrolled=false;}
-  }
-  window._positionPill = _positionPill;
-  window._hidePill = _hidePill;
-  // Update pill position on resize and header changes
-  const _pillResizeObs=new ResizeObserver(_positionPill);
-  const _pillHdr=document.getElementById('chat-hdr');
-  if(_pillHdr)_pillResizeObs.observe(_pillHdr);
-  // Also observe pin-bar and mini-player for height changes
-  const _pillPinBar=document.getElementById('pin-bar');
-  if(_pillPinBar)_pillResizeObs.observe(_pillPinBar);
-  const _pillMiniPlayer=document.getElementById('voice-mini-player');
-  if(_pillMiniPlayer)_pillResizeObs.observe(_pillMiniPlayer);
-  window.addEventListener('resize',_positionPill,{passive:true});
-
-  // Scroll handler: always query pill fresh from DOM (it may be recreated by renderMsgs)
-  const datePills=()=>area.querySelectorAll('.date-pill');
-  let _stickyTimer;
-  let _scrollEndTimer;
-  area.addEventListener('scroll',()=>{
-    _userScrolled=true;
-    // Clear auto-hide timer on every scroll event
-    clearTimeout(_scrollEndTimer);
-    if(_stickyTimer)return;
-    _stickyTimer=requestAnimationFrame(()=>{
-      _stickyTimer=0;
-      const stickyPill=document.getElementById('sticky-date-pill');
-      if(!stickyPill){return;}
-      const stickySpan=stickyPill.querySelector('span');
-      if(!stickySpan)return;
-      const pills=datePills();
-      if(!pills.length){stickyPill.classList.remove('visible');return;}
-      let visible=null;
-      for(let i=pills.length-1;i>=0;i--){
-        const r=pills[i].getBoundingClientRect();
-        const aRect=area.getBoundingClientRect();
-        if(r.top<=aRect.top+60){visible=pills[i].querySelector('span')?.textContent;break;}
-      }
-      if(visible){
-        if(visible!==stickySpan.textContent)stickySpan.textContent=visible;
-        stickyPill.classList.add('visible');
-        _positionPill(); // update top in case header moved
-      }else{
-        stickyPill.classList.remove('visible');
-      }
-      // Auto-hide pill after scrolling stops (1.5s)
-      _scrollEndTimer=setTimeout(()=>{
-        stickyPill.classList.remove('visible');
-      },1500);
-    });
-  },{passive:true});
 })();
 
 // Spoiler reveal on click (delegated)
@@ -2710,4 +2588,123 @@ document.getElementById('panel-backdrop')?.addEventListener('click', function() 
     const b = bub; setTimeout(() => b.style.transition = '', 250);
     row = bub = null;
   }, { passive: true });
+})();
+
+/* ══ SEARCH IN CHAT (desktop header transform) ═════════════════
+   Clicking the search icon in chat header transforms the header
+   into a search bar. X button cancels and restores normal header.
+   ═══════════════════════════════════════════════════════════════ */
+(function(){
+  const hdr = document.getElementById('chat-hdr');
+  const btnSearch = document.getElementById('btn-hdr-search');
+  const btnClose = document.getElementById('btn-hdr-search-close');
+  const btnClear = document.getElementById('btn-hdr-search-clear');
+  const input = document.getElementById('hdr-search-q');
+  const countEl = document.getElementById('hdr-search-count');
+  const msgsContainer = document.getElementById('msgs');
+
+  if (!hdr || !btnSearch || !input) return;
+
+  let searchActive = false;
+  let matchEls = [];
+  let currentIdx = -1;
+
+  function enterChatSearch() {
+    if (searchActive) return;
+    searchActive = true;
+    hdr.classList.add('hdr-searching');
+    input.value = '';
+    if (btnClear) btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    setTimeout(() => input.focus(), 200);
+  }
+
+  function exitChatSearch() {
+    if (!searchActive) return;
+    searchActive = false;
+    hdr.classList.remove('hdr-searching');
+    input.value = '';
+    if (btnClear) btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    input.blur();
+  }
+
+  function clearHighlights() {
+    matchEls.forEach(el => {
+      el.classList.remove('hdr-search-match', 'hdr-search-current');
+    });
+    matchEls = [];
+    currentIdx = -1;
+  }
+
+  function doSearch() {
+    clearHighlights();
+    const q = input.value.trim().toLowerCase();
+    if (!q || !msgsContainer) {
+      if (countEl) countEl.textContent = '';
+      return;
+    }
+    const rows = msgsContainer.querySelectorAll('.mrow');
+    let count = 0;
+    rows.forEach(row => {
+      const txt = row.querySelector('.msg-txt') || row;
+      if (txt && txt.textContent.toLowerCase().includes(q)) {
+        row.classList.add('hdr-search-match');
+        matchEls.push(row);
+        count++;
+      }
+    });
+    if (countEl) countEl.textContent = count > 0 ? count + ' из ' + rows.length : '0';
+    if (matchEls.length > 0) {
+      currentIdx = matchEls.length - 1;
+      scrollToMatch(currentIdx);
+    }
+  }
+
+  function scrollToMatch(idx) {
+    matchEls.forEach(el => el.classList.remove('hdr-search-current'));
+    if (idx >= 0 && idx < matchEls.length) {
+      matchEls[idx].classList.add('hdr-search-current');
+      matchEls[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  btnSearch.addEventListener('click', enterChatSearch);
+  if (btnClose) btnClose.addEventListener('click', exitChatSearch);
+  if (btnClear) btnClear.addEventListener('click', () => {
+    input.value = '';
+    btnClear.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+    clearHighlights();
+    input.focus();
+  });
+
+  input.addEventListener('input', () => {
+    if (btnClear) btnClear.style.display = input.value ? 'flex' : 'none';
+    doSearch();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (matchEls.length > 0) {
+        currentIdx = (currentIdx - 1 + matchEls.length) % matchEls.length;
+        scrollToMatch(currentIdx);
+      }
+    }
+    if (e.key === 'Escape') {
+      exitChatSearch();
+    }
+  });
+
+  // Exit search when chat changes
+  const origOpenChat = window._openChat;
+  if (origOpenChat) {
+    window._openChat = function() {
+      if (searchActive) exitChatSearch();
+      return origOpenChat.apply(this, arguments);
+    };
+  }
 })();

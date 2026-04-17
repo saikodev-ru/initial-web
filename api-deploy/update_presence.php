@@ -10,6 +10,7 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
+require_rate_limit('update_presence', 120, 60); // 2 в секунду — типинг
 $data = input();
 
 $typingChatId = (int) ($data['typing_chat_id'] ?? 0);

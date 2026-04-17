@@ -14,14 +14,11 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me   = auth_user();
+require_rate_limit('delete_message', 30, 60);
 $data = input();
 
 $messageId = (int) ($data['message_id'] ?? 0);
 if ($messageId <= 0) json_err('invalid_id', 'Некорректный message_id');
-
-// ── Включаем эмуляцию prepare — лечит MySQL error 1615
-//    (table definition cache invalidated between prepare and execute)
-db()->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
 
 // ── Проверить что сообщение существует и пользователь — участник чата ──
 $stmt = db()->prepare(

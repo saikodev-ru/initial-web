@@ -115,39 +115,6 @@ function cacheReadMsgs(chatId){
 function cacheDeleteChat(chatId){
   try{ localStorage.removeItem(CACHE_MSGS_PFX+chatId); }catch(e){}
   try{ localStorage.removeItem('sg_scroll_'+chatId); }catch(e){}
-  try{ localStorage.removeItem(CACHE_PINS_PFX+chatId); }catch(e){}
-}
-
-/* ── Pinned messages cache (per chat) ── */
-const CACHE_PINS_PFX  = 'sg_cache_pins_';
-const CACHE_PINS_MAX  = 50;
-function cacheWritePins(chatId, pins){
-  try{
-    const payload = {
-      pins: pins.slice(0, CACHE_PINS_MAX),
-      ts: Math.floor(Date.now()/1000)
-    };
-    localStorage.setItem(CACHE_PINS_PFX+chatId, JSON.stringify(payload));
-  }catch(e){}
-}
-function cacheReadPins(chatId){
-  try{
-    const raw = localStorage.getItem(CACHE_PINS_PFX+chatId);
-    if(!raw) return null;
-    const data = JSON.parse(raw);
-    return (data && Array.isArray(data.pins)) ? data : null;
-  }catch{ return null; }
-}
-function cacheGetPinsTs(chatId){
-  try{
-    const raw = localStorage.getItem(CACHE_PINS_PFX+chatId);
-    if(!raw) return 0;
-    const data = JSON.parse(raw);
-    return (data && data.ts) ? data.ts : 0;
-  }catch{ return 0; }
-}
-function cacheDeletePins(chatId){
-  try{ localStorage.removeItem(CACHE_PINS_PFX+chatId); }catch(e){}
 }
 
 function saveScrollPos(chatId){
@@ -266,7 +233,7 @@ function aviHtml(name,url){
     if (isGif) {
       img = '<canvas data-gif-url="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" style="width:100%;height:100%;object-fit:cover;display:block;position:relative;border-radius:inherit" onload="this._gifInit||_gifCanvasInit(this)" onerror="_aviErr(this)"></canvas>';
     } else {
-      img = '<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" loading="lazy" decoding="async" '
+      img = '<img src="'+esc(fullUrl)+'" data-url="'+esc(fullUrl)+'" alt="" '
         +'style="width:100%;height:100%;object-fit:cover;display:block;position:relative;opacity:0" '
         +'onload="_aviLoaded(this)" onerror="_aviErr(this)">';
     }

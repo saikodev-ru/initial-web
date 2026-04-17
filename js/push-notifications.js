@@ -254,7 +254,6 @@
   var _inappPushChatId = null;
 
   function _showInappPush(opts) {
-    try {
     var el = $('inapp-push');
     if (!el) return;
 
@@ -324,21 +323,15 @@
     _inappPushTimeout = setTimeout(function () {
       _hideInappPush();
     }, 6000);
-    } catch(e) { console.error('_showInappPush error:', e); }
   }
 
   function _hideInappPush() {
     var el = $('inapp-push');
     if (!el) return;
     el.classList.remove('visible');
-    el.classList.remove('swiping','swipe-out');
-    el.style.transform = '';
-    el.style.opacity = '';
     if (_inappPushTimeout) { clearTimeout(_inappPushTimeout); _inappPushTimeout = null; }
     var replyWrap = $('inapp-push-reply-wrap');
     if (replyWrap) replyWrap.classList.remove('open');
-    var inner = document.querySelector('.inapp-push-inner');
-    if (inner) inner.classList.remove('reply-open');
     var replyInput = $('inapp-push-reply-input');
     if (replyInput) replyInput.textContent = '';
     _inappPushChatId = null;
@@ -353,10 +346,8 @@
     var replyBtn = $('inapp-push-reply-btn');
     if (replyBtn) replyBtn.addEventListener('click', function () {
       var wrap = $('inapp-push-reply-wrap');
-      var inner = document.querySelector('.inapp-push-inner');
       if (!wrap) return;
       wrap.classList.toggle('open');
-      if (inner) inner.classList.toggle('reply-open', wrap.classList.contains('open'));
       if (wrap.classList.contains('open')) {
         var inp = $('inapp-push-reply-input');
         if (inp) inp.focus();
@@ -393,47 +384,6 @@
         }
       });
     }
-
-    // ── Swipe-up to dismiss (mobile only) ──
-    if (pushEl && 'ontouchstart' in window) {
-      var _swipeStartY = 0;
-      var _swipeStartX = 0;
-      var _swipeTracking = false;
-
-      pushEl.addEventListener('touchstart', function(e) {
-        _swipeStartY = e.touches[0].clientY;
-        _swipeStartX = e.touches[0].clientX;
-        _swipeTracking = true;
-      }, { passive: true });
-
-      pushEl.addEventListener('touchmove', function(e) {
-        if (!_swipeTracking) return;
-        var dy = e.touches[0].clientY - _swipeStartY;
-        var dx = Math.abs(e.touches[0].clientX - _swipeStartX);
-        // Only track vertical upward swipes (ignore horizontal gestures)
-        if (dy < -10 && dx < 30) {
-          pushEl.classList.add('swiping');
-          pushEl.style.transform = 'translateX(-50%) translateY(' + dy + 'px)';
-          pushEl.style.opacity = Math.max(0, 1 + dy / 120).toFixed(2);
-        }
-      }, { passive: true });
-
-      pushEl.addEventListener('touchend', function(e) {
-        if (!_swipeTracking) return;
-        _swipeTracking = false;
-        var dy = e.changedTouches[0].clientY - _swipeStartY;
-        pushEl.classList.remove('swiping');
-        // If swiped more than 60px upward, dismiss
-        if (dy < -60) {
-          pushEl.classList.add('swipe-out');
-          setTimeout(function() { _hideInappPush(); }, 300);
-        } else {
-          // Spring back
-          pushEl.style.transform = '';
-          pushEl.style.opacity = '';
-        }
-      }, { passive: true });
-    }
   });
 
   function _sendInappReply() {
@@ -463,25 +413,21 @@
   }
 
   window.showRichNotif = function (opts) {
-    // Skip if same chat is active — no notification needed
-    if (opts.chatId && S.chatId && +opts.chatId === +S.chatId) return;
+    var isTabFocused = document.hasFocus();
 
-    // Check in-app push toggle (default: enabled — undefined !== false)
-    if (S.notif && S.notif.inappPush === false) return;
+    // If tab IS focused: show in-app banner if not in the same chat
+    if (isTabFocused) {
+      // Only show banner if user is NOT in the chat that received the message
+      if (opts.chatId && opts.chatId == S.chatId) return;
+      // Check in-app push toggle
+      if (S.notif && S.notif.inappPush === false) return;
+      _showInappPush(opts);
+      // Play sound if enabled
+      if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
+      return;
+    }
 
-    // Skip if sender is muted
-    if (opts.senderId && typeof isUserMuted === 'function' && isUserMuted(opts.senderId)) return;
-
-    // ── ALWAYS show in-app push banner (regardless of tab focus) ──
-    // This works in foreground + PWA. If tab is hidden, the banner is
-    // ready when the user returns; auto-hide cleans it up after 6s.
-    _showInappPush(opts);
-
-    // Play sound if enabled
-    if (S.notif.sound && typeof playNotifSound === 'function') playNotifSound();
-
-    // ── Also show browser push notification if tab is NOT focused ──
-    if (document.hasFocus()) return;
+    // Tab NOT focused: show browser push notification (existing logic)
 
     // Skip if SW already showed a background notification for this chat
     if (window._fcmBgHandled && opts.chatId &&
@@ -490,6 +436,9 @@
 
     if (!S.notif.enabled) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    // Play notification sound (from utils.js)
+    if (typeof playNotifSound === 'function') playNotifSound();
 
     var title = S.notif.anon ? 'Инициал' : (opts.senderName || 'Initial');
     var text = truncate(stripHtml(opts.body || ''), 160);
@@ -528,17 +477,6 @@
         // Fallback: page notification (no popup on Android)
         try { new Notification(title, notifOpts); } catch (_) {}
       }
-    });
-  };
-
-  // Debug helper: test in-app push from browser console
-  // Usage: _testInappPush()
-  window._testInappPush = function() {
-    _showInappPush({
-      senderName: 'Test User',
-      senderAvatar: null,
-      body: 'Test message from debug console',
-      chatId: 999999
     });
   };
 

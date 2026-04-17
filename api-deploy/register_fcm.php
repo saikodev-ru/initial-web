@@ -10,6 +10,7 @@ set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_err('method_not_allowed', 'Только POST', 405);
 
 $me       = auth_user();
+require_rate_limit('register_fcm', 10, 60);
 $data     = input();
 $fcmToken = trim($data['fcm_token'] ?? '');
 

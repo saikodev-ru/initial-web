@@ -18,8 +18,6 @@ $isInit   = ($_GET['init'] ?? '0') === '1';
 $markRead = ($_GET['mark_read'] ?? '0') === '1';
 
 $skipChats = ($_GET['skip_chats'] ?? '0') === '1';
-
-$skipChats = ($_GET['skip_chats'] ?? '0') === '1';
 $rawCheck = trim($_GET['check_ids'] ?? '');
 
 // Валидация check_ids: только цифры и запятые, максимум 200

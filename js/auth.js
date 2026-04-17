@@ -1124,7 +1124,7 @@ $('btn-saveprof').onclick = async () => {
 function enterApp() {
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   clearAuthState(); stopQrAll();
-  showScr('scr-app'); updateFooter(); loadChats(); startPoll(); startGlobalSSE(); syncNotifUI(); if(window.initChannels)initChannels();
+  showScr('scr-app'); updateFooter(); loadChats(); startPoll(); startGlobalSSE(); syncNotifUI();
 }
 
 function logout() {
@@ -1138,7 +1138,7 @@ function logout() {
     const toDelete = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && (k.startsWith('sg_cache_') || k.startsWith('sg_scroll_') || k.startsWith('sg_ch_') || k === 'sg_cache_chats' || k === 'sg_active_chat')) {
+      if (k && (k.startsWith('sg_cache_') || k.startsWith('sg_scroll_') || k === 'sg_cache_chats' || k === 'sg_active_chat')) {
         toDelete.push(k);
       }
     }
@@ -1151,7 +1151,6 @@ function logout() {
   } catch(e) {}
   
   S.token = null; S.user = null; S.chatId = null; S.partner = null; S.msgs = {}; S.chats = []; S.lastId = {}; S.rxns = {};
-  S.channels = []; S.activeChannel = null; S.channelMsgs = {}; S.channelLastId = {};
 
   clearAuthState();
   authEmail = '';
