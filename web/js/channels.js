@@ -53,6 +53,14 @@ function _fmtViews(n) {
   if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'К';
   return String(n);
 }
+function _pluralRu(n) {
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'ов';
+  if (last > 1 && last < 5) return 'а';
+  if (last === 1) return '';
+  return 'ов';
+}
 function _chAvatarHtml(ch) {
   const name = ch.name || 'Канал';
   const url = ch.avatar_url;
@@ -94,7 +102,10 @@ async function initChannels() {
 async function loadChannels() {
   const res = await api('get_channels');
   if (!res.ok) return;
-  S.channels = (res.channels || []);
+  S.channels = (res.channels || []).map(ch => ({
+    ...ch,
+    member_count: ch.member_count || ch.members_count || 0,
+  }));
   // Populate muted state
   S.channelMuted = {};
   S.channels.forEach(ch => {
@@ -411,28 +422,28 @@ function renderChannelHeader(ch) {
     wtn(nameEl);
   }
 
-  const members = ch.member_count || ch.subscribers || 0;
+  const members = ch.member_count || ch.members_count || ch.subscribers || 0;
   const desc = ch.description || '';
   if (stEl) {
     stEl.className = 'hdr-st';
-    stEl.textContent = (desc && desc.length > 30 ? desc.slice(0, 30) + '…' : desc) || (members ? members + ' подписчиков' : '');
+    stEl.textContent = members ? members + ' подписчик' + _pluralRu(members) : (desc && desc.length > 30 ? desc.slice(0, 30) + '…' : desc);
   }
 
   const aviContent = aviHtml(ch.name || 'Канал', ch.avatar_url);
   if (hdrAv) hdrAv.innerHTML = aviContent;
   if (hdrAvMb) hdrAvMb.innerHTML = aviContent;
 
-  // Override header click to show channel settings
+  // Override header click to show channel profile panel
   const hdrClick = $('hdr-clickable');
   if (hdrClick) {
     hdrClick.onclick = () => {
-      if (S.activeChannel) showChannelSettings(S.activeChannel);
+      if (S.activeChannel) openChannelProfile(S.activeChannel);
     };
   }
   const mbAvBtn = $('hdr-mb-avatar');
   if (mbAvBtn) {
     mbAvBtn.onclick = () => {
-      if (S.activeChannel) showChannelSettings(S.activeChannel);
+      if (S.activeChannel) openChannelProfile(S.activeChannel);
     };
   }
   // Hide call/search buttons in channel header
@@ -500,6 +511,8 @@ async function fetchChannelMsgs(chId, init) {
 
     const msgs = (res.messages || []).map(m => {
       if (m.media_url) m.media_url = getMediaUrl(m.media_url);
+      // Normalize views field
+      if (m.views_count !== undefined && m.views === undefined) m.views = m.views_count;
       return m;
     });
     S.channelMsgs[chId] = msgs;
@@ -663,10 +676,9 @@ function _makeChannelMsgEl(m) {
   cb.className = 'msg-checkbox';
   row.appendChild(cb);
 
-  // No avatar next to each message — channel style
-  // Sender name above bubble
-  const senderName = m.nickname || m.sender_name || ch?.name || 'Канал';
-  const showSender = isAdmin || isMe || !ch; // always show for admin posts
+  // Channel messages always show channel name, not sender nickname
+  const senderName = ch?.name || 'Канал';
+  const showSender = true; // Always show channel name in channel messages
 
   const bub = document.createElement('div');
   bub.className = 'mbub';
@@ -801,10 +813,11 @@ function _makeChannelMsgEl(m) {
   bottom.appendChild(ts);
 
   // Views count (channel-specific)
-  if (m.views !== undefined && m.views !== null) {
+  const viewCount = m.views ?? m.views_count ?? 0;
+  if (viewCount > 0) {
     const views = document.createElement('span');
     views.className = 'ch-views';
-    views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(m.views);
+    views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(viewCount);
     bottom.appendChild(views);
   }
 
@@ -1367,6 +1380,185 @@ function showJoinChannelModal() {
   };
 
   setTimeout(() => $('ch-join-input')?.focus(), 300);
+}
+
+/* ══ CHANNEL PROFILE (unified with user profile panel) ═════════ */
+function openChannelProfile(ch) {
+  if (!ch) return;
+
+  const name = ch.name || 'Канал';
+  const avatar = ch.avatar_url;
+  const members = ch.member_count || ch.members_count || ch.subscribers || 0;
+  const desc = ch.description || '';
+  const isMuted = ch.muted || S.channelMuted[ch.channel_id];
+  const isAdmin = _chIsAdmin(ch);
+  const isOwner = _chIsOwner(ch);
+
+  // Avatar & Background blur
+  const aviEl = $('pm-hero-avi');
+  if (aviEl) {
+    aviEl.innerHTML = aviHtml(name, avatar);
+    aviEl.classList.add('ch-profile-avi');
+  }
+  applyBlurredAvatarBg('pm-hero-bg', name, avatar);
+
+  // Name
+  const nameEl = $('pm-partner-name');
+  if (nameEl) { nameEl.textContent = name; wtn(nameEl); }
+
+  // Hide verified/team badges for channels
+  const vBadge = $('pm-verified-badge');
+  if (vBadge) vBadge.style.display = 'none';
+  const tBadge = $('pm-team-badge');
+  if (tBadge) tBadge.style.display = 'none';
+
+  // Status: subscriber count + channel type
+  const pill = $('pm-partner-status');
+  const pillTxt = $('pm-partner-status-text');
+  if (pill && pillTxt) {
+    pill.className = 'pm-status-pill off';
+    const typeLabel = ch.type === 'private' ? 'Приватный канал' : 'Публичный канал';
+    pillTxt.textContent = members ? members + ' подписчик' + _pluralRu(members) : typeLabel;
+  }
+
+  // Info rows
+  const rowSid = $('pm-row-sid');
+  const valSid = $('pm-info-sid-val');
+  const rowBio = $('pm-row-bio');
+  const valBio = $('pm-info-bio-val');
+  const sep    = $('pm-info-sep');
+
+  const hasUsername = !!(ch.username);
+  const hasBio = !!desc;
+
+  if (rowSid && valSid) {
+    if (hasUsername) {
+      rowSid.style.display = 'flex';
+      valSid.textContent = '@' + ch.username;
+      rowSid.onclick = () => {
+        navigator.clipboard.writeText('@' + ch.username).then(() => toast('Username скопирован', 'ok'));
+      };
+    } else { rowSid.style.display = 'none'; }
+  }
+  if (rowBio && valBio) {
+    if (hasBio) {
+      rowBio.style.display = 'flex';
+      valBio.innerHTML = fmtText(desc);
+      wtn(valBio);
+    } else { rowBio.style.display = 'none'; }
+  }
+
+  if (sep) sep.style.display = (hasUsername && hasBio) ? 'block' : 'none';
+  if ($('pm-info-section')) $('pm-info-section').style.display = (hasUsername || hasBio) ? 'flex' : 'none';
+
+  // Action buttons — channel-specific
+  const actsRow   = $('pm-actions-row');
+  const btnMsg    = $('pm-btn-message');
+  const btnMute   = $('pm-btn-mute');
+  const btnCall   = $('pm-btn-call');
+  const btnVideo  = $('pm-btn-video');
+
+  if (actsRow) actsRow.style.display = 'flex';
+
+  // Message button → open chat (already open, just close profile)
+  if (btnMsg) {
+    btnMsg.style.display = 'flex';
+    btnMsg.onclick = () => { closeMod('modal-partner'); };
+  }
+
+  // Call → hide for channels
+  if (btnCall) { btnCall.style.display = 'none'; }
+  // Video → hide for channels
+  if (btnVideo) { btnVideo.style.display = 'none'; }
+
+  // Mute toggle
+  if (btnMute) {
+    btnMute.style.display = 'flex';
+    const muteTxt = $('pm-mute-txt');
+    const muteIc  = btnMute.querySelector('.pm-act-ic');
+    if (isMuted) {
+      btnMute.classList.add('muted');
+      if (muteTxt) muteTxt.textContent = 'Звук вкл';
+      if (muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>';
+    } else {
+      btnMute.classList.remove('muted');
+      if (muteTxt) muteTxt.textContent = 'Звук';
+      if (muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>';
+    }
+    btnMute.onclick = async () => {
+      await _toggleMuteChannel(ch.channel_id, !isMuted);
+      // Re-open profile to refresh
+      openChannelProfile(S.activeChannel || ch);
+    };
+  }
+
+  // Block / Report → Leave / Delete for channels
+  const dangerRow = $('pm-danger-actions');
+  if (dangerRow) {
+    dangerRow.style.display = 'flex';
+    const blockLbl  = $('pm-block-label');
+    const reportLbl = $('pm-report-label');
+    const btnBlock  = $('pm-btn-block');
+    const btnReport = $('pm-btn-report');
+
+    if (isOwner) {
+      if (blockLbl) blockLbl.textContent = 'Удалить канал';
+      if (btnBlock) {
+        btnBlock.onclick = () => { closeMod('modal-partner'); _deleteChannel(ch); };
+      }
+      if (reportLbl) reportLbl.textContent = 'Настройки канала';
+      if (btnReport) {
+        btnReport.onclick = () => { closeMod('modal-partner'); showChannelSettings(ch); };
+      }
+    } else {
+      if (blockLbl) blockLbl.textContent = 'Покинуть канал';
+      if (btnBlock) {
+        btnBlock.onclick = () => { closeMod('modal-partner'); _leaveChannel(ch.channel_id); };
+      }
+      if (reportLbl) reportLbl.textContent = 'Настройки канала';
+      if (btnReport) {
+        if (isAdmin) {
+          btnReport.onclick = () => { closeMod('modal-partner'); showChannelSettings(ch); };
+        } else {
+          reportLbl.textContent = 'Пожаловаться';
+          btnReport.onclick = () => { closeMod('modal-partner'); toast('Жалоба отправлена', 'ok'); };
+        }
+      }
+    }
+  }
+
+  // Add channel-specific info rows (link, role)
+  _addChannelProfileExtras(ch);
+
+  openMod('modal-partner');
+}
+
+function _addChannelProfileExtras(ch) {
+  // Remove any previous channel extras
+  document.querySelectorAll('.ch-profile-extra').forEach(e => e.remove());
+
+  const section = $('pm-info-section');
+  if (!section) return;
+
+  const isAdmin = _chIsAdmin(ch);
+  const isOwner = _chIsOwner(ch);
+
+  // Role row
+  const roleRow = document.createElement('div');
+  roleRow.className = 'tg-row ch-profile-extra';
+  roleRow.style.cssText = 'cursor:default;align-items:center;';
+  roleRow.innerHTML = '<div class="tg-row-ic" style="color:var(--y);background:transparent;margin-right:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div><div class="tg-row-body"><span class="tg-row-lbl">' + _chRoleLabel(ch.my_role || '') + '</span><span class="tg-row-sub">Ваша роль</span></div>';
+  section.appendChild(roleRow);
+
+  // Link row (for public channels)
+  if (ch.type === 'public' && ch.username) {
+    const linkRow = document.createElement('div');
+    linkRow.className = 'tg-row ch-profile-extra';
+    linkRow.style.cssText = 'cursor:pointer;align-items:center;';
+    linkRow.innerHTML = '<div class="tg-row-ic" style="color:var(--y);background:transparent;margin-right:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div><div class="tg-row-body"><span class="tg-row-lbl">@' + esc(ch.username) + '</span><span class="tg-row-sub">Ссылка на канал</span></div><svg class="tg-row-arr" width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    linkRow.onclick = () => copyChannelLink(ch);
+    section.appendChild(linkRow);
+  }
 }
 
 /* ══ CHANNEL SETTINGS ══════════════════════════════════════════ */

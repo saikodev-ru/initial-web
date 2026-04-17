@@ -1966,14 +1966,13 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 .pm-header-zone{
   display:flex;flex-direction:column;align-items:center;
-  padding:0 24px;
   position:relative;
+  padding-bottom:0;
+  overflow:visible;
 }
 .pm-hero-bg{
-  position:absolute;top:0;left:0;right:0;height:320px;overflow:hidden;
+  position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;
   pointer-events:none;z-index:0;
-  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 20%,rgba(0,0,0,.6) 50%,transparent 100%);
-  mask-image:linear-gradient(180deg,#000 0%,#000 20%,rgba(0,0,0,.6) 50%,transparent 100%);
 }
 
 .blur-bg-img {
@@ -1987,7 +1986,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 .blur-bg-ov {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(139,92,246,0.15) 0%, transparent 100%);
+  background: linear-gradient(180deg, rgba(139,92,246,0.08) 0%, transparent 40%, var(--bg) 100%);
   z-index: 1; pointer-events: none;
 }
 
@@ -1998,35 +1997,47 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 
 .pm-avi-wrap{
   display:flex;justify-content:center;
-  margin-top:40px;margin-bottom:16px;
+  margin:0;width:100%;
+  position:relative;
 }
-/* Avatar — large, centered, overlapping hero bottom */
+/* Avatar — square full-width with gradient fade at bottom */
 .pm-hero-avi{
-  width:120px;height:120px;border-radius:50%;
+  width:100%;aspect-ratio:1;border-radius:0;
   background:var(--solid2);overflow:hidden;
   display:flex;align-items:center;justify-content:center;
-  font-size:38px;font-weight:900;color:var(--t2);
-  box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  font-size:64px;font-weight:900;color:var(--t2);
   position:relative;
 }
 .pm-hero-avi img{width:100%;height:100%;object-fit:cover}
+/* Channel profile: rounded square avatar */
+.pm-hero-avi.ch-profile-avi{
+  aspect-ratio:1;border-radius:0;
+}
+/* Gradient overlay at bottom of avatar */
+.pm-avi-wrap::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:50%;
+  background:linear-gradient(180deg,transparent 0%,var(--bg) 100%);
+  pointer-events:none;z-index:1;
+}
 /* Close button */
 .pm-close{
   position:absolute;top:16px;right:16px;
   width:32px;height:32px;
-  background:rgba(0,0,0,.3);
+  background:rgba(0,0,0,.35);
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:none;border-radius:50%;cursor:pointer;color:#fff;
   display:flex;align-items:center;justify-content:center;
-  z-index:10;transition:background .15s,transform .15s var(--sp);
+  z-index:20;transition:background .15s,transform .15s var(--sp);
 }
 .pm-close:hover{background:rgba(0,0,0,.5);transform:scale(1.08)}
 .pm-close:active{transform:scale(0.95)}
 .pm-close svg{width:14px;height:14px}
-/* Name row with optional verified badge */
+/* Name row with optional verified badge — positioned over gradient */
 .pm-name-row{
-  display:flex;align-items:center;justify-content:center;gap:7px;
-  margin-bottom:2px;max-width:100%;padding:0 4px;
+  display:flex;align-items:center;gap:7px;
+  margin-bottom:2px;max-width:100%;padding:0 24px;
+  position:relative;z-index:2;
+  margin-top:-40px;
 }
 .pm-name{font-size:22px;font-weight:700;letter-spacing:-.3px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%;}
 /* Verified badge — see .verified-badge global rule */
@@ -2034,32 +2045,49 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-badge:hover{transform:scale(1.15);filter:drop-shadow(0 0 6px currentColor);}
 /* Status pill */
 .pm-status-pill{
-  font-size:14px;color:var(--y2);
-  text-align:center;margin-bottom:24px;
-  font-weight:500;background:transparent;border:none;padding:0;display:block;
+  font-size:14px;color:var(--t3);
+  text-align:left;margin-bottom:8px;
+  font-weight:400;background:transparent;border:none;padding:0 24px;display:block;
+  position:relative;z-index:2;
 }
 .pm-status-pill.off #pm-partner-status-text{color:var(--t3);font-weight:400;}
 .pm-status-pill .pm-dot{display:none;}
-/* Action buttons row */
+/* Action buttons row — iOS 26 style with specular borders */
 .pm-actions{
   display:flex;gap:10px;margin-bottom:20px;
+  padding:0 24px;position:relative;z-index:2;
 }
 .pm-action-btn{
   flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  background:var(--s1);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--b);border-radius:14px;
+  background:rgba(255,255,255,0.12);
+  backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
+  border:1px solid rgba(255,255,255,0.25);
+  border-top-color:rgba(255,255,255,0.45);
+  border-radius:16px;
   padding:12px 8px;cursor:pointer;color:var(--t1);
-  transition:background .15s,transform .1s var(--sp);
+  transition:background .2s,transform .1s var(--sp),box-shadow .2s;
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.12) inset,0 0.5px 0 0 rgba(255,255,255,0.06) inset;
 }
-.pm-action-btn:hover{background:var(--s2);transform:translateY(-1px)}
-.pm-action-btn:active{transform:scale(0.97)}
-.pm-action-btn.muted{color:var(--y2);background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2)}
+.pm-action-btn:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.15),0 1px 0 0 rgba(255,255,255,0.15) inset}
+.pm-action-btn:active{transform:scale(0.97);background:rgba(255,255,255,0.08)}
+.pm-action-btn.muted{color:var(--y2);background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);border-top-color:rgba(139,92,246,.35)}
 .pm-action-btn.muted:hover{background:rgba(139,92,246,.15)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
 .pm-act-ic{color:var(--y);display:flex;align-items:center;justify-content:center}
 .pm-act-ic svg{width:26px;height:26px}
 .pm-action-btn span{font-size:11.5px;font-weight:500;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+/* Light theme: frosted glass buttons */
+body[data-theme="light"] .pm-action-btn{
+  background:rgba(255,255,255,0.65);
+  border:1px solid rgba(0,0,0,0.06);
+  border-top-color:rgba(255,255,255,0.9);
+  box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,0 1px 3px rgba(0,0,0,0.08);
+}
+body[data-theme="light"] .pm-action-btn:hover{
+  background:rgba(255,255,255,0.8);
+  box-shadow:0 2px 8px rgba(0,0,0,.1),0 1px 0 0 rgba(255,255,255,0.6) inset;
+}
+body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.5)}
 /* ── Danger buttons (block/report) — единый контейнер как pm-info-section ── */
 .pm-danger-actions{
   margin-top:12px;padding-bottom:8px;
@@ -2112,10 +2140,13 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   }
   .pm-header-zone{padding:0 16px}
   .pm-body-zone{padding:0 16px 24px}
-  .pm-avi-wrap{margin-top:24px;margin-bottom:12px}
-  .pm-hero-avi{width:100px;height:100px;font-size:32px}
+  .pm-avi-wrap{margin-top:0;margin-bottom:0}
+  .pm-hero-avi{width:100%;aspect-ratio:1;font-size:48px}
+  .pm-hero-avi.ch-profile-avi{aspect-ratio:1}
+  .pm-name-row{margin-top:-32px;padding:0 16px}
   .pm-name{font-size:20px}
-  .pm-actions{gap:8px}
+  .pm-status-pill{padding:0 16px}
+  .pm-actions{gap:8px;padding:0 16px}
 }
 
 /* ── Media section in profile panel ── */
@@ -4972,12 +5003,7 @@ body[data-theme="light"] .pwa-install-banner {
 body[data-theme="light"] .pwa-install-banner::before {
   background: linear-gradient(135deg, rgba(139,92,246,.06), rgba(14,165,233,.04));
 }
-/* pm-action-btn in light */
-body[data-theme="light"] .pm-action-btn{
-  background:rgba(0,0,0,.06);
-  border-color:rgba(0,0,0,.1);
-}
-body[data-theme="light"] .pm-action-btn:hover{background:rgba(0,0,0,.1)}
+/* pm-action-btn in light — already handled in main rule */
 body[data-theme="light"] .pm-danger-group{
   background:rgba(0,0,0,.06);
   border-color:rgba(0,0,0,.1);

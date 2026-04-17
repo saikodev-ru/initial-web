@@ -89,11 +89,31 @@ if ($isInit) {
 }
 
 // ── Increment views_count for fetched messages ──────────────────
+// Use unique views: only count if this user hasn't viewed this message before
 if (!empty($messages) && $membership) {
     $ids = array_column($messages, 'id');
-    $ph  = implode(',', array_fill(0, count($ids), '?'));
-    $db->prepare("UPDATE channel_messages SET views_count = views_count + 1 WHERE id IN ($ph)")
-        ->execute($ids);
+    
+    // Find which messages the user has already viewed
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = $db->prepare("SELECT message_id FROM channel_message_views WHERE user_id = ? AND message_id IN ($ph)");
+    $stmt->execute(array_merge([$uid], $ids));
+    $viewedIds = array_column($stmt->fetchAll(), 'message_id');
+    
+    // Filter to only unviewed messages
+    $unviewedIds = array_diff($ids, $viewedIds);
+    
+    if (!empty($unviewedIds)) {
+        // Insert view records for unviewed messages
+        $insertStmt = $db->prepare('INSERT IGNORE INTO channel_message_views (user_id, message_id) VALUES (?, ?)');
+        foreach ($unviewedIds as $mid) {
+            $insertStmt->execute([$uid, $mid]);
+        }
+        
+        // Increment views_count only for newly viewed messages
+        $ph2 = implode(',', array_fill(0, count($unviewedIds), '?'));
+        $db->prepare("UPDATE channel_messages SET views_count = views_count + 1 WHERE id IN ($ph2)")
+            ->execute(array_values($unviewedIds));
+    }
 }
 
 // ── Reactions ──────────────────────────────────────────────────

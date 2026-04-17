@@ -649,9 +649,15 @@ function openProfileModal(u, isSelf=false){
   const avatar = isSelf ? u.avatar_url : u.partner_avatar;
   const bio = isSelf ? u.bio : u.partner_bio;
 
+  // Remove any channel extras
+  document.querySelectorAll('.ch-profile-extra').forEach(e => e.remove());
+
   // Avatar & Background blur
   const aviEl=$('pm-hero-avi');
-  if(aviEl) aviEl.innerHTML=aviHtml(name,avatar);
+  if(aviEl) {
+    aviEl.innerHTML=aviHtml(name,avatar);
+    aviEl.classList.remove('ch-profile-avi');
+  }
   applyBlurredAvatarBg('pm-hero-bg', name, avatar);
 
   // Name
