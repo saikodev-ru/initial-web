@@ -2115,30 +2115,25 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 
 /* ── TOP CONTROL BUTTONS ── */
-/* Desktop: glass circle close button, positioned on pm-panel (not pm-hero) */
+/* Unified frosted-glass pill style — matches hdr-back-pill */
 .pm-ctrl-btn{
   position:absolute;
   top:16px;left:16px;
-  width:36px;height:36px;
-  background:rgba(var(--bg-rgb),0.35);
-  backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
-  border:0.5px solid rgba(255,255,255,0.18);
-  border-top-color:rgba(255,255,255,0.35);
-  border-radius:50%;cursor:pointer;color:#fff;
+  width:48px;height:48px;
+  background:rgba(var(--bg-rgb),.50);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-radius:9999px;cursor:pointer;color:var(--t1);
   display:flex;align-items:center;justify-content:center;
   z-index:30;
   transition:background .2s,transform .15s var(--sp),box-shadow .2s;
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.12) inset,
-             0 0.5px 0 0 rgba(255,255,255,0.06) inset,
-             0 2px 8px rgba(0,0,0,0.15);
+  box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
 }
 .pm-ctrl-btn:hover{
-  background:rgba(var(--bg-rgb),0.55);
-  transform:scale(1.06);
-  box-shadow:0 2px 12px rgba(0,0,0,.2),
-             0 1px 0 0 rgba(255,255,255,0.18) inset;
+  background:rgba(var(--bg-rgb),.65);
+  box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.18);
 }
 .pm-ctrl-btn:active{transform:scale(0.94)}
+.pm-ctrl-btn svg{width:20px;height:20px;flex-shrink:0}
 
 /* Show back on mobile, close on desktop — toggled by JS */
 .pm-ctrl-back{display:none}
@@ -2146,50 +2141,43 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-ctrl-back.is-active{display:flex}
 .pm-ctrl-close.is-active{display:flex}
 
-/* Light theme: glass control buttons */
+/* Light theme: glass control buttons — matches light hdr-back-pill */
 body[data-theme="light"] .pm-ctrl-btn{
   background:rgba(255,255,255,0.55);
-  border:0.5px solid rgba(0,0,0,0.06);
-  border-top-color:rgba(255,255,255,0.9);
   color:var(--t1);
-  box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,
-             0 1px 3px rgba(0,0,0,0.08);
+  box-shadow:0 1px 3px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.5);
 }
 body[data-theme="light"] .pm-ctrl-btn:hover{
   background:rgba(255,255,255,0.72);
-  box-shadow:0 2px 8px rgba(0,0,0,.1),
-             0 1px 0 0 rgba(255,255,255,0.6) inset;
+  box-shadow:0 2px 8px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.6);
 }
-/* Light theme: mobile back button in profile — transparent like chat header */
+/* Light theme: mobile back button in profile — frosted glass like hdr-back-pill */
 @media(max-width:680px){
   body[data-theme="light"] .pm-ctrl-back{
-    background:transparent !important;
-    box-shadow:none !important;
+    background:rgba(255,255,255,0.55) !important;
+    box-shadow:0 1px 3px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.5) !important;
   }
   body[data-theme="light"] .pm-ctrl-back:hover{
-    background:transparent !important;
+    background:rgba(255,255,255,0.72) !important;
   }
 }
 
-/* Mobile: back button matches chat header back button position & style exactly */
+/* Mobile: back button — frosted glass pill like hdr-back-pill */
 @media(max-width:680px){
   .pm-ctrl-back{
     display:flex !important;
     top:calc(19px + env(safe-area-inset-top, 0px)) !important;
     left:11px !important;
     width:38px !important;height:38px !important;
-    background:transparent !important;
-    backdrop-filter:none !important;
-    -webkit-backdrop-filter:none !important;
-    border:none !important;
-    border-radius:50% !important;
-    box-shadow:none !important;
+    background:rgba(var(--bg-rgb),.50) !important;
+    backdrop-filter:blur(24px) !important;-webkit-backdrop-filter:blur(24px) !important;
+    border-radius:9999px !important;
+    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12) !important;
     color:var(--t1) !important;
-    transition:none !important;
     -webkit-tap-highlight-color:transparent;
   }
   .pm-ctrl-back:hover{
-    background:transparent !important;
+    background:rgba(var(--bg-rgb),.65) !important;
     transform:none !important;
   }
   .pm-ctrl-back:active{
@@ -4866,24 +4854,25 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 }
 
 /* ── Scroll-to-bottom FAB ── */
+/* Unified frosted-glass pill style — matches hdr-back-pill */
 #scroll-bot-btn{
   position:absolute;
   bottom:88px;right:20px;
-  width:44px;height:44px;
-  background:rgba(24,24,24,.96);
-  border:1px solid rgba(139,92,246,.3);
-  border-radius:50%;
+  width:48px;height:48px;
+  background:rgba(var(--bg-rgb),.50);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-radius:9999px;
   cursor:pointer;
   display:flex;align-items:center;justify-content:center;
-  color:var(--y2);
-  box-shadow:0 4px 20px rgba(0,0,0,.6),0 0 0 1px rgba(139,92,246,.12);
+  color:var(--t1);
+  box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12);
   z-index:15;
   opacity:0;pointer-events:none;
   transform:scale(.7) translateY(10px);
-  transition:opacity .25s cubic-bezier(.25,1,.5,1),transform .25s cubic-bezier(.25,1,.5,1);
+  transition:opacity .25s cubic-bezier(.25,1,.5,1),transform .25s cubic-bezier(.25,1,.5,1),background .2s,box-shadow .2s;
 }
 #scroll-bot-btn.on{opacity:1;pointer-events:auto;transform:none}
-#scroll-bot-btn:hover{color:var(--t1);background:rgba(28,28,28,.98);border-color:rgba(139,92,246,.5)}
+#scroll-bot-btn:hover{background:rgba(var(--bg-rgb),.65);box-shadow:0 2px 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.18)}
 #scroll-bot-btn svg{width:20px;height:20px;flex-shrink:0}
 #scroll-bot-badge{
   position:absolute;top:-5px;right:-5px;
@@ -4895,27 +4884,25 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 }
 #scroll-bot-badge:not(:empty){display:block}
 
-/* Mobile: scroll-to-bottom button — transparent like back button, above send button */
+/* Mobile: scroll-to-bottom button — frosted glass pill like hdr-back-pill, above send button */
 @media(max-width:680px){
   #scroll-bot-btn{
     right:8px !important;
     /* Position above the send button: input-zone bottom padding 10px + send button 44px + gap 8px */
     bottom:calc(10px + 44px + 8px) !important;
     width:44px !important;height:44px !important;
-    background:transparent !important;
-    border:none !important;
-    border-radius:50% !important;
-    box-shadow:none !important;
+    background:rgba(var(--bg-rgb),.50) !important;
+    backdrop-filter:blur(24px) !important;-webkit-backdrop-filter:blur(24px) !important;
+    border-radius:9999px !important;
+    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12) !important;
     color:var(--t1) !important;
-    backdrop-filter:none !important;
-    -webkit-backdrop-filter:none !important;
     transform:scale(.7) translateY(6px);
   }
   #scroll-bot-btn.on{
     transform:none;
   }
   #scroll-bot-btn:hover{
-    background:transparent !important;
+    background:rgba(var(--bg-rgb),.65) !important;
     color:var(--t1) !important;
   }
   #scroll-bot-btn:active{
@@ -5076,7 +5063,11 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 }
 .no-blur .pm-ctrl-btn{
   backdrop-filter:none;-webkit-backdrop-filter:none;
-  background:rgba(0,0,0,.5);
+  background:rgba(var(--bg-rgb),.85);
+}
+.no-blur #scroll-bot-btn{
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  background:rgba(var(--bg-rgb),.85);
 }
 /* pm-act-circle intentionally ignores no-blur — always keeps frosted glass effect */
 .no-blur .pm-danger-group{
@@ -5285,6 +5276,23 @@ body[data-theme="light"] .mfield-wrap .emo-btn-in.active {
   body[data-theme="light"] .mfield-wrap{
     background:rgba(var(--bg-rgb),.45);
   }
+  body[data-theme="light"] #scroll-bot-btn{
+    background:rgba(var(--bg-rgb),.30) !important;
+    box-shadow:0 1px 3px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.5) !important;
+  }
+  body[data-theme="light"] #scroll-bot-btn:hover{
+    background:rgba(var(--bg-rgb),.50) !important;
+  }
+}
+/* Light theme desktop: scroll-bot-btn */
+body[data-theme="light"] #scroll-bot-btn{
+  background:rgba(255,255,255,0.55);
+  color:var(--t1);
+  box-shadow:0 1px 3px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.5);
+}
+body[data-theme="light"] #scroll-bot-btn:hover{
+  background:rgba(255,255,255,0.72);
+  box-shadow:0 2px 8px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.6);
 }
 /* Format bar buttons — dark icons in light theme */
 body[data-theme="light"] .fmt-btn {
