@@ -2010,7 +2010,6 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 #modal-partner{
   align-items:stretch;justify-content:flex-end;
   background:rgba(0,0,0,.4);
-  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
 }
 
 /* ══ PROFILE PANEL — Premium Hero Layout ════════════════════ */
