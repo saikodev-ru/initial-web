@@ -989,10 +989,10 @@ function _setMobilePanelBlur(panelOpen) {
 // Close profile modal and handle history on mobile
 let _closingProfileModal = false; // prevent popstate loop
 let _profileModalJustClosed = false; // prevent main popstate from navigating away after modal close
-/* Show profile QR code modal with link: initial.su/u/{signalId} */
+/* Show profile QR code modal with link: initial.su/@{signalId} */
 function _showProfileQR(signalId){
   if(!signalId) return;
-  const url = 'https://initial.su/u/' + signalId;
+  const url = 'https://initial.su/@' + signalId;
   const linkEl = $('profile-qr-link');
   if(linkEl) linkEl.textContent = url;
   // Render QR

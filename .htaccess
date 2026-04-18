@@ -4,12 +4,14 @@
     RewriteEngine On
     Options -Indexes -MultiViews
 
-    # ── Profile URLs: /u/username → /web/u/index.php?u=username ──
-    # PHP works in web/ directory; internal rewrite keeps clean URL
+    # ── Profile URL: /u/username → u.php?u=username ──
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ /web/u/index.php?u=$1 [QSA,L]
+    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ u.php?u=$1 [QSA,L]
 </IfModule>
+
+# ── Catch /@username via 404 — Apache on reg.ru can't resolve @ in paths ──
+ErrorDocument 404 /u.php
 
 # ── Gzip compression ──
 <IfModule mod_deflate.c>
@@ -17,7 +19,7 @@
 </IfModule>
 
 # ── Security: block access to sensitive files ──
-<FilesMatch "^(config\.php|\.env|\.htaccess|security\.php|s3_helper\.php|helpers\.php|db\.php)$">
+<FilesMatch "^(config\.php|\.env|security\.php|s3_helper\.php|helpers\.php|db\.php)$">
     Order allow,deny
     Deny from all
 </FilesMatch>
