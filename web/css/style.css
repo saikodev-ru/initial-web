@@ -2346,6 +2346,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
   position:relative;z-index:2;display:flex;flex-direction:column;
   padding:0 24px 24px;
   margin-top:6px;
+  gap:10px;
 }
 
 /* ── Danger buttons (block/report) ── */
@@ -2356,7 +2357,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
   width:100%;
   background:var(--s1);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--b);border-radius:14px;
+  border:none;border-radius:18px;
   overflow:hidden;
 }
 .pm-danger-btn{
@@ -2379,7 +2380,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 }
 .pm-danger-sep{
   height:1px;
-  background:var(--b);
+  background:var(--b2);
   margin:0 16px;
 }
 .pm-last-seen{
@@ -2418,7 +2419,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 .pm-media-header{
   font-size:13px;font-weight:700;color:var(--t2);
   padding:8px 0 10px;
-  border-top:1px solid var(--b);
+  border-top:none;
   display:flex;align-items:center;justify-content:space-between;
 }
 .pm-media-header::after{
@@ -2428,7 +2429,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
   display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
   max-height:320px;overflow-y:auto;
   overscroll-behavior:contain;
-  border-radius:12px;overflow:hidden;
+  border-radius:14px;overflow:hidden;
 }
 .pm-media-grid img,.pm-media-grid video{
   width:100%;aspect-ratio:1;object-fit:cover;
@@ -2445,8 +2446,9 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 .tg-section.pm-info-section {
   background:var(--s1);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--b);border-radius:14px;
+  border:none;border-radius:18px;
   margin-top:0;
+  overflow:hidden;
 }
 
 /* ══ TELEGRAM-STYLE SETTINGS PANEL ══════════════════════════ */
@@ -2591,8 +2593,8 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 /* ── Section cards ── */
 .tg-section {
   background: var(--s1);
-  border: 1px solid var(--b);
-  border-radius: 16px;
+  border: none;
+  border-radius: 18px;
   overflow: hidden;
   display: flex; flex-direction: column;
   box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 0 0 .5px rgba(255,255,255,.03);
@@ -5237,7 +5239,7 @@ body[data-theme="light"] .fmt-btn:hover {
 /* tg-section (settings rows) — darker surface in light theme */
 body[data-theme="light"] .tg-section{
   background:#e8e8ec;
-  border:1px solid rgba(0,0,0,.1);
+  border:none;
 }
 body[data-theme="light"] .tg-row:hover{background:rgba(0,0,0,.05)}
 body[data-theme="light"] .tg-row:active{background:rgba(0,0,0,.09)}
@@ -5282,7 +5284,7 @@ body[data-theme="light"] .pwa-install-banner::before {
 /* pm-action-btn in light — already handled in main rule */
 body[data-theme="light"] .pm-danger-group{
   background:rgba(0,0,0,.06);
-  border-color:rgba(0,0,0,.1);
+  border:none;
 }
 body[data-theme="light"] .pm-danger-btn:hover{background:rgba(255,69,58,.07)}
 
