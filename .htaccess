@@ -2,7 +2,13 @@
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
     Options -Indexes -MultiViews
+
+    # ── Profile URL: /@username → u.php?u=username ──
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^@([a-zA-Z0-9_]+)/?$ u.php?u=$1 [QSA,L]
 
     # ── Profile URL: /u/username → u.php?u=username ──
     RewriteCond %{REQUEST_FILENAME} !-f
@@ -10,7 +16,7 @@
     RewriteRule ^u/([a-zA-Z0-9_]+)/?$ u.php?u=$1 [QSA,L]
 </IfModule>
 
-# ── Catch /@username via 404 — Apache on reg.ru can't resolve @ in paths ──
+# ── Fallback: catch-all 404 → u.php (for edge cases) ──
 ErrorDocument 404 /u.php
 
 # ── Gzip compression ──

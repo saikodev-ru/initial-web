@@ -31,10 +31,10 @@ if (empty($username)) {
 }
 
 // Override 404 status — we handle this route
-if (http_response_code() === 404 || http_response_code() === 0) {
-    http_response_code(200);
-}
+// Must set both header() and http_response_code() for ErrorDocument context
+header('HTTP/1.1 200 OK', true, 200);
 header('Content-Type: text/html; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 $username = ltrim($username, '@');
 $cleanId  = preg_replace('/[^a-z0-9_]/i', '', $username);
