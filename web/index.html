@@ -1165,6 +1165,13 @@ if (window._swSupported) {
 <!-- PARTNER PROFILE MODAL -->
 <div class="overlay" id="modal-partner">
   <div class="pm-panel" id="pm-panel">
+    <!-- Fixed control buttons — outside pm-scroll so they don't scroll -->
+    <button class="pm-ctrl-btn pm-ctrl-back" id="pm-ctrl-back" aria-label="Назад">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button class="pm-ctrl-btn pm-ctrl-close" id="pm-ctrl-close" data-close="modal-partner" aria-label="Закрыть">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
     <div class="pm-scroll" id="pm-scroll">
       <!-- ══ HERO SECTION — full-screen square avatar ══ -->
       <div class="pm-hero" id="pm-hero">
@@ -1174,14 +1181,6 @@ if (window._swSupported) {
         <div class="pm-hero-blur-layer" id="pm-hero-blur-layer"></div>
         <!-- Gradient: transitions from transparent (sharp avatar) → semi-transparent (blurred avatar visible) -->
         <div class="pm-hero-gradient"></div>
-
-        <!-- Top-left control: Back (mobile) / Close (desktop) -->
-        <button class="pm-ctrl-btn pm-ctrl-back" id="pm-ctrl-back" aria-label="Назад">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
-        </button>
-        <button class="pm-ctrl-btn pm-ctrl-close" id="pm-ctrl-close" data-close="modal-partner" aria-label="Закрыть">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
 
         <!-- Name, status, badges — positioned at bottom of hero -->
         <div class="pm-hero-content">

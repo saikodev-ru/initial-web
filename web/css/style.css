@@ -2115,7 +2115,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 
 /* ── TOP CONTROL BUTTONS ── */
-/* Desktop: glass circle close button */
+/* Desktop: glass circle close button, positioned on pm-panel (not pm-hero) */
 .pm-ctrl-btn{
   position:absolute;
   top:16px;left:16px;
@@ -2126,7 +2126,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   border-top-color:rgba(255,255,255,0.35);
   border-radius:50%;cursor:pointer;color:#fff;
   display:flex;align-items:center;justify-content:center;
-  z-index:20;
+  z-index:30;
   transition:background .2s,transform .15s var(--sp),box-shadow .2s;
   box-shadow:0 1px 0 0 rgba(255,255,255,0.12) inset,
              0 0.5px 0 0 rgba(255,255,255,0.06) inset,
@@ -2160,37 +2160,39 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
   box-shadow:0 2px 8px rgba(0,0,0,.1),
              0 1px 0 0 rgba(255,255,255,0.6) inset;
 }
-/* Light theme: mobile back button pill in profile */
+/* Light theme: mobile back button in profile — transparent like chat header */
 @media(max-width:680px){
   body[data-theme="light"] .pm-ctrl-back{
-    background:rgba(var(--bg-rgb),.30) !important;
-    box-shadow:0 1px 4px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5) !important;
+    background:transparent !important;
+    box-shadow:none !important;
   }
   body[data-theme="light"] .pm-ctrl-back:hover{
-    background:rgba(var(--bg-rgb),.45) !important;
+    background:transparent !important;
   }
 }
 
-/* Mobile: back button styled like chat header "Назад" pill button */
+/* Mobile: back button matches chat header back button position & style exactly */
 @media(max-width:680px){
   .pm-ctrl-back{
-    top:calc(8px + env(safe-area-inset-top, 0px)) !important;
-    left:14px !important;
-    width:48px !important;height:48px !important;
-    background:rgba(var(--bg-rgb),0.50) !important;
-    backdrop-filter:blur(24px) saturate(1.8) !important;
-    -webkit-backdrop-filter:blur(24px) saturate(1.8) !important;
+    top:calc(19px + env(safe-area-inset-top, 0px)) !important;
+    left:11px !important;
+    width:38px !important;height:38px !important;
+    background:transparent !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
     border:none !important;
-    border-radius:9999px !important;
-    box-shadow:0 1px 4px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.12) !important;
+    border-radius:50% !important;
+    box-shadow:none !important;
     color:var(--t1) !important;
+    transition:none !important;
+    -webkit-tap-highlight-color:transparent;
   }
   .pm-ctrl-back:hover{
-    background:rgba(var(--bg-rgb),0.65) !important;
-    transform:scale(1.02) !important;
+    background:transparent !important;
+    transform:none !important;
   }
   .pm-ctrl-back:active{
-    transform:scale(0.88) !important;
+    transform:scale(.88) !important;
     opacity:.7 !important;
   }
   .pm-ctrl-back svg{width:18px;height:18px}
