@@ -22,9 +22,6 @@
     RewriteEngine On
     Options -Indexes
 
-    # ── Profile URLs: /u/username → profile.php?u=username ──────
-    # Matches: initial.su/u/username
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ profile.php?u=$1 [QSA,L]
+    # ── Profile URLs handled by /u/ directory at project root ──
+    # initial.su/u/username → /u/index.php?u=username
 </IfModule>

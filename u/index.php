@@ -1,14 +1,14 @@
 <?php
 /**
- * profile.php — Public profile page (Telegram Web-style)
+ * /u/index.php — Public profile page (Telegram Web-style)
  * URL: initial.su/u/username
- * 
+ *
  * SSR: fetches user data server-side for proper meta tags (og:image, og:title)
- * CSR: renders the interactive profile UI client-side
+ * CSR: renders the interactive profile UI client-side as fallback
  */
 declare(strict_types=1);
 
-// ── Get username from query param ──
+// ── Get username from query param (rewritten by .htaccess) ──
 $username = trim($_GET['u'] ?? '');
 $username = ltrim($username, '@');
 $cleanId  = preg_replace('/[^a-z0-9_]/i', '', $username);
@@ -26,17 +26,16 @@ $pageDesc   = 'Профиль пользователя @' . $cleanId . ' в Init
 // ── Try server-side DB lookup for meta tags ──
 if (!empty($cleanId)) {
     try {
-        // Load API config for DB access
         $configFile = __DIR__ . '/../api/config.php';
         if (file_exists($configFile)) {
             require_once $configFile;
         }
-        
+
         $helpersFile = __DIR__ . '/../api/helpers.php';
         if (file_exists($helpersFile)) {
             require_once $helpersFile;
         }
-        
+
         if (function_exists('db')) {
             $stmt = db()->prepare(
                 'SELECT id, nickname, signal_id, avatar_url, bio, is_verified, is_team_signal
@@ -47,20 +46,20 @@ if (!empty($cleanId)) {
             );
             $stmt->execute([$cleanId]);
             $user = $stmt->fetch();
-            
+
             if ($user) {
                 $userFound  = true;
                 $nickname   = $user['nickname'] ?? $user['signal_id'];
                 $signalId   = $user['signal_id'];
                 $bio        = $user['bio'] ?? '';
                 $isVerified = (bool) ($user['is_verified'] ?? false);
-                
+
                 // Build avatar URL
                 if (!empty($user['avatar_url'])) {
                     $mediaInfo = build_media_response($user['avatar_url']);
                     $avatarUrl = $mediaInfo['url'] ?? '';
                 }
-                
+
                 $pageTitle = $nickname . ' — Initial';
                 $pageDesc  = !empty($bio) ? mb_substr($bio, 0, 160) : 'Профиль пользователя @' . $signalId . ' в Initial';
             }
@@ -495,7 +494,7 @@ body{
           '<div class="profile-status">Initial Messenger</div>' +
         '</div>' +
         '<div class="profile-actions">' +
-          '<a class="profile-action-btn profile-btn-primary" href="/">' +
+          '<a class="profile-action-btn profile-btn-primary" href="/web/">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>' +
             'Открыть в Web' +
           '</a>' +
@@ -510,7 +509,7 @@ body{
           '<div class="profile-qr-link">initial.su/u/' + esc(user.signal_id) + '</div>' +
         '</div>' +
         '<div class="profile-footer">' +
-          '<a href="/">Initial</a> — безопасный мессенджер' +
+          '<a href="/web/">Initial</a> — безопасный мессенджер' +
         '</div>' +
       '</div>';
 
@@ -529,7 +528,7 @@ body{
         '<div class="profile-notfound-ico">🔍</div>' +
         '<div class="profile-notfound-title">Пользователь не найден</div>' +
         '<div class="profile-notfound-desc">Аккаунт @' + esc(signalId) + ' не найден или не существует</div>' +
-        '<a class="profile-notfound-btn" href="/">Открыть Initial</a>' +
+        '<a class="profile-notfound-btn" href="/web/">Открыть Initial</a>' +
       '</div>';
   }
 
@@ -541,15 +540,15 @@ body{
       var deepLink = 'initial://u/' + signalId;
       var timeout;
       var fallbackUrl = '/web/';
-      
+
       // Try opening deep link
       window.location.href = deepLink;
-      
+
       // If app not installed, fallback after a short delay
       timeout = setTimeout(function() {
         window.location.href = fallbackUrl;
       }, 1500);
-      
+
       // Clear fallback if page loses focus (app opened)
       window.addEventListener('blur', function() {
         clearTimeout(timeout);
