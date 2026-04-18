@@ -22,9 +22,9 @@
     RewriteEngine On
     Options -Indexes
 
-    # ── Profile URLs: @username → profile.php?u=username ──────
-    # Matches: initial.su/@username
+    # ── Profile URLs: /u/username → profile.php?u=username ──────
+    # Matches: initial.su/u/username
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^@([a-zA-Z0-9_]+)/?$ profile.php?u=$1 [QSA,L]
+    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ profile.php?u=$1 [QSA,L]
 </IfModule>

@@ -1,7 +1,7 @@
 <?php
 /**
  * profile.php — Public profile page (Telegram Web-style)
- * URL: initial.su/@username
+ * URL: initial.su/u/username
  * 
  * SSR: fetches user data server-side for proper meta tags (og:image, og:title)
  * CSR: renders the interactive profile UI client-side
@@ -380,7 +380,7 @@ body{
 
     <div class="profile-qr-section">
       <div class="profile-qr-wrap" id="qr-canvas"></div>
-      <div class="profile-qr-link">initial.su/@<?php echo esc($signalId); ?></div>
+      <div class="profile-qr-link">initial.su/u/<?php echo esc($signalId); ?></div>
     </div>
 
     <div class="profile-footer">
@@ -438,7 +438,7 @@ body{
 
   // ── SSR path: render QR for server-rendered profile ──
   if (userFound) {
-    renderQR('https://initial.su/@' + signalId);
+    renderQR('https://initial.su/u/' + signalId);
     setupAppButton();
   }
 
@@ -507,14 +507,14 @@ body{
         '<div class="profile-divider"></div>' +
         '<div class="profile-qr-section">' +
           '<div class="profile-qr-wrap" id="qr-canvas"></div>' +
-          '<div class="profile-qr-link">initial.su/@' + esc(user.signal_id) + '</div>' +
+          '<div class="profile-qr-link">initial.su/u/' + esc(user.signal_id) + '</div>' +
         '</div>' +
         '<div class="profile-footer">' +
           '<a href="/">Initial</a> — безопасный мессенджер' +
         '</div>' +
       '</div>';
 
-    renderQR('https://initial.su/@' + user.signal_id);
+    renderQR('https://initial.su/u/' + user.signal_id);
     setupAppButton();
   }
 
@@ -538,7 +538,7 @@ body{
     if (!btn) return;
     btn.onclick = function() {
       // Try deep link first, fallback to web
-      var deepLink = 'initial://@' + signalId;
+      var deepLink = 'initial://u/' + signalId;
       var timeout;
       var fallbackUrl = '/';
       

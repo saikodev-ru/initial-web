@@ -1,7 +1,7 @@
 <?php
 // GET /api/resolve_profile?u=username
 // PUBLIC endpoint — no auth required
-// Returns user profile info for public profile pages (initial.su/@username)
+// Returns user profile info for public profile pages (initial.su/u/username)
 declare(strict_types=1);
 require_once __DIR__ . '/../helpers.php';
 
