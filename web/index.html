@@ -1227,20 +1227,16 @@ if (window._swSupported) {
         <!-- Info block -->
         <div class="tg-section pm-info-section" id="pm-info-section">
           <div class="tg-row pm-sid-row" id="pm-row-sid" style="display:none; cursor:pointer; align-items:center;" title="Нажмите чтобы скопировать">
-            <div class="tg-row-ic" style="color:var(--y); background:transparent; margin-right:16px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-            </div>
             <div class="tg-row-body">
               <span class="tg-row-lbl" id="pm-info-sid-val"></span>
               <span class="tg-row-sub">Нажмите чтобы скопировать</span>
             </div>
-            <svg class="tg-row-arr" width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <button class="pm-qr-btn" id="pm-btn-sid-qr" title="Показать QR-код" aria-label="QR-код">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/><rect x="18" y="14" width="3" height="1"/><rect x="14" y="18" width="1" height="3"/></svg>
+            </button>
           </div>
           <div class="tg-row-sep" id="pm-info-sep" style="display:none;"></div>
           <div class="tg-row" id="pm-row-bio" style="display:none; cursor:text; align-items:flex-start;">
-            <div class="tg-row-ic" style="color:var(--y); background:transparent; margin-right:16px; margin-top:10px;">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-            </div>
             <div class="tg-row-body" style="padding:10px 0;">
               <div class="tg-row-lbl pm-bio-html" id="pm-info-bio-val" style="user-select:text; white-space:pre-wrap; font-weight:400; line-height:1.5;"></div>
               <span class="tg-row-sub">О себе</span>
@@ -1470,6 +1466,19 @@ if (window._swSupported) {
 <!-- CONFIRM -->
 <div class="overlay" id="modal-confirm">
   <div class="modal"><div class="confirm-title" id="confirm-title"></div><div class="confirm-msg" id="confirm-msg"></div><div class="confirm-btns"><button class="btn btn-ghost" id="confirm-cancel">Отмена</button><button class="btn" id="confirm-ok" style="background:var(--red);box-shadow:0 4px 20px rgba(255,69,58,.35)">Удалить</button></div></div>
+</div>
+
+<!-- Profile share QR modal -->
+<div class="overlay" id="modal-profile-qr">
+  <div class="modal" style="width:340px;text-align:center;padding:24px 24px 20px">
+    <div class="modal-hdr" style="margin-bottom:14px">
+      <div class="modal-title">QR-код профиля</div>
+      <button class="modal-x" data-close="modal-profile-qr"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div id="profile-qr-canvas" style="width:220px;height:220px;margin:0 auto;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 2px 20px rgba(0,0,0,.22);line-height:0;font-size:0"></div>
+    <div id="profile-qr-link" style="margin-top:14px;font-size:14px;color:var(--t2);word-break:break-all;line-height:1.4"></div>
+    <button class="btn btn-ghost" data-close="modal-profile-qr" style="margin-top:18px;width:100%">Закрыть</button>
+  </div>
 </div>
 
 <!-- QR / Link device modal -->

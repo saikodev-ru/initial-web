@@ -788,10 +788,24 @@ function openProfileModal(u, isSelf=false){
     if(hasSid){
       rowSid.style.display = 'flex';
       valSid.textContent = '@' + sid;
+      // Click on row copies ID
       rowSid.onclick = () => {
         navigator.clipboard.writeText('@'+sid).then(()=>toast('Initial ID скопирован','ok'));
       };
-    } else { rowSid.style.display = 'none'; }
+      // QR button opens profile QR modal
+      const qrBtn = $('pm-btn-sid-qr');
+      if(qrBtn){
+        qrBtn.style.display = 'flex';
+        qrBtn.onclick = (e) => {
+          e.stopPropagation();
+          _showProfileQR(sid);
+        };
+      }
+    } else {
+      rowSid.style.display = 'none';
+      const qrBtn = $('pm-btn-sid-qr');
+      if(qrBtn) qrBtn.style.display = 'none';
+    }
   }
   if(rowBio && valBio){
     if(hasBio){
@@ -975,6 +989,32 @@ function _setMobilePanelBlur(panelOpen) {
 // Close profile modal and handle history on mobile
 let _closingProfileModal = false; // prevent popstate loop
 let _profileModalJustClosed = false; // prevent main popstate from navigating away after modal close
+/* Show profile QR code modal with link: initial.su/@{signalId} */
+function _showProfileQR(signalId){
+  if(!signalId) return;
+  const url = 'https://initial.su/@' + signalId;
+  const linkEl = $('profile-qr-link');
+  if(linkEl) linkEl.textContent = url;
+  // Render QR
+  const container = $('profile-qr-canvas');
+  if(container){
+    container.innerHTML = '';
+    if(typeof QRCodeStyling !== 'undefined'){
+      const qr = new QRCodeStyling({
+        width: 220, height: 220,
+        data: url,
+        dotsOptions: { color: '#000', type: 'rounded' },
+        backgroundOptions: { color: '#fff' },
+        cornersSquareOptions: { type: 'extra-rounded' },
+        cornersDotOptions: { type: 'dot' },
+        qrOptions: { errorCorrectionLevel: 'M' }
+      });
+      qr.append(container);
+    }
+  }
+  openMod('modal-profile-qr');
+}
+
 function _closeProfileModal(){
   closeMod('modal-partner');
   // Restore chat bg blur when profile panel closes

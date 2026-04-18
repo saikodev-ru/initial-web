@@ -2450,6 +2450,22 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
   color:var(--t3);font-size:13px;font-weight:500;
 }
 
+/* QR code button in profile info section */
+.pm-qr-btn{
+  width:36px;height:36px;
+  border:none;border-radius:10px;
+  background:var(--s1);
+  display:none; /* shown by JS when sid exists */
+  align-items:center;justify-content:center;
+  cursor:pointer;color:var(--t2);
+  flex-shrink:0;
+  transition:background .15s,transform .1s var(--sp),color .15s;
+  -webkit-tap-highlight-color:transparent;
+  margin-left:8px;
+}
+.pm-qr-btn:hover{background:var(--s2);color:var(--t1)}
+.pm-qr-btn:active{transform:scale(.9)}
+
 .tg-section.pm-info-section {
   background:var(--s1);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
