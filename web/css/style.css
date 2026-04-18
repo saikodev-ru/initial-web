@@ -2174,6 +2174,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 /* Mobile: back button matches chat header back button position & style exactly */
 @media(max-width:680px){
   .pm-ctrl-back{
+    display:flex !important;
     top:calc(19px + env(safe-area-inset-top, 0px)) !important;
     left:11px !important;
     width:38px !important;height:38px !important;
@@ -4852,7 +4853,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 #scroll-bot-btn{
   position:absolute;
   bottom:88px;right:20px;
-  width:48px;height:48px;
+  width:44px;height:44px;
   background:rgba(24,24,24,.96);
   border:1px solid rgba(139,92,246,.3);
   border-radius:50%;
@@ -4863,7 +4864,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   z-index:15;
   opacity:0;pointer-events:none;
   transform:scale(.7) translateY(10px);
-  transition:opacity .2s var(--ease),transform .2s var(--ease);
+  transition:opacity .25s cubic-bezier(.25,1,.5,1),transform .25s cubic-bezier(.25,1,.5,1);
 }
 #scroll-bot-btn.on{opacity:1;pointer-events:auto;transform:none}
 #scroll-bot-btn:hover{color:var(--t1);background:rgba(28,28,28,.98);border-color:rgba(139,92,246,.5)}
@@ -4877,6 +4878,42 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   display:none;
 }
 #scroll-bot-badge:not(:empty){display:block}
+
+/* Mobile: scroll-to-bottom button — transparent like back button, above send button */
+@media(max-width:680px){
+  #scroll-bot-btn{
+    right:8px !important;
+    /* Position above the send button: input-zone bottom padding 10px + send button 44px + gap 8px */
+    bottom:calc(10px + 44px + 8px) !important;
+    width:44px !important;height:44px !important;
+    background:transparent !important;
+    border:none !important;
+    border-radius:50% !important;
+    box-shadow:none !important;
+    color:var(--t1) !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+    transform:scale(.7) translateY(6px);
+  }
+  #scroll-bot-btn.on{
+    transform:none;
+  }
+  #scroll-bot-btn:hover{
+    background:transparent !important;
+    color:var(--t1) !important;
+  }
+  #scroll-bot-btn:active{
+    transform:scale(.88);
+    opacity:.7;
+  }
+  #scroll-bot-btn svg{width:20px;height:20px}
+  #scroll-bot-badge{
+    background:var(--y);color:#fff;
+    border:1.5px solid var(--bg);
+    top:-4px;right:-4px;
+    font-size:9px;padding:1px 4px;min-width:16px;
+  }
+}
 
 /* ── Avatar Crop Modal ── */
 #crop-area {

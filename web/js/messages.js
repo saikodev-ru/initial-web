@@ -2494,6 +2494,7 @@ function hideSBBtn(){
     _scrollRaf=requestAnimationFrame(()=>{
       _scrollRaf=0;
       if(nearBot())hideSBBtn();
+      else if(!btn.classList.contains('on'))showSBBtn(0);
       // Pre-cache voice messages visible in viewport
       if(window.VoiceMsg&&window.VoiceMsg.precacheVoiceMessages)window.VoiceMsg.precacheVoiceMessages();
       clearTimeout(area._scrollSaveTimer);
