@@ -1,4 +1,4 @@
-# ── /u/ directory — Profile page ──
+# ── /u/ directory — Profile page (inside web/ where PHP is active) ──
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -10,11 +10,6 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^([a-zA-Z0-9_]+)/?$ index.php?u=$1 [QSA,L]
 </IfModule>
-
-# ── Ensure PHP is processed ──
-<FilesMatch \.php$>
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 DirectoryIndex index.php
 

@@ -1,20 +1,15 @@
 # ── Initial Messenger — Root Apache config ──
 
-# ── Profile URLs: /u/username → /u/index.php?u=username ──────
 <IfModule mod_rewrite.c>
     RewriteEngine On
     Options -Indexes -MultiViews
 
-    # Route /u/username to the profile page
+    # ── Profile URLs: /u/username → /web/u/index.php?u=username ──
+    # PHP works in web/ directory; internal rewrite keeps clean URL
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ /u/index.php?u=$1 [QSA,L]
+    RewriteRule ^u/([a-zA-Z0-9_]+)/?$ /web/u/index.php?u=$1 [QSA,L]
 </IfModule>
-
-# ── Ensure PHP is processed in all directories ──
-<FilesMatch \.php$>
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 # ── Gzip compression ──
 <IfModule mod_deflate.c>
