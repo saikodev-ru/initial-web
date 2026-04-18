@@ -2243,60 +2243,81 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
 
 /* ── ACTION BUTTONS ROW — iOS-style filled icons ── */
 .pm-actions{
-  display:flex;gap:10px;margin-top:4px;
+  display:flex;gap:0;margin-top:4px;
   position:relative;z-index:2;
   justify-content:space-evenly;
   flex-wrap:nowrap;
   width:100%;
 }
 .pm-action-btn{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  background:transparent;
+  border:none;
+  flex:1;max-width:none;
+  padding:6px 4px;cursor:pointer;
+  transition:transform .15s var(--sp),opacity .15s;
+  position:relative;
+  -webkit-tap-highlight-color:transparent;
+}
+.pm-action-btn:hover{opacity:.85}
+.pm-action-btn:active{transform:scale(0.88);opacity:.7}
+
+/* ── Circular icon container (the "bubble") ── */
+.pm-act-circle{
+  width:50px;height:50px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
   background:rgba(var(--bg-rgb),0.35);
   backdrop-filter:blur(20px) saturate(1.8);-webkit-backdrop-filter:blur(20px) saturate(1.8);
   border:0.5px solid rgba(255,255,255,0.2);
   border-top-color:rgba(255,255,255,0.4);
-  border-radius:16px;
-  min-width:60px;height:62px;
-  flex:1;max-width:none;
-  padding:8px 6px;cursor:pointer;color:var(--t1);
-  transition:background .2s,transform .15s var(--sp),box-shadow .2s;
   box-shadow:0 1px 0 0 rgba(255,255,255,0.14) inset,
              0 0.5px 0 0 rgba(255,255,255,0.06) inset,
              0 2px 8px rgba(0,0,0,0.1);
-  position:relative;
+  transition:background .2s,box-shadow .2s;
 }
-.pm-action-btn:hover{
+.pm-action-btn:hover .pm-act-circle{
   background:rgba(var(--bg-rgb),0.5);
-  transform:translateY(-1px);
   box-shadow:0 3px 12px rgba(0,0,0,.15),
              0 1px 0 0 rgba(255,255,255,0.2) inset;
 }
-.pm-action-btn:active{transform:scale(0.92);background:rgba(var(--bg-rgb),0.25)}
-.pm-action-btn.muted{color:var(--y2);background:rgba(var(--ybg-rgb, 139,92,246),.12);border-color:rgba(var(--ybg-rgb, 139,92,246),.22);border-top-color:rgba(var(--ybg-rgb, 139,92,246),.4)}
-.pm-action-btn.muted:hover{background:rgba(var(--ybg-rgb, 139,92,246),.18)}
+.pm-action-btn:active .pm-act-circle{background:rgba(var(--bg-rgb),0.25)}
+
+/* Muted state — circle gets accent tint */
+.pm-action-btn.muted .pm-act-circle{
+  background:rgba(var(--ybg-rgb, 139,92,246),.12);
+  border-color:rgba(var(--ybg-rgb, 139,92,246),.22);
+  border-top-color:rgba(var(--ybg-rgb, 139,92,246),.4);
+}
+.pm-action-btn.muted:hover .pm-act-circle{background:rgba(var(--ybg-rgb, 139,92,246),.18)}
 .pm-action-btn.muted .pm-act-ic{color:var(--y2)}
+
+/* ── Icon inside circle ── */
 .pm-act-ic{color:var(--t1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.pm-act-ic svg{width:26px;height:26px}
+.pm-act-ic svg{width:24px;height:24px}
+
+/* ── Label below circle ── */
 .pm-act-lbl{
   font-size:12px;font-weight:500;letter-spacing:0.1px;
   white-space:nowrap;
   color:var(--t1);
+  text-transform:none;
 }
 
-/* Light theme: frosted glass buttons */
-body[data-theme="light"] .pm-action-btn{
+/* Light theme: frosted glass circle */
+body[data-theme="light"] .pm-act-circle{
   background:rgba(255,255,255,0.6);
   border:0.5px solid rgba(0,0,0,0.06);
   border-top-color:rgba(255,255,255,0.9);
   box-shadow:0 1px 0 0 rgba(255,255,255,0.5) inset,
              0 1px 3px rgba(0,0,0,0.08);
 }
-body[data-theme="light"] .pm-action-btn:hover{
+body[data-theme="light"] .pm-action-btn:hover .pm-act-circle{
   background:rgba(255,255,255,0.78);
   box-shadow:0 2px 8px rgba(0,0,0,.08),
              0 1px 0 0 rgba(255,255,255,0.6) inset;
 }
-body[data-theme="light"] .pm-action-btn:active{background:rgba(255,255,255,0.45)}
+body[data-theme="light"] .pm-action-btn:active .pm-act-circle{background:rgba(255,255,255,0.45)}
 body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 
 /* ── INFO SHEET — below hero ── */
@@ -2363,10 +2384,10 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
     gap:10px;
   }
   .pm-name{font-size:20px}
-  .pm-actions{gap:8px}
-  .pm-action-btn{min-width:56px;height:58px}
+  .pm-actions{gap:0}
+  .pm-act-circle{width:46px;height:46px}
   .pm-act-lbl{font-size:11px}
-  .pm-act-ic svg{width:24px;height:24px}
+  .pm-act-ic svg{width:22px;height:22px}
   .pm-body-zone{padding:0 16px 24px}
 }
 
@@ -4972,7 +4993,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:rgba(0,0,0,.5);
 }
-.no-blur .pm-action-btn{
+.no-blur .pm-act-circle{
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:var(--solid1);
 }

@@ -844,11 +844,37 @@ function openProfileModal(u, isSelf=false){
     }
     if(btnCall){
       btnCall.style.display = 'flex';
-      btnCall.onclick = () => { _closeProfileModal(); toast('Звонки пока не поддерживаются','info'); };
+      btnCall.onclick = () => {
+        _closeProfileModal();
+        if (window.CallUI && u.partner_id) {
+          window.CallUI.startCall({
+            id: u.partner_id,
+            name: u.partner_name || '@'+u.partner_signal_id,
+            avatarHtml: aviHtml(u.partner_name, u.partner_avatar),
+            isVideo: false,
+            signalId: u.partner_signal_id
+          });
+        } else {
+          toast('Звонки пока не поддерживаются','info');
+        }
+      };
     }
     if(btnVideo){
       btnVideo.style.display = 'flex';
-      btnVideo.onclick = () => { _closeProfileModal(); toast('Видеозвонки пока не поддерживаются','info'); };
+      btnVideo.onclick = () => {
+        _closeProfileModal();
+        if (window.CallUI && u.partner_id) {
+          window.CallUI.startCall({
+            id: u.partner_id,
+            name: u.partner_name || '@'+u.partner_signal_id,
+            avatarHtml: aviHtml(u.partner_name, u.partner_avatar),
+            isVideo: true,
+            signalId: u.partner_signal_id
+          });
+        } else {
+          toast('Видеозвонки пока не поддерживаются','info');
+        }
+      };
     }
     if(btnMute){
       if (!u.chat_id) {
@@ -908,16 +934,20 @@ function openProfileModal(u, isSelf=false){
 
 // Close profile modal and handle history on mobile
 let _closingProfileModal = false; // prevent popstate loop
+let _profileModalJustClosed = false; // prevent main popstate from navigating away after modal close
 function _closeProfileModal(){
   closeMod('modal-partner');
   // On mobile: go back in history to remove our pushed state (skip if already handling popstate)
   if(__isMobileView() && !_closingProfileModal){
     _closingProfileModal = true;
+    _profileModalJustClosed = true;
+    setTimeout(() => { _profileModalJustClosed = false; }, 300);
     history.back();
   }
 }
 
 // Popstate handler for profile modal (system back gesture on mobile)
+// Uses capture phase to run before the main app.js popstate handler
 window.addEventListener('popstate', function(e){
   if(_closingProfileModal){
     _closingProfileModal = false;
@@ -927,8 +957,11 @@ window.addEventListener('popstate', function(e){
   const overlay = $('modal-partner');
   if(overlay && overlay.classList.contains('on') && __isMobileView()){
     closeMod('modal-partner');
+    // Set flag so the main popstate handler doesn't also navigate back to chat list
+    _profileModalJustClosed = true;
+    setTimeout(() => { _profileModalJustClosed = false; }, 300);
   }
-});
+}, true); // capture=true → runs before the main app.js handler
 
 function openPartnerModal(){
   if(!S.partner)return;
@@ -1655,6 +1688,8 @@ window.addEventListener('popstate',e=>{
     if (panel && panel.classList.contains('open')) return;
     // Check if any modal is open
     if (document.querySelector('.overlay.on')) return;
+    // Don't close chat if profile modal was just closed (return to chat, not list)
+    if (typeof _profileModalJustClosed !== 'undefined' && _profileModalJustClosed) return;
     // Don't close chat if search is active (search handles its own popstate)
     if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) return;
     goBackToList();
