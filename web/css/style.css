@@ -2068,37 +2068,41 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   z-index: 1; pointer-events: none;
 }
 
-/* Blurred avatar layer — sits between sharp avatar and gradient.
-   Same avatar image but with heavy blur. Masked to only appear
-   in the lower portion, creating a smooth transition from the
-   sharp avatar (top) to the blurred avatar (bottom). */
+/* Blurred avatar layer — sits on top of the sharp avatar.
+   mask-image creates a smooth vertical transition:
+   top = fully transparent (sharp avatar shows through)
+   bottom = fully opaque (blurred avatar covers sharp one)
+   This replaces the old color gradient — the "gradient" IS the mask fade. */
 .pm-hero-blur-layer{
   position:absolute;
-  top:-40px;left:-40px;right:-40px;bottom:-40px;
+  top:-50px;left:-50px;right:-50px;bottom:-50px;
   pointer-events:none;z-index:1;
   background-size:cover;background-position:center top;
-  filter:blur(50px) saturate(1.4);
-  -webkit-filter:blur(50px) saturate(1.4);
+  filter:blur(60px) saturate(1.3);
+  -webkit-filter:blur(60px) saturate(1.3);
   will-change:transform;
-  /* Only show in bottom half — fade in from top to bottom */
-  -webkit-mask-image:linear-gradient(180deg, transparent 0%, transparent 20%, rgba(0,0,0,0.4) 38%, rgba(0,0,0,0.8) 52%, black 65%);
-  mask-image:linear-gradient(180deg, transparent 0%, transparent 20%, rgba(0,0,0,0.4) 38%, rgba(0,0,0,0.8) 52%, black 65%);
-}
-
-/* Hero gradient — fades from transparent (sharp avatar visible) to
-   solid bg at the very bottom for text readability. The blurred
-   avatar layer shows through the semi-transparent mid section. */
-.pm-hero-gradient{
-  position:absolute;bottom:0;left:0;right:0;
-  height:75%;
-  background:linear-gradient(180deg,
+  /* Mask: smooth sharp→blur transition acting as the gradient */
+  -webkit-mask-image:linear-gradient(180deg,
     transparent 0%,
     transparent 30%,
-    rgba(var(--bg-rgb),0.30) 50%,
-    rgba(var(--bg-rgb),0.60) 68%,
-    rgba(var(--bg-rgb),0.85) 82%,
-    var(--bg) 100%);
-  z-index:2;pointer-events:none;
+    rgba(0,0,0,0.15) 42%,
+    rgba(0,0,0,0.5) 55%,
+    rgba(0,0,0,0.85) 68%,
+    black 80%);
+  mask-image:linear-gradient(180deg,
+    transparent 0%,
+    transparent 30%,
+    rgba(0,0,0,0.15) 42%,
+    rgba(0,0,0,0.5) 55%,
+    rgba(0,0,0,0.85) 68%,
+    black 80%);
+}
+
+/* Hero gradient — removed. The blur mask IS the gradient now.
+   Sharp avatar fades into blurred avatar via mask-image on .pm-hero-blur-layer.
+   No color overlay needed. */
+.pm-hero-gradient{
+  display:none;
 }
 
 /* Avatar wrapper — removed (avatar IS the background now) */
@@ -5044,8 +5048,8 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   -webkit-filter:saturate(1.1);
 }
 .no-blur .pm-hero-blur-layer{
-  filter:blur(50px) saturate(1.2);
-  -webkit-filter:blur(50px) saturate(1.2);
+  filter:blur(60px) saturate(1.1);
+  -webkit-filter:blur(60px) saturate(1.1);
 }
 .no-blur .sb-profile-panel{
   background:rgba(var(--bg-rgb),.96);
