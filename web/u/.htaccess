@@ -1,15 +1,4 @@
-# ── /u/ directory — Profile page (inside web/ where PHP is active) ──
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /u/
-    Options -Indexes -MultiViews
-
-    # /u/username → index.php?u=username
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^([a-zA-Z0-9_]+)/?$ index.php?u=$1 [QSA,L]
-</IfModule>
+# ── /u/ directory — Profile page ──
 
 DirectoryIndex index.php
 

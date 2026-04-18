@@ -26,12 +26,12 @@ $pageDesc   = 'Профиль пользователя @' . $cleanId . ' в Init
 // ── Try server-side DB lookup for meta tags ──
 if (!empty($cleanId)) {
     try {
-        $configFile = __DIR__ . '/../api/config.php';
+        $configFile = __DIR__ . '/../../api/config.php';
         if (file_exists($configFile)) {
             require_once $configFile;
         }
 
-        $helpersFile = __DIR__ . '/../api/helpers.php';
+        $helpersFile = __DIR__ . '/../../api/helpers.php';
         if (file_exists($helpersFile)) {
             require_once $helpersFile;
         }
