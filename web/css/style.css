@@ -2069,16 +2069,37 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   z-index: 1; pointer-events: none;
 }
 
-/* Hero gradient — sharp blur-to-solid transition at button area */
+/* Blurred avatar layer — sits between sharp avatar and gradient.
+   Same avatar image but with heavy blur. Masked to only appear
+   in the lower portion, creating a smooth transition from the
+   sharp avatar (top) to the blurred avatar (bottom). */
+.pm-hero-blur-layer{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  pointer-events:none;z-index:1;
+  background-size:cover;background-position:center top;
+  filter:blur(40px) brightness(0.45) saturate(1.6);
+  -webkit-filter:blur(40px) brightness(0.45) saturate(1.6);
+  transform:scale(1.15); /* avoid blur edge bleed */
+  will-change:transform;
+  /* Only show in bottom half — fade in from top to bottom */
+  -webkit-mask-image:linear-gradient(180deg, transparent 0%, transparent 25%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.7) 55%, black 70%);
+  mask-image:linear-gradient(180deg, transparent 0%, transparent 25%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.7) 55%, black 70%);
+}
+
+/* Hero gradient — transitions from sharp avatar (transparent) to blurred avatar.
+   The gradient is semi-transparent at the bottom so the blurred layer shows through.
+   A subtle bg tint is added for text readability. */
 .pm-hero-gradient{
   position:absolute;bottom:0;left:0;right:0;
   height:70%;
   background:linear-gradient(180deg,
     transparent 0%,
-    rgba(var(--bg-rgb),0.15) 25%,
-    rgba(var(--bg-rgb),0.55) 45%,
-    rgba(var(--bg-rgb),0.92) 65%,
-    var(--bg) 85%);
+    rgba(var(--bg-rgb),0.10) 20%,
+    rgba(var(--bg-rgb),0.40) 40%,
+    rgba(var(--bg-rgb),0.65) 55%,
+    rgba(var(--bg-rgb),0.78) 70%,
+    rgba(var(--bg-rgb),0.88) 85%,
+    var(--bg) 100%);
   z-index:2;pointer-events:none;
 }
 
@@ -5020,6 +5041,10 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
 .no-blur .blur-bg-img{
   filter:brightness(0.5) saturate(1.3);
   -webkit-filter:brightness(0.5) saturate(1.3);
+}
+.no-blur .pm-hero-blur-layer{
+  filter:brightness(0.4) saturate(1.2);
+  -webkit-filter:brightness(0.4) saturate(1.2);
 }
 .no-blur .sb-profile-panel{
   background:rgba(var(--bg-rgb),.96);

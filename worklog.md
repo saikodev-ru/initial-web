@@ -176,3 +176,17 @@ Stage Summary:
 - Sound button already connected to mute API
 - Avatar height increased ~16% (52vh→60vh desktop, 50vh→58vh mobile)
 - Mobile blur disabled for both profile panel and settings panel (unified logic)
+
+---
+Task ID: 4
+Agent: main
+Task: Mobile keyboard scroll + profile hero gradient to blurred avatar
+
+Work Log:
+- **Task 1 — Mobile keyboard scroll**: Rewrote `initMobileLayout()` in app.js to scroll the messages container by the EXACT keyboard height delta, instead of just scrolling to bottom when at bottom. New logic: when `visualViewport.resize` fires and viewport shrinks by >60px, store `kbdHeight=delta` and do `msgs.scrollTop+=kbdHeight`. Also handles keyboard height changes (suggestion bars) by tracking `heightChange=delta-kbdHeight` and scrolling by that exact amount. Works for both message input and chat search input focus.
+- **Task 2 — pm-hero-gradient to blurred avatar**: Added new `.pm-hero-blur-layer` div in index.html between `.pm-hero-bg` and `.pm-hero-gradient`. This layer has the same avatar image but with `filter:blur(40px) brightness(0.45) saturate(1.6)` and `mask-image` to only appear in the bottom half (fading in from 25% to 70%). The `.pm-hero-gradient` was adjusted to transition more gradually (7 stops instead of 5) and reaches `var(--bg)` only at 100% (was 85%). Updated `applyBlurredAvatarBg()` in utils.js to also set `backgroundImage` on `#pm-hero-blur-layer`. Added `.no-blur` fallback CSS for the new layer.
+
+Stage Summary:
+- 4 files changed: style.css, index.html, app.js, utils.js
+- Mobile keyboard now scrolls by exact keyboard height (not just snap-to-bottom)
+- Profile hero gradient now transitions from sharp avatar → blurred avatar instead of solid bg

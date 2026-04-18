@@ -1168,9 +1168,11 @@ if (window._swSupported) {
     <div class="pm-scroll" id="pm-scroll">
       <!-- ══ HERO SECTION — full-screen square avatar ══ -->
       <div class="pm-hero" id="pm-hero">
-        <!-- Full-screen avatar background -->
+        <!-- Full-screen avatar background (sharp, dimmed) -->
         <div class="pm-hero-bg" id="pm-hero-bg"></div>
-        <!-- Gradient blur transition at bottom where buttons overlay -->
+        <!-- Blurred avatar layer — revealed by gradient fade at bottom -->
+        <div class="pm-hero-blur-layer" id="pm-hero-blur-layer"></div>
+        <!-- Gradient: transitions from transparent (sharp avatar) → semi-transparent (blurred avatar visible) -->
         <div class="pm-hero-gradient"></div>
 
         <!-- Top-left control: Back (mobile) / Close (desktop) -->

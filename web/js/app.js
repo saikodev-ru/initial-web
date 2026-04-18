@@ -32,45 +32,56 @@ document.documentElement.style.setProperty('--full-vh', _fullVh + 'px');
   });
 })();
 
-/* ── Mobile keyboard: Telegram-style scroll on keyboard open ──
-   When user is at bottom → scroll down by exact keyboard height.
-   When user is scrolled up → do nothing (content clips from bottom).
-   Like Telegram 1:1 behavior. */
+/* ── Mobile keyboard: scroll by exact keyboard height ──
+   When keyboard opens → scroll the messages container up by the
+   exact delta so the content stays in place visually and the input
+   field is revealed. Works for message input and search input.
+   Uses visualViewport.resize to detect keyboard height precisely. */
 (function initMobileLayout(){
   if(!window.visualViewport)return;
   var vv=window.visualViewport;
   var prevH=vv.height;
   var kbdOpen=false;
+  var kbdHeight=0;          // current keyboard height
   var rafId=0;
+  var scrollContainer=null;  // cached reference
 
-  function isAtBottom(msgs){
-    return msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<60;
+  function getScrollContainer(){
+    if(!scrollContainer) scrollContainer=document.getElementById('msgs');
+    return scrollContainer;
   }
 
   function sync(){
     var curH=vv.height;
     var delta=prevH-curH;
 
-    if(delta>80&&!kbdOpen){
+    if(delta>60&&!kbdOpen){
+      // Keyboard just opened
       kbdOpen=true;
-      cancelAnimationFrame(rafId);
-      var wasAtBottom=isAtBottom(document.getElementById('msgs'));
-      if(wasAtBottom){
-        rafId=requestAnimationFrame(function(){
-          var msgs=document.getElementById('msgs');
-          if(msgs) msgs.scrollTop=msgs.scrollHeight;
-        });
-      }
-    }else if(kbdOpen&&Math.abs(delta)>2){
+      kbdHeight=delta;
       cancelAnimationFrame(rafId);
       rafId=requestAnimationFrame(function(){
-        var msgs=document.getElementById('msgs');
-        if(!msgs)return;
-        if(isAtBottom(msgs)) msgs.scrollTop=msgs.scrollHeight;
+        var msgs=getScrollContainer();
+        if(msgs) msgs.scrollTop+=kbdHeight;
       });
+    }else if(kbdOpen&&Math.abs(delta)>2){
+      // Keyboard height changed while open (e.g. suggestion bar appeared/disappeared)
+      var heightChange=delta-kbdHeight; // positive = keyboard grew
+      if(Math.abs(heightChange)>4){
+        kbdHeight=delta;
+        cancelAnimationFrame(rafId);
+        rafId=requestAnimationFrame(function(){
+          var msgs=getScrollContainer();
+          if(msgs) msgs.scrollTop+=heightChange;
+        });
+      }
     }
 
-    if(kbdOpen&&delta<-60) kbdOpen=false;
+    if(kbdOpen&&delta<-60){
+      // Keyboard closed
+      kbdOpen=false;
+      kbdHeight=0;
+    }
     prevH=curH;
   }
   vv.addEventListener('resize',sync);

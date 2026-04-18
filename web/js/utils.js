@@ -290,9 +290,18 @@ function applyBlurredAvatarBg(containerId, name, url) {
     const ov = document.createElement('div');
     ov.className = 'blur-bg-ov';
     bg.innerHTML = ''; bg.appendChild(imgDiv); bg.appendChild(ov);
+
+    // Also set the blurred avatar layer (for profile hero gradient transition)
+    const blurLayer = document.getElementById('pm-hero-blur-layer');
+    if (blurLayer) {
+      blurLayer.style.backgroundImage = `url("${fullUrl}")`;
+    }
     return;
   }
   bg.innerHTML = '';
+  // Clear blurred layer too
+  const blurLayer = document.getElementById('pm-hero-blur-layer');
+  if (blurLayer) blurLayer.style.backgroundImage = '';
 }
 
 /* ══ GIF AVATAR SYNC ═══════════════════════════════════════════════
