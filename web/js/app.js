@@ -1230,6 +1230,9 @@ function openProfile() {
   $('sb-profile-panel').classList.add('open');
   _showPanelBackdrop();
 
+  // On mobile: disable chat bg blur while settings panel is open
+  if(typeof _setMobilePanelBlur === 'function') _setMobilePanelBlur(true);
+
   // On mobile: push history state so system back gesture works
   if (__isMobileView()) {
     history.pushState({ settingsPanel: true }, '');
@@ -1426,6 +1429,8 @@ $('btn-link-device').onclick = () => openLinkDeviceModal();
 function closeProfile() {
   $('sb-profile-panel').classList.remove('open');
   _hidePanelBackdrop();
+  // Restore chat bg blur when settings panel closes
+  if(typeof _setMobilePanelBlur === 'function') _setMobilePanelBlur(false);
   // On mobile: go back in history to remove our pushed state (without triggering popstate handler)
   if (__isMobileView() && history.state?.settingsPanel) {
     _closingProfile = true;

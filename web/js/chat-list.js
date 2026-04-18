@@ -817,6 +817,7 @@ function openProfileModal(u, isSelf=false){
   const btnMute   = $('pm-btn-mute');
   const btnCall   = $('pm-btn-call');
   const btnVideo  = $('pm-btn-video');
+  const btnMore   = $('pm-btn-more');
   const dangerRow = $('pm-danger-actions');
 
   if(isSelf){
@@ -824,6 +825,7 @@ function openProfileModal(u, isSelf=false){
     if(btnMute)   btnMute.style.display   = 'none';
     if(btnCall)   btnCall.style.display   = 'none';
     if(btnVideo)  btnVideo.style.display  = 'none';
+    if(btnMore)   btnMore.style.display   = 'none';
     if(dangerRow) dangerRow.style.display = 'none';
     if(actsRow)   actsRow.style.display   = 'none';
   } else {
@@ -909,6 +911,17 @@ function openProfileModal(u, isSelf=false){
       }
     }
 
+    // "More" button — opens context menu with additional actions
+    if(btnMore){
+      btnMore.style.display = 'flex';
+      btnMore.onclick = (e) => {
+        _closeProfileModal();
+        if(typeof showChatCtx === 'function' && S.partner){
+          showChatCtx(e, S.partner);
+        }
+      };
+    }
+
     // Block / Report (with partner name in label)
     const partnerName = u.partner_name||('@'+u.partner_signal_id);
     if(dangerRow){
@@ -926,9 +939,36 @@ function openProfileModal(u, isSelf=false){
 
   openMod('modal-partner');
 
+  // On mobile: disable chat bg blur while profile panel is open
+  _setMobilePanelBlur(true);
+
   // On mobile: push history state so system back gesture closes the profile
   if(__isMobileView()){
     history.pushState({profileModal:true},'');
+  }
+}
+
+// Unified mobile panel blur control: disables chat bg blur when panels are open
+let _mobilePanelBlurCount = 0;
+function _setMobilePanelBlur(panelOpen) {
+  if (!__isMobileView()) return;
+  if (panelOpen) {
+    _mobilePanelBlurCount++;
+  } else {
+    _mobilePanelBlurCount = Math.max(0, _mobilePanelBlurCount - 1);
+  }
+  const bg = document.getElementById('chat-bg-custom');
+  if (!bg) return;
+  if (_mobilePanelBlurCount > 0) {
+    bg.dataset.savedBlur = bg.className;
+    bg.classList.remove('blurred', 'blurred-med', 'blurred-strong');
+  } else {
+    // Restore saved blur classes
+    const saved = bg.dataset.savedBlur;
+    if (saved) {
+      bg.className = saved;
+      delete bg.dataset.savedBlur;
+    }
   }
 }
 
@@ -937,6 +977,8 @@ let _closingProfileModal = false; // prevent popstate loop
 let _profileModalJustClosed = false; // prevent main popstate from navigating away after modal close
 function _closeProfileModal(){
   closeMod('modal-partner');
+  // Restore chat bg blur when profile panel closes
+  _setMobilePanelBlur(false);
   // On mobile: go back in history to remove our pushed state (skip if already handling popstate)
   if(__isMobileView() && !_closingProfileModal){
     _closingProfileModal = true;

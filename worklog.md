@@ -157,3 +157,22 @@ Stage Summary:
 - 15 PHP endpoint files created
 - SQL migration ready for server deployment
 - Channel system: create, join, leave, send messages, search, settings, member management, invite links, pin messages
+
+---
+Task ID: 1
+Agent: main
+Task: 4 UI improvements for Telegram-like PWA chat app
+
+Work Log:
+- **Task 1 — Add "ещё" (more) button**: Added three-dots button (`#pm-btn-more`) as the rightmost action button in the profile view panel (index.html). Added JS handler in chat-list.js that closes the profile modal and opens the chat context menu (`showChatCtx`). Hidden for self-profile (same as other action buttons). Added CSS for icon sizing.
+- **Task 2 — Connect "звук" button to mute logic**: Verified existing implementation — the sound button (`#pm-btn-mute`) already calls `api('mute_chat','POST',{chat_id})`, toggles icon/label between muted/unmuted states, and refreshes the profile modal after toggle. No changes needed.
+- **Task 3 — Increase avatar height by 16%**: Changed `.pm-hero` min-height from 52vh → 60vh (desktop) and 50vh → 58vh (mobile). Since the avatar is a `background-size:cover` image filling the hero, increasing the container height naturally crops more from the width while showing more height — exactly the requested 16% increase.
+- **Task 4 — Disable blur for background on mobile**: Added `_setMobilePanelBlur()` function in chat-list.js that removes blur classes from `.chat-bg-custom` when any panel is open on mobile, and restores them on close. Uses reference counting for safety with multiple overlapping panels. Called from both `openProfileModal`/`_closeProfileModal` (profile panel) and `openProfile`/`closeProfile` (settings panel). Also disabled `backdrop-filter` on `.sb-profile-panel` and `.panel-backdrop` in mobile CSS.
+
+Stage Summary:
+- 4 files changed: index.html, style.css, chat-list.js, app.js
+- All JS syntax checks pass
+- "More" button opens context menu with chat actions
+- Sound button already connected to mute API
+- Avatar height increased ~16% (52vh→60vh desktop, 50vh→58vh mobile)
+- Mobile blur disabled for both profile panel and settings panel (unified logic)
