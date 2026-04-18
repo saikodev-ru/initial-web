@@ -190,3 +190,32 @@ Stage Summary:
 - 4 files changed: style.css, index.html, app.js, utils.js
 - Mobile keyboard now scrolls by exact keyboard height (not just snap-to-bottom)
 - Profile hero gradient now transitions from sharp avatar → blurred avatar instead of solid bg
+---
+Task ID: 5
+Agent: main
+Task: Add public profile page (initial.su/@username) + make action buttons ignore blur-disable
+
+Work Log:
+- Created `api/user/resolve_profile.php` — public API endpoint (no auth) that resolves signal_id to user profile data (nickname, avatar, bio, verified status). Uses `build_media_response()` for signed avatar URLs. Rate limited at 30 req/60s.
+- Added `resolve_profile` route mapping in `api/index.php`
+- Created `web/profile.php` — Telegram Web-style standalone profile page with:
+  - SSR: Server-side DB lookup for proper meta tags (og:title, og:image, og:description, Twitter cards)
+  - CSR fallback: Client-side API fetch when SSR fails (user not found)
+  - Blurred avatar background (filter:blur(40px) brightness(0.4))
+  - Large avatar with border + shadow
+  - Name + verified badge
+  - @signal_id display
+  - Bio text
+  - Two action buttons: "Открыть в Web" (links to /) and "В приложении" (deep link initial://@username)
+  - QR code section using QRCodeStyling library
+  - Not-found state with "user not found" message
+  - Loading skeleton animation
+  - Proper Open Graph / Twitter Card meta for social sharing
+- Updated `web/.htaccess` with mod_rewrite rule: `@username` → `profile.php?u=username`
+- Removed `.no-blur .pm-act-circle` CSS rule — action buttons now always keep their frosted glass effect (backdrop-filter:blur) regardless of the "Disable blur" setting
+
+Stage Summary:
+- New files: api/user/resolve_profile.php, web/profile.php
+- Modified: api/index.php (route), web/.htaccess (rewrite rule), web/css/style.css (no-blur exception)
+- Profile page URL pattern: initial.su/@username → full Telegram-style profile with avatar, name, bio, QR, action buttons
+- Action buttons in profile panel always retain blur effect (ignores no-blur toggle)

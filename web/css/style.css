@@ -5078,10 +5078,7 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:rgba(0,0,0,.5);
 }
-.no-blur .pm-act-circle{
-  backdrop-filter:none;-webkit-backdrop-filter:none;
-  background:var(--solid1);
-}
+/* pm-act-circle intentionally ignores no-blur — always keeps frosted glass effect */
 .no-blur .pm-danger-group{
   backdrop-filter:none;-webkit-backdrop-filter:none;
   background:var(--solid1);

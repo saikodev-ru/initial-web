@@ -17,8 +17,14 @@
     AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
 </IfModule>
 
-# ── Pretty URLs (PHP on Apache) ─────────────────────────────────
+# ── Pretty URLs ─────────────────────────────────────────────────
 <IfModule mod_rewrite.c>
     RewriteEngine On
     Options -Indexes
+
+    # ── Profile URLs: @username → profile.php?u=username ──────
+    # Matches: initial.su/@username
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^@([a-zA-Z0-9_]+)/?$ profile.php?u=$1 [QSA,L]
 </IfModule>

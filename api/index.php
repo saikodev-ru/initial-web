@@ -41,6 +41,7 @@ $routes = [
     'update_profile'      => 'user/update_profile.php',
     'upload_avatar'       => 'user/upload_avatar.php',
     'search_user'         => 'user/search_user.php',
+    'resolve_profile'     => 'user/resolve_profile.php',
 
     // ── Личные сообщения ────────────────────────────────────────
     'send_message'        => 'messages/send_message.php',
