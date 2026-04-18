@@ -2050,14 +2050,14 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pm-hero-bg{
   position:absolute;top:0;left:0;right:0;bottom:0;
   pointer-events:none;z-index:0;
-  background:linear-gradient(135deg, rgba(var(--bg-rgb),0.3) 0%, var(--bg) 100%);
+  background:transparent;
 }
 
 .blur-bg-img {
   position: absolute; inset: 0;
   background-size: cover; background-position: center top;
-  filter: blur(0px) brightness(0.55) saturate(1.4);
-  -webkit-filter: blur(0px) brightness(0.55) saturate(1.4);
+  filter: blur(0px) saturate(1.2);
+  -webkit-filter: blur(0px) saturate(1.2);
   transform: translateZ(0);
   will-change: transform;
   z-index: 0; pointer-events: none;
@@ -2074,31 +2074,30 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
    in the lower portion, creating a smooth transition from the
    sharp avatar (top) to the blurred avatar (bottom). */
 .pm-hero-blur-layer{
-  position:absolute;top:0;left:0;right:0;bottom:0;
+  position:absolute;
+  top:-40px;left:-40px;right:-40px;bottom:-40px;
   pointer-events:none;z-index:1;
   background-size:cover;background-position:center top;
-  filter:blur(40px) brightness(0.45) saturate(1.6);
-  -webkit-filter:blur(40px) brightness(0.45) saturate(1.6);
-  transform:scale(1.15); /* avoid blur edge bleed */
+  filter:blur(50px) saturate(1.4);
+  -webkit-filter:blur(50px) saturate(1.4);
   will-change:transform;
   /* Only show in bottom half — fade in from top to bottom */
-  -webkit-mask-image:linear-gradient(180deg, transparent 0%, transparent 25%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.7) 55%, black 70%);
-  mask-image:linear-gradient(180deg, transparent 0%, transparent 25%, rgba(0,0,0,0.3) 40%, rgba(0,0,0,0.7) 55%, black 70%);
+  -webkit-mask-image:linear-gradient(180deg, transparent 0%, transparent 20%, rgba(0,0,0,0.4) 38%, rgba(0,0,0,0.8) 52%, black 65%);
+  mask-image:linear-gradient(180deg, transparent 0%, transparent 20%, rgba(0,0,0,0.4) 38%, rgba(0,0,0,0.8) 52%, black 65%);
 }
 
-/* Hero gradient — transitions from sharp avatar (transparent) to blurred avatar.
-   The gradient is semi-transparent at the bottom so the blurred layer shows through.
-   A subtle bg tint is added for text readability. */
+/* Hero gradient — fades from transparent (sharp avatar visible) to
+   solid bg at the very bottom for text readability. The blurred
+   avatar layer shows through the semi-transparent mid section. */
 .pm-hero-gradient{
   position:absolute;bottom:0;left:0;right:0;
-  height:70%;
+  height:75%;
   background:linear-gradient(180deg,
     transparent 0%,
-    rgba(var(--bg-rgb),0.10) 20%,
-    rgba(var(--bg-rgb),0.40) 40%,
-    rgba(var(--bg-rgb),0.65) 55%,
-    rgba(var(--bg-rgb),0.78) 70%,
-    rgba(var(--bg-rgb),0.88) 85%,
+    transparent 30%,
+    rgba(var(--bg-rgb),0.30) 50%,
+    rgba(var(--bg-rgb),0.60) 68%,
+    rgba(var(--bg-rgb),0.85) 82%,
     var(--bg) 100%);
   z-index:2;pointer-events:none;
 }
@@ -2347,6 +2346,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
 .pm-body-zone{
   position:relative;z-index:2;display:flex;flex-direction:column;
   padding:0 24px 24px;
+  margin-top:6px;
 }
 
 /* ── Danger buttons (block/report) ── */
@@ -2411,7 +2411,7 @@ body[data-theme="light"] .pm-act-lbl{color:var(--t1)}
   .pm-act-circle{width:46px;height:46px}
   .pm-act-lbl{font-size:11px}
   .pm-act-ic svg{width:22px;height:22px}
-  .pm-body-zone{padding:0 16px 24px}
+  .pm-body-zone{padding:0 16px 24px;margin-top:4px}
 }
 
 /* ── Media section in profile panel ── */
@@ -5039,12 +5039,12 @@ body[data-theme="amoled"] .send-btn svg{color:#fff}
   background:rgba(255,255,255,.85);
 }
 .no-blur .blur-bg-img{
-  filter:brightness(0.5) saturate(1.3);
-  -webkit-filter:brightness(0.5) saturate(1.3);
+  filter:saturate(1.1);
+  -webkit-filter:saturate(1.1);
 }
 .no-blur .pm-hero-blur-layer{
-  filter:brightness(0.4) saturate(1.2);
-  -webkit-filter:brightness(0.4) saturate(1.2);
+  filter:blur(50px) saturate(1.2);
+  -webkit-filter:blur(50px) saturate(1.2);
 }
 .no-blur .sb-profile-panel{
   background:rgba(var(--bg-rgb),.96);
