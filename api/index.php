@@ -73,6 +73,11 @@ $routes = [
     'mute_channel'           => 'channels/mute_channel.php',
     'pin_channel_message'    => 'channels/pin_channel_message.php',
     'upload_channel_avatar'  => 'channels/upload_channel_avatar.php',
+    'react_channel_message'    => 'channels/react_channel_message.php',
+    'get_pinned_channel_message'=> 'channels/get_pinned_channel_message.php',
+    'get_channel_comments'     => 'channels/get_channel_comments.php',
+    'send_channel_comment'     => 'channels/send_channel_comment.php',
+    'delete_channel_comment'   => 'channels/delete_channel_comment.php',
 
     // ── Закреплённые сообщения ──────────────────────────────────
     'pin_message'          => 'pins/pin_message.php',

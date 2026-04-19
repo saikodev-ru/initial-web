@@ -39,6 +39,15 @@ $memStmt = $db->prepare('SELECT role FROM channel_members WHERE channel_id = ? A
 $memStmt->execute([$cid, $uid]);
 $member = $memStmt->fetch();
 
+// Read muted status from DB
+$muted = false;
+if ($member) {
+    $mutedStmt = $db->prepare('SELECT muted FROM channel_members WHERE channel_id = ? AND user_id = ? LIMIT 1');
+    $mutedStmt->execute([$cid, $uid]);
+    $mutedRow = $mutedStmt->fetch();
+    $muted = $mutedRow ? (bool) $mutedRow['muted'] : false;
+}
+
 // If not member but public channel, allow viewing
 $memberRole = $member ? $member['role'] : null;
 if (!$member && $channel['type'] === 'private') {
@@ -61,7 +70,8 @@ $response = [
     'owner_id'           => (int) $channel['owner_id'],
     'who_can_post'       => $channel['who_can_post'] ?? 'admins',
     'slow_mode_seconds'  => (int) ($channel['slow_mode_seconds'] ?? 0),
-    'muted'              => false,
+    'muted'              => $muted,
+    'is_member'          => (bool) $member,
 ];
 
 // Show invite_link only to admin/owner

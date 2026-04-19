@@ -9,6 +9,10 @@ S.channelLastId = {};
 S.channelSSE = null;
 S._channelSSEActive = false;
 S.channelMuted = {}; // { channelId: true }
+S.chRxns = {};          // { messageId: [{emoji, count, by_me, created_at}] }
+S.chReplyTo = null;     // { id, sender_name, body } — reply state for channels
+S.chPinnedMsg = null;   // { message_id, sender_name, body, media_url, media_type, sent_at }
+S.chCommentsMsgId = null; // currently open comments panel message_id
 
 /* ══ CACHE ════════════════════════════════════════════════════ */
 const CACHE_CH_PFX = 'sg_ch_';
@@ -226,8 +230,8 @@ function _showCtxMenu(e, items) {
       return;
     }
     const d = document.createElement('div');
-    d.className = 'ctx-it' + (it.danger ? ' danger' : '');
-    d.innerHTML = '<span>' + it.label + '</span>';
+    d.className = 'ctx-it' + (it.danger ? ' danger' : '') + (it.rxn ? ' rxn-ctx' : '');
+    d.innerHTML = it.rxn ? '<span style="font-size:20px;line-height:1">' + it.label + '</span>' : '<span>' + it.label + '</span>';
     d.onclick = () => { _closeCtxMenu(); it.action(); };
     menu.appendChild(d);
   });
@@ -257,6 +261,7 @@ function openChannel(ch) {
   S.chatId = null; // Not a regular chat
   S.partner = null;
   hideRbar(true);
+  _closeCommentsPanel();
   exitSelectMode();
   if (window._hidePill) window._hidePill();
   if (window._closeChatSearch) window._closeChatSearch();
@@ -322,6 +327,7 @@ function openChannel(ch) {
 
   // Reset pin bar
   if (typeof resetPinBarForChatSwitch === 'function') resetPinBarForChatSwitch();
+  _loadChannelPin(chId);
 
   // Start SSE for channel
   startChannelSSE(chId);
@@ -336,6 +342,14 @@ function closeChannel() {
   if (!S.activeChannel) return;
   stopChannelSSE();
   S.activeChannel = null;
+  S.chReplyTo = null;
+  S.chPinnedMsg = null;
+  S.chCommentsMsgId = null;
+  S._chCmtReplyTo = null;
+  _closeCommentsPanel();
+  const chPinBar = $('ch-pin-bar');
+  if (chPinBar) chPinBar.remove();
+  hideRbar(true);
 
   // Restore UI
   $('active-chat').style.display = 'none';
@@ -518,6 +532,8 @@ async function fetchChannelMsgs(chId, init) {
       return m;
     });
     S.channelMsgs[chId] = msgs;
+    // Store reactions
+    msgs.forEach(m => { if (m.reactions) S.chRxns[m.id] = m.reactions; });
     S.channelLastId[chId] = msgs.reduce((mx, m) => Math.max(mx, +m.id), 0);
     cacheWriteChannel(chId, msgs);
 
@@ -573,8 +589,11 @@ async function fetchChannelMsgs(chId, init) {
         if (S.activeChannel && chId === S.activeChannel.channel_id) {
           appendChannelMsg(chId, m);
         }
-      } else if (existing.body !== m.body || existing.is_edited !== m.is_edited) {
+      } else if (existing.body !== m.body || existing.is_edited !== m.is_edited ||
+                 existing.views !== m.views || existing.comments_count !== m.comments_count ||
+                 JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions)) {
         Object.assign(existing, m);
+        if (m.reactions) S.chRxns[m.id] = m.reactions;
         _patchChannelMsgDom(m);
       }
     });
@@ -851,6 +870,25 @@ function _makeChannelMsgEl(m) {
 
   body.appendChild(bottom);
   bub.appendChild(body);
+
+  // Reactions
+  const rxns = S.chRxns[m.id] || m.reactions || [];
+  if (rxns.length && !sending) {
+    _renderChannelRxns(body, bub, m, rxns, isMe);
+  }
+
+  // Comment button (bottom-right of bubble)
+  if (!sending) {
+    const cmtBtn = document.createElement('button');
+    cmtBtn.className = 'ch-cmt-btn';
+    cmtBtn.title = 'Комментарии';
+    const cmtCount = m.comments_count || 0;
+    cmtBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+      (cmtCount > 0 ? '<span class="ch-cmt-count">' + cmtCount + '</span>' : '');
+    cmtBtn.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
+    bub.appendChild(cmtBtn);
+  }
+
   row.appendChild(bub);
 
   // Forward button
@@ -867,12 +905,97 @@ function _makeChannelMsgEl(m) {
     _showChannelMsgCtx(e, m);
   };
   row.ondblclick = (e) => {
-    if (typeof onEmojiPick === 'function' && typeof emoImg === 'function' && !isTemp(m.id)) {
-      // Long press reaction picker — reuse existing emoji picker
+    if (!isTemp(m.id) && typeof emoImg === 'function') {
+      e.preventDefault();
+      _showChRxnPicker(e, m);
     }
   };
 
   return row;
+}
+
+function _renderChannelRxns(body, bub, m, rxns, isMe) {
+  const sorted = [...rxns].sort((a, b) => b.count - a.count);
+  const wrap = document.createElement('div');
+  wrap.className = 'rxn-wrap';
+  wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
+  const row = document.createElement('div');
+  row.className = 'rxns';
+  row.dataset.for = m.id;
+  
+  sorted.forEach(r => {
+    const chip = document.createElement('span');
+    chip.className = 'rxn' + (r.by_me ? ' mine' : '');
+    chip.dataset.emoji = r.emoji;
+    chip.innerHTML = '<span class="rxn-e">' + r.emoji + '</span><span class="rxn-n">' + r.count + '</span>';
+    chip.onclick = (e) => { e.stopPropagation(); _toggleChRxn(m, r.emoji, r.by_me); };
+    row.appendChild(chip);
+  });
+  wrap.appendChild(row);
+  bub.appendChild(wrap);
+}
+
+async function _toggleChRxn(m, emoji, byMe) {
+  if (isTemp(m.id)) { toast('Подождите — сообщение отправляется…', 'err'); return; }
+  const ch = S.activeChannel;
+  if (!ch) return;
+  
+  const method = byMe ? 'DELETE' : 'POST';
+  try {
+    const res = await api('react_channel_message', method, {
+      channel_id: ch.channel_id,
+      message_id: m.id,
+      emoji: emoji,
+    });
+    if (res.ok && res.reactions) {
+      S.chRxns[m.id] = res.reactions;
+      _patchChannelMsgDom(m);
+      // Update in memory
+      const chId = ch.channel_id;
+      const mem = (S.channelMsgs[chId] || []).find(x => x.id === m.id);
+      if (mem) mem.reactions = res.reactions;
+    }
+  } catch(e) { toast('Ошибка реакции', 'err'); }
+}
+
+function _showChRxnPicker(e, m) {
+  _closeCtxMenu();
+  const ch = S.activeChannel;
+  if (!ch) return;
+  
+  const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉'];
+  const menu = document.createElement('div');
+  menu.className = 'ctxmenu';
+  menu.id = 'ch-rxn-picker';
+  
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;gap:2px;padding:4px 6px';
+  quickEmojis.forEach(em => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'background:none;border:none;padding:6px;font-size:20px;cursor:pointer;border-radius:8px;transition:background .12s';
+    btn.textContent = em;
+    btn.onmouseenter = () => btn.style.background = 'var(--s2)';
+    btn.onmouseleave = () => btn.style.background = '';
+    btn.onclick = () => {
+      _closeCtxMenu();
+      const existing = (S.chRxns[m.id] || m.reactions || []).find(r => r.emoji === em);
+      _toggleChRxn(m, em, !!(existing && existing.by_me));
+    };
+    bar.appendChild(btn);
+  });
+  menu.appendChild(bar);
+  
+  document.body.appendChild(menu);
+  _chCtxEl = menu;
+  
+  // Position above cursor
+  const x = Math.min(Math.max(e.clientX - 150, 10), window.innerWidth - 310);
+  const y = Math.max(e.clientY - 60, 10);
+  menu.style.display = 'block';
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  requestAnimationFrame(() => menu.classList.add('on'));
+  setTimeout(() => document.addEventListener('click', () => _closeCtxMenu(), { once: true }), 10);
 }
 
 function _showChannelMsgCtx(e, m) {
@@ -882,14 +1005,31 @@ function _showChannelMsgCtx(e, m) {
   const isAdmin = _chIsAdmin(ch);
   const items = [];
 
-  items.push({ label: 'Ответить', icon: '↩️', action: () => toast('Ответ скоро будет доступен', 'info') });
+  // ── Reactions quick bar ──
+  if (!isTemp(m.id)) {
+    const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉'];
+    quickEmojis.forEach(em => {
+      const existing = (S.chRxns[m.id] || m.reactions || []).find(r => r.emoji === em);
+      items.push({
+        label: em,
+        icon: em,
+        rxn: true,
+        action: () => _toggleChRxn(m, em, !!(existing && existing.by_me))
+      });
+    });
+    items.push({ divider: true });
+  }
+
+  items.push({ label: 'Ответить', icon: '↩️', action: () => _setChannelReply(m) });
+  items.push({ label: 'Комментировать', icon: '💬', action: () => _openCommentsPanel(m) });
   items.push({ label: 'Переслать', icon: '↗️', action: () => toast('Пересылка скоро будет доступна', 'info') });
   items.push({ label: 'Копировать', icon: '📋', action: () => {
     if (m.body) { navigator.clipboard.writeText(m.body).then(() => toast('Скопировано', 'ok')); }
   }});
 
+  const isPinned = S.chPinnedMsg && S.chPinnedMsg.message_id == m.id;
   if (isAdmin && m.id && !isTemp(m.id)) {
-    items.push({ label: 'Закрепить', icon: '📌', action: () => _pinChannelMsg(ch.channel_id, m.id) });
+    items.push({ label: isPinned ? 'Открепить' : 'Закрепить', icon: '📌', action: isPinned ? () => _unpinChannelMsg(ch.channel_id) : () => _pinChannelMsg(ch.channel_id, m.id) });
   }
   if ((isAdmin || isMe) && !isTemp(m.id)) {
     items.push({ label: 'Редактировать', icon: '✏️', action: () => _editChannelMsg(m) });
@@ -900,8 +1040,69 @@ function _showChannelMsgCtx(e, m) {
 
 async function _pinChannelMsg(chId, msgId) {
   const res = await api('pin_channel_message', 'POST', { channel_id: chId, message_id: msgId });
-  if (res.ok) toast('Сообщение закреплено', 'ok');
+  if (res.ok) {
+    toast('Сообщение закреплено', 'ok');
+    _loadChannelPin(chId);
+  }
   else toast(res.message || 'Ошибка', 'err');
+}
+
+async function _unpinChannelMsg(chId) {
+  const res = await api('pin_channel_message', 'POST', { channel_id: chId, unpin: 1 });
+  if (res.ok) { toast('Сообщение откреплено', 'ok'); _loadChannelPin(chId); }
+  else toast(res.message || 'Ошибка', 'err');
+}
+
+async function _loadChannelPin(chId) {
+  try {
+    const res = await api('get_pinned_channel_message?channel_id=' + chId);
+    if (!res.ok || !res.pinned) {
+      S.chPinnedMsg = null;
+      _renderChannelPin();
+      return;
+    }
+    S.chPinnedMsg = res.pinned;
+    _renderChannelPin();
+  } catch(e) {}
+}
+
+function _renderChannelPin() {
+  // Remove existing pin bar
+  const existing = $('ch-pin-bar');
+  if (existing) existing.remove();
+  
+  const msg = S.chPinnedMsg;
+  const pinBar = $('pin-bar');
+  
+  if (!msg) {
+    // Hide DM pin bar
+    if (pinBar) pinBar.style.display = 'none';
+    return;
+  }
+  
+  // Hide DM pin bar, show our custom one
+  if (pinBar) pinBar.style.display = 'none';
+  
+  const ch = S.activeChannel;
+  const msgsEl = $('msgs');
+  if (!msgsEl || !ch) return;
+  
+  const bar = document.createElement('div');
+  bar.id = 'ch-pin-bar';
+  bar.className = 'pin-bar';
+  bar.style.cssText = 'display:flex;align-items:center;padding:6px 12px;background:var(--s1);border-bottom:1px solid var(--b);cursor:pointer;gap:8px';
+  bar.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;opacity:.5"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/></svg>' +
+    '<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+      '<span style="font-size:12px;font-weight:700;color:var(--t2)">' + esc(msg.sender_name || 'Канал') + '</span>' +
+      '<span style="font-size:12px;color:var(--t3);margin-left:6px">' + esc((msg.body || '').slice(0, 60)) + '</span>' +
+    '</div>';
+  bar.onclick = () => {
+    const t = document.querySelector('.mrow[data-id="' + msg.message_id + '"]');
+    if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'center' }); t.classList.add('msg-flash'); setTimeout(() => t.classList.remove('msg-flash'), 1000); }
+  };
+  
+  // Insert before msgs area
+  msgsEl.parentNode.insertBefore(bar, msgsEl);
 }
 
 async function _deleteChannelMsg(m) {
@@ -929,6 +1130,188 @@ async function _editChannelMsg(m) {
   toast('Редактирование... функционал в разработке', 'info');
 }
 
+function _setChannelReply(m) {
+  S.chReplyTo = { id: m.id, sender_name: m.sender_name || S.activeChannel?.name || 'Канал', body: m.body || '' };
+  const rbar = $('rbar');
+  if (!rbar) return;
+  const who = $('rbar-who');
+  const txt = $('rbar-txt');
+  const x = $('rbar-x');
+  if (who) who.textContent = S.chReplyTo.sender_name;
+  if (txt) txt.textContent = hideSpoilerText(S.chReplyTo.body).slice(0, 80);
+  rbar.classList.add('on');
+  if (x) x.onclick = () => _clearChannelReply();
+  // Focus input
+  const mfield = $('mfield');
+  if (mfield) mfield.focus();
+}
+function _clearChannelReply() {
+  S.chReplyTo = null;
+  const rbar = $('rbar');
+  if (rbar) rbar.classList.remove('on');
+}
+
+/* ══ COMMENTS PANEL ════════════════════════════════════════════ */
+function _openCommentsPanel(m) {
+  const ch = S.activeChannel;
+  if (!ch) return;
+  _closeCommentsPanel();
+  
+  S.chCommentsMsgId = m.id;
+  
+  const panel = document.createElement('div');
+  panel.className = 'ch-comments-panel';
+  panel.id = 'ch-comments-panel';
+  
+  panel.innerHTML = '<div class="ch-comments-hdr">' +
+    '<button class="ch-comments-back" id="ch-cmt-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>' +
+    '<span class="ch-comments-title">Комментарии</span>' +
+    '<span class="ch-comments-count" id="ch-cmt-total"></span>' +
+    '</div>' +
+    '<div class="ch-comments-list" id="ch-comments-list"></div>' +
+    '<div class="ch-comments-input">' +
+      '<div class="rbar" id="ch-cmt-rbar" style="display:none"><div class="rbar-info"><div class="rbar-who" id="ch-cmt-rbar-who"></div><div class="rbar-txt" id="ch-cmt-rbar-txt"></div></div><div class="rbar-x" id="ch-cmt-rbar-x"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div></div>' +
+      '<div contenteditable="true" class="ch-cmt-field" id="ch-cmt-field" placeholder="Написать комментарий..."></div>' +
+      '<button class="ch-cmt-send" id="ch-cmt-send"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>' +
+    '</div>';
+  
+  document.body.appendChild(panel);
+  requestAnimationFrame(() => panel.classList.add('on'));
+  
+  // Close button
+  $('ch-cmt-back').onclick = () => _closeCommentsPanel();
+  
+  // Send comment
+  $('ch-cmt-send').onclick = () => _sendComment();
+  $('ch-cmt-field').onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendComment(); }
+  };
+  
+  // Load comments
+  _loadComments(ch.channel_id, m.id);
+}
+
+function _closeCommentsPanel() {
+  S.chCommentsMsgId = null;
+  const panel = $('ch-comments-panel');
+  if (panel) panel.remove();
+}
+
+async function _loadComments(chId, msgId) {
+  const list = $('ch-comments-list');
+  if (!list) return;
+  list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Загрузка...</div>';
+  
+  try {
+    const res = await api('get_channel_comments?channel_id=' + chId + '&message_id=' + msgId + '&limit=100');
+    const total = $('ch-cmt-total');
+    if (total) total.textContent = res.total ? res.total + '' : '';
+    
+    if (!res.ok || !res.comments?.length) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Пока нет комментариев</div>';
+      return;
+    }
+    
+    list.innerHTML = '';
+    res.comments.forEach(c => {
+      const el = document.createElement('div');
+      el.className = 'ch-comment-item';
+      el.dataset.id = c.id;
+      const isMe = c.sender_id == S.user?.id;
+      
+      el.innerHTML = '<div class="ch-comment-avi">' + aviHtml(c.sender_name || '?', c.sender_avatar) + '</div>' +
+        '<div class="ch-comment-body">' +
+          '<div class="ch-comment-head"><span class="ch-comment-name">' + esc(c.sender_name || 'Анон') + '</span>' +
+            '<span class="ch-comment-time">' + fmtTime(c.sent_at) + '</span>' +
+            (c.is_edited ? '<span class="med" title="ред."></span>' : '') +
+          '</div>' +
+          '<div class="ch-comment-text">' + fmtText(c.body || '') + '</div>' +
+        '</div>';
+      
+      // Reply to comment
+      el.oncontextmenu = (e) => {
+        e.preventDefault();
+        const items = [
+          { label: 'Ответить', icon: '↩️', action: () => {
+            const rbar = $('ch-cmt-rbar');
+            if (rbar) {
+              const who = $('ch-cmt-rbar-who');
+              const txt = $('ch-cmt-rbar-txt');
+              if (who) who.textContent = c.sender_name || 'Анон';
+              if (txt) txt.textContent = (c.body || '').slice(0, 60);
+              rbar.style.display = 'flex';
+              S._chCmtReplyTo = c.id;
+              $('ch-cmt-rbar-x').onclick = () => { rbar.style.display = 'none'; S._chCmtReplyTo = null; };
+            }
+          }},
+          { label: 'Копировать', icon: '📋', action: () => {
+            if (c.body) navigator.clipboard.writeText(c.body).then(() => toast('Скопировано', 'ok'));
+          }},
+        ];
+        if (isMe) items.push({ label: 'Удалить', icon: '🗑', action: () => _deleteComment(c.id), danger: true });
+        _showCtxMenu(e, items);
+      };
+      
+      list.appendChild(el);
+    });
+    list.scrollTop = list.scrollHeight;
+  } catch(e) {
+    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Ошибка загрузки</div>';
+  }
+}
+
+async function _sendComment() {
+  const ch = S.activeChannel;
+  const msgId = S.chCommentsMsgId;
+  if (!ch || !msgId) return;
+  
+  const field = $('ch-cmt-field');
+  if (!field) return;
+  const body = field.innerText?.trim() || '';
+  if (!body) return;
+  field.innerHTML = '';
+  
+  try {
+    const payload = { channel_id: ch.channel_id, message_id: msgId, body: body };
+    if (S._chCmtReplyTo) { payload.reply_to = S._chCmtReplyTo; S._chCmtReplyTo = null; $('ch-cmt-rbar').style.display = 'none'; }
+    
+    const res = await api('send_channel_comment', 'POST', payload);
+    if (res.ok) {
+      _loadComments(ch.channel_id, msgId);
+      // Update comments_count on the message in the DOM
+      const msgRow = document.querySelector('.mrow[data-id="' + msgId + '"]');
+      if (msgRow) {
+        const countEl = msgRow.querySelector('.ch-cmt-count');
+        const current = parseInt(countEl?.textContent || '0', 10) + 1;
+        if (countEl) countEl.textContent = current;
+        else {
+          // Add count badge to the button if it didn't exist
+          const btn = msgRow.querySelector('.ch-cmt-btn');
+          if (btn) {
+            const badge = document.createElement('span');
+            badge.className = 'ch-cmt-count';
+            badge.textContent = '1';
+            btn.appendChild(badge);
+          }
+        }
+      }
+    } else toast(res.message || 'Ошибка', 'err');
+  } catch(e) { toast('Ошибка сети', 'err'); }
+}
+
+async function _deleteComment(commentId) {
+  if (!confirm('Удалить комментарий?')) return;
+  const ch = S.activeChannel;
+  const msgId = S.chCommentsMsgId;
+  try {
+    const res = await api('delete_channel_comment', 'POST', { comment_id: commentId });
+    if (res.ok) {
+      toast('Комментарий удалён', 'ok');
+      if (ch && msgId) _loadComments(ch.channel_id, msgId);
+    } else toast(res.message || 'Ошибка', 'err');
+  } catch(e) { toast('Ошибка', 'err'); }
+}
+
 /* ══ SEND CHANNEL TEXT ════════════════════════════════════════ */
 async function sendChannelText() {
   const ch = S.activeChannel;
@@ -942,6 +1325,8 @@ async function sendChannelText() {
   mfield.innerHTML = '';
 
   const chId = ch.channel_id;
+  const replyTo = S.chReplyTo ? S.chReplyTo.id : null;
+  S.chReplyTo ? _clearChannelReply() : null;
   const tid = 'tc' + Date.now();
   const tmpMsg = {
     id: tid, sender_id: S.user?.id, sender_name: S.user?.nickname || S.user?.signal_id || 'Вы',
@@ -953,7 +1338,9 @@ async function sendChannelText() {
   scrollBot();
 
   try {
-    const res = await api('send_channel_message', 'POST', { channel_id: chId, body: body });
+    const payload = { channel_id: chId, body: body };
+    if (replyTo) payload.reply_to = replyTo;
+    const res = await api('send_channel_message', 'POST', payload);
     if (res.ok) {
       // The API may return a full message object or just { message_id, sent_at }
       if (res.message && res.message.id) {
@@ -1096,8 +1483,11 @@ async function _chPoll(chId) {
             if (S.activeChannel && chId === S.activeChannel.channel_id) {
               appendChannelMsg(chId, m);
             }
-          } else if (existing.body !== m.body || existing.is_edited !== m.is_edited || existing.views !== m.views) {
+          } else if (existing.body !== m.body || existing.is_edited !== m.is_edited ||
+                     existing.views !== m.views || existing.comments_count !== m.comments_count ||
+                     JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions)) {
             Object.assign(existing, m);
+            if (m.reactions) S.chRxns[m.id] = m.reactions;
             _patchChannelMsgDom(m);
           }
         });
@@ -1519,6 +1909,43 @@ function openChannelProfile(ch) {
       // Re-open profile to refresh
       openChannelProfile(S.activeChannel || ch);
     };
+  }
+
+  // ── Join / Leave dynamic button ──
+  const actsRow2 = $('pm-actions-row');
+  if (actsRow2) {
+    // Remove any existing join/leave button
+    const existingJoinBtn = $('pm-btn-join');
+    if (existingJoinBtn) existingJoinBtn.remove();
+    
+    if (!ch.is_member && ch.type !== 'private') {
+      // Show "Join" button for non-members of public channels
+      const joinBtn = document.createElement('button');
+      joinBtn.id = 'pm-btn-join';
+      joinBtn.className = 'btn pm-act-btn';
+      joinBtn.style.cssText = 'display:flex;flex:1;justify-content:center;align-items:center;gap:6px;padding:10px;border-radius:14px;font-size:14px;font-weight:600';
+      joinBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> Вступить';
+      joinBtn.onclick = async () => {
+        joinBtn.disabled = true;
+        joinBtn.textContent = 'Вступление...';
+        const res = await api('join_channel', 'POST', { channel_id: ch.channel_id });
+        joinBtn.disabled = false;
+        if (res.ok) {
+          toast('Вы подписались!', 'ok');
+          await loadChannels();
+          // Re-fetch channel info to update profile
+          try {
+            const info = await api('get_channel_info?channel_id=' + ch.channel_id);
+            if (info.ok) {
+              const updatedCh = { ...ch, ...info, channel_id: ch.channel_id };
+              S.activeChannel = updatedCh;
+              openChannelProfile(updatedCh);
+            }
+          } catch(e) {}
+        } else toast(res.message || 'Ошибка', 'err');
+      };
+      actsRow2.appendChild(joinBtn);
+    }
   }
 
   // Block / Report → Leave / Delete for channels
