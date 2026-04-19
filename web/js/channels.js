@@ -230,24 +230,32 @@ function _showCtxMenu(e, items) {
   const menu = document.createElement('div');
   menu.className = 'ctxmenu';
   menu.id = 'ch-ctxmenu';
+  const its = document.createElement('div');
+  its.className = 'ctx-its';
   items.forEach((it, i) => {
     if (it.divider) {
       const sep = document.createElement('div');
-      sep.className = 'ctx-sep';
-      sep.style.cssText = 'height:1px;background:var(--b2);margin:4px 8px';
-      menu.appendChild(sep);
+      sep.className = 'ctx-hr';
+      its.appendChild(sep);
       return;
     }
     const d = document.createElement('div');
     d.className = 'ctx-it' + (it.danger ? ' danger' : '') + (it.rxn ? ' rxn-ctx' : '');
-    d.innerHTML = it.rxn ? '<span style="font-size:20px;line-height:1">' + it.label + '</span>' : '<span>' + it.label + '</span>';
+    if (it.rxn) {
+      d.innerHTML = '<span style="font-size:20px;line-height:1">' + it.label + '</span>';
+    } else if (it.svg) {
+      d.innerHTML = it.svg + '<span>' + it.label + '</span>';
+    } else {
+      d.innerHTML = '<span>' + (it.icon || '') + '</span><span>' + it.label + '</span>';
+    }
     d.onclick = () => { _closeCtxMenu(); it.action(); };
-    menu.appendChild(d);
+    its.appendChild(d);
   });
+  menu.appendChild(its);
   document.body.appendChild(menu);
   _chCtxEl = menu;
   // Position
-  const x = Math.min(e.clientX, window.innerWidth - 200);
+  const x = Math.min(e.clientX, window.innerWidth - 240);
   const y = Math.min(e.clientY, window.innerHeight - items.length * 40 - 20);
   menu.style.display = 'block';
   menu.style.left = x + 'px';
@@ -1023,8 +1031,10 @@ function _makeChannelMsgEl(m) {
     cmtBar.className = 'ch-cmt-bar';
     cmtBar.dataset.msgId = m.id;
     if (cmtCount > 0 && commenters.length > 0) {
+      // Only render avatar slots that actually have commenters (no empty placeholders)
       const aviWrap = document.createElement('div');
       aviWrap.className = 'ch-cmt-avis';
+      aviWrap.dataset.count = Math.min(commenters.length, 3);
       commenters.slice(0, 3).forEach((c, i) => {
         const avi = document.createElement('div');
         avi.className = 'ch-cmt-avi';
@@ -1040,29 +1050,19 @@ function _makeChannelMsgEl(m) {
         aviWrap.appendChild(avi);
       });
       cmtBar.appendChild(aviWrap);
-      const infoWrap = document.createElement('div');
-      infoWrap.className = 'ch-cmt-info';
-      const label = document.createElement('span');
-      label.className = 'ch-cmt-label';
-      label.textContent = cmtCount + ' ' + _pluralComment(cmtCount);
-      infoWrap.appendChild(label);
-      // Right arrow in accent color
-      const arrow = document.createElement('span');
-      arrow.className = 'ch-cmt-arrow';
-      arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
-      infoWrap.appendChild(arrow);
-      cmtBar.appendChild(infoWrap);
-    } else {
-      const label = document.createElement('span');
-      label.className = 'ch-cmt-label ch-cmt-placeholder';
-      label.textContent = 'оставить комментарий';
-      cmtBar.appendChild(label);
-      // Right arrow for placeholder too
-      const arrow = document.createElement('span');
-      arrow.className = 'ch-cmt-arrow';
-      arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
-      cmtBar.appendChild(arrow);
     }
+    const infoWrap = document.createElement('div');
+    infoWrap.className = 'ch-cmt-info';
+    const label = document.createElement('span');
+    label.className = 'ch-cmt-label' + (cmtCount > 0 ? '' : ' ch-cmt-placeholder');
+    label.textContent = cmtCount > 0 ? (cmtCount + ' ' + _pluralComment(cmtCount)) : 'оставить комментарий';
+    infoWrap.appendChild(label);
+    // Right arrow in accent color
+    const arrow = document.createElement('span');
+    arrow.className = 'ch-cmt-arrow';
+    arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
+    infoWrap.appendChild(arrow);
+    cmtBar.appendChild(infoWrap);
     cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
     body.appendChild(cmtBar);
   }
@@ -1103,10 +1103,20 @@ function _makeChannelMsgEl(m) {
   return row;
 }
 
-/* ── Channel meta builder (mirrors chat makeMeta, with channel extras) ── */
+/* ── Channel meta builder (mirrors chat makeMeta, with views count) ── */
 function _chMakeMeta(m, sending = false, cls = 'mmeta') {
   const meta = document.createElement('div');
   meta.className = cls;
+
+  // Views count (left of timestamp, like Telegram)
+  const viewCount = m.views ?? m.views_count ?? 0;
+  if (!sending && viewCount > 0) {
+    const views = document.createElement('span');
+    views.className = 'ch-meta-views';
+    views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(viewCount);
+    meta.appendChild(views);
+  }
+
   if (m.is_edited) {
     const ed = document.createElement('span');
     ed.className = 'med';
@@ -1253,20 +1263,43 @@ function _showChannelMsgCtx(e, m) {
     items.push({ divider: true });
   }
 
-  items.push({ label: 'Ответить', icon: '↩️', action: () => _setChannelReply(m) });
-  items.push({ label: 'Комментировать', icon: '💬', action: () => _openCommentsPanel(m) });
-  items.push({ label: 'Переслать', icon: '↗️', action: () => toast('Пересылка скоро будет доступна', 'info') });
-  items.push({ label: 'Копировать', icon: '📋', action: () => {
-    if (m.body) { navigator.clipboard.writeText(m.body).then(() => toast('Скопировано', 'ok')); }
-  }});
+  items.push({ label: 'Ответить', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>', action: () => _setChannelReply(m) });
+  items.push({ label: 'Комментировать', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>', action: () => _openCommentsPanel(m) });
 
+  // Pin (admin only)
   const isPinned = S.chPinnedMsg && S.chPinnedMsg.message_id == m.id;
   if (isAdmin && m.id && !isTemp(m.id)) {
-    items.push({ label: isPinned ? 'Открепить' : 'Закрепить', icon: '📌', action: isPinned ? () => _unpinChannelMsg(ch.channel_id) : () => _pinChannelMsg(ch.channel_id, m.id) });
+    items.push({
+      label: isPinned ? 'Открепить' : 'Закрепить',
+      svg: '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M16 12V4h1a1 1 0 000-2H7a1 1 0 000 2h1v8l-2 2v2h5v5h2v-5h5v-2l-2-2z"/></svg>',
+      action: isPinned ? () => _unpinChannelMsg(ch.channel_id) : () => _pinChannelMsg(ch.channel_id, m.id)
+    });
   }
+
+  // Copy
+  if (m.body) {
+    items.push({ label: 'Копировать', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>', action: () => {
+      navigator.clipboard.writeText(m.body).then(() => toast('Скопировано', 'ok'));
+    }});
+  }
+
+  // Select mode
+  if (!isTemp(m.id)) {
+    items.push({ label: 'Выбрать', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>', action: () => {
+      _closeCtxMenu();
+      const row = document.querySelector('.mrow[data-id="' + m.id + '"]');
+      if (row) row.click();
+    }});
+  }
+
+  // Edit (own or admin)
   if ((isAdmin || isMe) && !isTemp(m.id)) {
-    items.push({ label: 'Редактировать', icon: '✏️', action: () => _editChannelMsg(m) });
-    items.push({ label: 'Удалить', icon: '🗑', action: () => _deleteChannelMsg(m), danger: true });
+    items.push({ label: 'Изменить', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>', action: () => _editChannelMsg(m) });
+  }
+
+  // Delete (own or admin)
+  if ((isAdmin || isMe) && !isTemp(m.id)) {
+    items.push({ label: 'Удалить', svg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>', action: () => _deleteChannelMsg(m), danger: true });
   }
   _showCtxMenu(e, items);
 }
@@ -1422,15 +1455,26 @@ function _openCommentsPanel(m) {
     '</div>';
 
   panel.appendChild(fg);
-  document.body.appendChild(panel);
+  // Append to #active-chat instead of body so it fills only the chat area
+  const host = $('active-chat') || document.body;
+  host.appendChild(panel);
   requestAnimationFrame(() => panel.classList.add('on'));
 
   // Render the original post at top of scroll area
   const scrollArea = $('ch-comments-scroll');
   if (scrollArea) {
+    // Add "Начало обсуждения" date-pill above the post
+    const startPill = document.createElement('div');
+    startPill.className = 'date-pill';
+    startPill.innerHTML = '<span>Начало обсуждения</span>';
+    scrollArea.appendChild(startPill);
+
     const postEl = _makeChannelMsgEl(m);
     postEl.style.pointerEvents = 'none';
     postEl.querySelector('.ch-fwd-btn')?.remove();
+    // Remove comment footer (divider + avatars + count) from post inside comments panel
+    postEl.querySelector('.ch-cmt-divider')?.remove();
+    postEl.querySelector('.ch-cmt-bar')?.remove();
     const postWrap = document.createElement('div');
     postWrap.className = 'ch-comments-post';
     postWrap.appendChild(postEl);
@@ -1515,27 +1559,47 @@ async function _loadComments(chId, msgId) {
   const scroll = $('ch-comments-scroll');
   if (!scroll) return;
 
-  // Keep the post element, remove only comment items
-  scroll.querySelectorAll('.ch-comment-item').forEach(e => e.remove());
-  const loadingEl = document.createElement('div');
-  loadingEl.style.cssText = 'text-align:center;padding:30px;color:var(--t3)';
-  loadingEl.textContent = 'Загрузка...';
-  scroll.appendChild(loadingEl);
+  // Keep the post element, remove only comment items and date-pills
+  scroll.querySelectorAll('.ch-comment-item, .ch-comment-skel, .ch-cmt-date-sep').forEach(e => e.remove());
+
+  // Skeleton loading instead of text
+  for (let i = 0; i < 3; i++) {
+    const skel = document.createElement('div');
+    skel.className = 'ch-comment-skel';
+    skel.innerHTML =
+      '<div class="ch-comment-skel-avi"></div>' +
+      '<div class="ch-comment-skel-body">' +
+        '<div class="ch-comment-skel-line ch-comment-skel-name"></div>' +
+        '<div class="ch-comment-skel-line ch-comment-skel-text"></div>' +
+        '<div class="ch-comment-skel-line ch-comment-skel-text short"></div>' +
+      '</div>';
+    scroll.appendChild(skel);
+  }
 
   try {
     const res = await api('get_channel_comments?channel_id=' + chId + '&message_id=' + msgId + '&limit=100');
     const total = $('ch-cmt-total');
     if (total) total.textContent = res.total ? res.total + '' : '';
 
-    // Remove loading
-    loadingEl.remove();
+    // Remove skeletons
+    scroll.querySelectorAll('.ch-comment-skel').forEach(e => e.remove());
 
     if (!res.ok || !res.comments?.length) {
-      // Keep "no comments" text minimal or hide if there's a post
       return;
     }
 
+    let lastDate = null;
     res.comments.forEach(c => {
+      // Date-pill between comments when date changes
+      const d = fmtDate(c.sent_at);
+      if (d !== lastDate) {
+        const sep = document.createElement('div');
+        sep.className = 'date-pill ch-cmt-date-sep';
+        sep.innerHTML = '<span>' + d + '</span>';
+        scroll.appendChild(sep);
+        lastDate = d;
+      }
+
       const el = document.createElement('div');
       el.className = 'ch-comment-item' + (c.sender_id == S.user?.id ? ' is-me' : '');
       el.dataset.id = c.id;
@@ -1585,7 +1649,7 @@ async function _loadComments(chId, msgId) {
     });
     scroll.scrollTop = scroll.scrollHeight;
   } catch(e) {
-    loadingEl.remove();
+    scroll.querySelectorAll('.ch-comment-skel').forEach(e => e.remove());
   }
 }
 

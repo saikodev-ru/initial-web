@@ -3736,56 +3736,74 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .ch-cmt-btn{display:none}
 .ch-cmt-count{display:none}
 .ch-cmt-divider{height:1px;background:var(--b);margin:6px 0 0;opacity:.5}
-.ch-cmt-bar{display:flex;align-items:center;gap:8px;width:100%;padding:7px 0 2px;border:none;background:none;cursor:pointer;transition:opacity .12s;text-align:left;color:var(--t2);font-family:var(--font)}
+.ch-cmt-bar{display:flex;align-items:center;gap:8px;width:100%;padding:8px 4px 4px;border:none;background:none;cursor:pointer;transition:opacity .12s;text-align:left;color:var(--t2);font-family:var(--font)}
 .ch-cmt-bar:hover{opacity:.75}
 .ch-cmt-bar:active{opacity:.6}
-.ch-cmt-avis{position:relative;display:flex;flex-shrink:0;width:46px;height:22px}
-.ch-cmt-avi{width:22px;height:22px;border-radius:50%;overflow:hidden;position:absolute;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+.ch-cmt-avis{position:relative;display:flex;flex-shrink:0;height:24px}
+.ch-cmt-avi{width:24px;height:24px;border-radius:50%;overflow:hidden;position:absolute;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
 .ch-cmt-avi img{width:100%;height:100%;object-fit:cover;display:block}
 .ch-cmt-avi:nth-child(1){left:0;top:0;z-index:3}
-.ch-cmt-avi:nth-child(2){left:12px;top:0;z-index:2}
-.ch-cmt-avi:nth-child(3){left:24px;top:0;z-index:1}
-.ch-cmt-info{display:flex;align-items:center;gap:4px;flex:1;min-width:0}
-.ch-cmt-label{font-size:13.5px;color:var(--y);font-weight:600;line-height:1.2;white-space:nowrap}
-.ch-cmt-placeholder{font-style:italic;color:var(--t3);opacity:.7;font-weight:400}
-.ch-cmt-arrow{margin-left:auto;flex-shrink:0;color:var(--y);display:flex;align-items:center;opacity:.7}
+.ch-cmt-avi:nth-child(2){left:14px;top:0;z-index:2}
+.ch-cmt-avi:nth-child(3){left:28px;top:0;z-index:1}
+.ch-cmt-info{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+.ch-cmt-label{font-size:14px;color:var(--y);font-weight:600;line-height:1.2;white-space:nowrap}
+.ch-cmt-placeholder{font-style:italic;color:var(--t3);opacity:.7;font-weight:400;font-size:13px}
+.ch-cmt-arrow{flex-shrink:0;color:var(--y);display:flex;align-items:center;opacity:.6;margin-right:2px}
 .ch-cmt-bar:hover .ch-cmt-arrow{opacity:1}
 
-/* ── Channel comments panel (fullscreen) ── */
-.ch-comments-panel{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;height:100dvh;background:var(--bg);z-index:1001;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s ease;overflow:hidden}
+/* ── Channel comments panel (fills chat area, not fullscreen) ── */
+.ch-comments-panel{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;background:var(--bg);z-index:1001;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .25s ease;overflow:hidden}
 .ch-comments-panel.on{opacity:1;pointer-events:all}
 .ch-comments-overlay{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .ch-comments-overlay .blur-bg-img{position:absolute;inset:-20px;background-size:cover;background-position:center;transform:translateZ(0);will-change:transform;filter:blur(40px) saturate(1.4);opacity:.55}
 .ch-comments-overlay .blur-bg-ov{position:absolute;inset:0;background:var(--bg);opacity:.82}
 .ch-comments-fg{position:relative;z-index:1;display:flex;flex-direction:column;height:100%;overflow:hidden}
 .ch-comments-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--b);background:rgba(var(--bg-rgb),.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;z-index:2}
-.ch-comments-back{background:none;border:none;color:var(--accent);cursor:pointer;padding:4px;display:flex;align-items:center}
+.ch-comments-back{background:none;border:none;color:var(--y);cursor:pointer;padding:4px;display:flex;align-items:center}
 .ch-comments-title{font-size:16px;font-weight:700;color:var(--t1);flex:1}
 .ch-comments-count{font-size:13px;color:var(--t3)}
 .ch-comments-scroll{flex:1;overflow-y:auto;padding:12px 16px 20px;z-index:1}
-.ch-comments-post{margin-bottom:16px}
-.ch-comment-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--br);cursor:default}
+/* Desktop: center content and limit width */
+@container app (min-width:681px){
+  .ch-comments-scroll{display:flex;flex-direction:column;align-items:center}
+  .ch-comments-scroll .ch-comments-post,
+  .ch-comments-scroll .ch-cmt-date-sep,
+  .ch-comments-scroll .ch-comment-item{max-width:520px;width:100%}
+}
+.ch-comments-post{margin-bottom:16px;width:100%}
+.ch-comment-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--b);cursor:default;width:100%}
 .ch-comment-item:last-child{border-bottom:none}
 .ch-comment-avi{width:36px;height:36px;flex-shrink:0;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff}
 .ch-comment-avi img{width:100%;height:100%;object-fit:cover}
-.ch-comment-body{flex:1;min-width:0;max-width:85%}
+.ch-comment-body{flex:1;min-width:0}
 .ch-comment-head{display:flex;align-items:center;gap:8px;margin-bottom:3px}
-.ch-comment-name{font-size:13px;font-weight:700;color:var(--accent)}
+.ch-comment-name{font-size:13px;font-weight:700;color:var(--y)}
 .ch-comment-time{font-size:11px;color:var(--t3)}
 .ch-comment-text{font-size:14px;color:var(--t1);line-height:1.45;word-break:break-word}
 .ch-comment-bubble{background:var(--s1);border-radius:16px 16px 16px 4px;padding:8px 12px;display:inline-block;max-width:100%}
 .ch-comment-item.is-me .ch-comment-bubble{border-radius:16px 16px 4px 16px}
+/* Skeleton loading for comments */
+.ch-comment-skel{display:flex;gap:10px;padding:14px 0;width:100%}
+.ch-comment-skel-avi{width:36px;height:36px;border-radius:50%;background:var(--s2);flex-shrink:0;animation:skelPulse 1.5s ease-in-out infinite}
+.ch-comment-skel-body{flex:1;display:flex;flex-direction:column;gap:8px}
+.ch-comment-skel-line{height:12px;border-radius:6px;background:var(--s2);animation:skelPulse 1.5s ease-in-out infinite}
+.ch-comment-skel-line.ch-comment-skel-name{width:80px;height:14px}
+.ch-comment-skel-line.ch-comment-skel-text{width:100%}
+.ch-comment-skel-line.ch-comment-skel-text.short{width:65%;animation-delay:.15s}
+@keyframes skelPulse{0%,100%{opacity:.4}50%{opacity:.8}}
 .ch-comments-input{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;border-top:1px solid var(--b);background:rgba(var(--bg-rgb),.85);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;z-index:2}
-.ch-cmt-field{flex:1;min-height:36px;max-height:120px;overflow-y:auto;padding:8px 12px;border-radius:18px;border:1px solid var(--br);background:var(--bg1);color:var(--t1);font-size:14px;font-family:var(--font);line-height:1.4;outline:none;word-break:break-word}
+.ch-cmt-field{flex:1;min-height:36px;max-height:120px;overflow-y:auto;padding:8px 12px;border-radius:18px;border:1px solid var(--b2);background:var(--s1);color:var(--t1);font-size:14px;font-family:var(--font);line-height:1.4;outline:none;word-break:break-word}
 .ch-cmt-field:empty::before{content:attr(placeholder);color:var(--t3);pointer-events:none}
-.ch-cmt-send{width:38px;height:38px;border-radius:50%;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s}
+.ch-cmt-field:focus{border-color:var(--yb)}
+.ch-cmt-send{width:38px;height:38px;border-radius:50%;border:none;background:var(--y);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .15s}
 .ch-cmt-send:hover{opacity:.85}
 .ch-cmt-send:active{opacity:.7}
 .ch-reply-count{display:inline-flex;align-items:center;gap:3px;font-size:12px;color:var(--t3);cursor:pointer;transition:color .12s}
-.ch-reply-count:hover{color:var(--accent)}
+.ch-reply-count:hover{color:var(--y)}
 
 /* ── Channel pin bar (custom) ── */
 #ch-pin-bar{animation:slideDown .2s var(--ease)}
+.ch-meta-views{display:inline-flex;align-items:center;gap:3px;font-size:11px;color:var(--t3);margin-right:2px}
 
 /* ── Upload ring overlay (Telegram-style) ── */
 .media-upload-ov{
