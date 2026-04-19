@@ -706,8 +706,10 @@ function openProfileModal(u, isSelf=false){
   const avatar = isSelf ? u.avatar_url : u.partner_avatar;
   const bio = isSelf ? u.bio : u.partner_bio;
 
-  // Remove any channel extras
+  // Remove any channel extras (dynamic join/leave button, extra info rows)
   document.querySelectorAll('.ch-profile-extra').forEach(e => e.remove());
+  const joinBtn = $('pm-btn-join');
+  if (joinBtn) joinBtn.remove();
 
   // Reset media section header for user profile
   const mediaHeader = document.getElementById('pm-media-section')?.querySelector('.pm-media-header span');
@@ -854,6 +856,11 @@ function openProfileModal(u, isSelf=false){
 
     if(btnMsg){
       btnMsg.style.display = 'flex';
+      // Reset label & icon from channel profile's "посты" back to user "чат"
+      const msgLbl = btnMsg.querySelector('.pm-act-lbl');
+      if (msgLbl) msgLbl.textContent = 'чат';
+      const msgIc = btnMsg.querySelector('.pm-act-ic');
+      if (msgIc) msgIc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>';
       btnMsg.onclick = () => { 
         _closeProfileModal(); 
         if(u.chat_id && u.chat_id !== S.chatId) {
@@ -900,13 +907,14 @@ function openProfileModal(u, isSelf=false){
       };
     }
     if(btnMute){
-      if (!u.chat_id) {
+      if (!u.partner_id) {
         btnMute.style.display = 'none';
       } else {
         btnMute.style.display = 'flex';
         const muteTxt = $('pm-mute-txt');
         const muteIc  = btnMute.querySelector('.pm-act-ic');
-        const isMuted = !!u.is_muted;
+        // Check per-user mute (localStorage) — matches context menu behavior
+        const isMuted = typeof isUserMuted === 'function' ? isUserMuted(u.partner_id) : false;
         if(isMuted){
           btnMute.classList.add('muted');
           if(muteTxt) muteTxt.textContent = 'звук вкл';
@@ -916,18 +924,28 @@ function openProfileModal(u, isSelf=false){
           if(muteTxt) muteTxt.textContent = 'звук';
           if(muteIc) muteIc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>';
         }
-        btnMute.onclick = async () => {
-          const res = await api('mute_chat','POST',{ chat_id: u.chat_id });
-          if(res.ok){
-            const sc = S.chats.find(x=>x.chat_id===u.chat_id);
-            if(sc){ 
-              sc.is_muted=res.is_muted; 
-              if(S.chatId===u.chat_id) S.partner=sc; 
-            }
-            openProfileModal(sc || u, false);
-            toast(res.is_muted?'Уведомления выключены':'Уведомления включены','ok');
-            if(S.chatId===u.chat_id) openChat(S.partner);
-          } else toast(res.message||'Ошибка','err');
+        btnMute.onclick = () => {
+          const partnerId = u.partner_id;
+          if (!partnerId) { toast('Не удалось заглушить пользователя','err'); return; }
+          const nowMuted = typeof toggleMuteUser === 'function' ? toggleMuteUser(partnerId) : false;
+          // Update muted visual state
+          btnMute.classList.toggle('muted', nowMuted);
+          const muteTxt2 = $('pm-mute-txt');
+          const muteIc2 = btnMute.querySelector('.pm-act-ic');
+          if (nowMuted) {
+            if (muteTxt2) muteTxt2.textContent = 'звук вкл';
+            if (muteIc2) muteIc2.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>';
+          } else {
+            if (muteTxt2) muteTxt2.textContent = 'звук';
+            if (muteIc2) muteIc2.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.796 8.796 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>';
+          }
+          toast(nowMuted ? 'Уведомления выключены' : 'Уведомления включены', 'ok');
+          // Force re-render of chat list item
+          if (u.chat_id) {
+            const el = document.querySelector(`.ci[data-chat-id="${u.chat_id}"]`);
+            if (el) { el._chatData = null; }
+          }
+          if (typeof syncChats === 'function') syncChats(S.chats);
         };
       }
     }
