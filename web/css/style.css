@@ -2214,12 +2214,12 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     rgba(0,0,0,0.6) 55%,
     rgba(0,0,0,0.9) 70%,
     black 82%);
-  /* Subtle dark tint at the very bottom for text contrast — works in all themes */
+  /* Subtle bg tint at the very bottom for text contrast — fades into var(--bg) */
   background:linear-gradient(180deg,
     transparent 60%,
-    rgba(0,0,0,0.15) 75%,
-    rgba(0,0,0,0.4) 88%,
-    rgba(0,0,0,0.55) 100%);
+    rgba(var(--bg-rgb),0.4) 80%,
+    rgba(var(--bg-rgb),0.85) 92%,
+    var(--bg) 100%);
 }
 
 /* Avatar wrapper — removed (avatar IS the background now) */
@@ -2335,7 +2335,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
   position:relative;z-index:2;
   margin-top:-100px;
   padding:0 24px 32px;
-  background:linear-gradient(180deg,transparent 0%,rgba(0,0,0,0.5) 40%);
+  background:linear-gradient(180deg,transparent 0%,var(--bg) 40%);
   display:flex;flex-direction:column;gap:8px;
 }
 
