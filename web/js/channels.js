@@ -965,21 +965,8 @@ function _makeChannelMsgEl(m) {
     }
   }
 
-  bub.appendChild(body);
-
-  // Reactions for media-only messages (on .mbub, same as chat)
-  if (mediaOnly && hasRxns && !sending) {
-    const rw = document.createElement('div');
-    rw.className = 'rxn-wrap';
-    rw.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
-    rw.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
-    bub.appendChild(rw);
-  }
-
-  // ── Channel-specific extras on bottom ──
-  // Views, reply count — appended as a separate .mbottom after body (only for non-text or when not using inline meta)
+  // ── Channel-specific extras: views, reply count — inside .mbody ──
   if (hasText && !mediaOnly) {
-    // For text messages, meta is inline (phantom spacer or rxns-only) — views/replies go in a separate row
     const viewCount = m.views ?? m.views_count ?? 0;
     const replyCount = m.replies_count || 0;
     if (viewCount > 0 || replyCount > 0) {
@@ -998,17 +985,17 @@ function _makeChannelMsgEl(m) {
         rb.onclick = (e) => { e.stopPropagation(); _openReplyPanel(m); };
         extra.appendChild(rb);
       }
-      bub.appendChild(extra);
+      body.appendChild(extra);
     }
   }
 
-  // Inline comment footer (inside bubble)
+  // ── Inline comment footer (inside .mbody, after all content) ──
   if (!sending) {
     const cmtCount = m.comments_count || 0;
     const commenters = m.last_commenters || [];
     const divider = document.createElement('div');
     divider.className = 'ch-cmt-divider';
-    bub.appendChild(divider);
+    body.appendChild(divider);
     const cmtBar = document.createElement('button');
     cmtBar.className = 'ch-cmt-bar';
     cmtBar.dataset.msgId = m.id;
@@ -1041,7 +1028,18 @@ function _makeChannelMsgEl(m) {
       cmtBar.appendChild(label);
     }
     cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
-    bub.appendChild(cmtBar);
+    body.appendChild(cmtBar);
+  }
+
+  bub.appendChild(body);
+
+  // Reactions for media-only messages (on .mbub, same as chat)
+  if (mediaOnly && hasRxns && !sending) {
+    const rw = document.createElement('div');
+    rw.className = 'rxn-wrap';
+    rw.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
+    rw.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
+    bub.appendChild(rw);
   }
 
   row.appendChild(bub);
