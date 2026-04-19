@@ -755,7 +755,82 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   gap:6px;
   min-width:0;
 }
-.hdr-search-nav{display:none}
+.hdr-search-ico{
+  flex-shrink:0;
+  width:18px;height:18px;
+  color:var(--t3);
+  margin-left:6px;
+  transition:color .2s;
+}
+.hdr-search-input{
+  flex:1;min-width:0;
+  background:transparent;border:none;outline:none;
+  color:var(--t1);
+  font-family:var(--font);
+  font-size:15px;font-weight:500;
+  padding:0;height:100%;
+  -webkit-user-select:text;user-select:text;
+  -webkit-touch-callout:default;
+}
+.hdr-search-input::placeholder{color:var(--t3);font-weight:400}
+.hdr-search-close{
+  display:flex;align-items:center;justify-content:center;
+  width:30px;height:30px;flex-shrink:0;
+  background:rgba(var(--bg-rgb),.35);
+  border:none;
+  color:var(--t3);cursor:pointer;
+  border-radius:50%;
+  transition:background .15s,color .15s,transform .15s var(--sp);
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.hdr-search-close:active{background:var(--s1);color:var(--t1);transform:scale(.88)}
+/* ── Search navigation (result count + prev/next) ── */
+.hdr-search-nav{
+  display:none;
+  align-items:center;
+  gap:2px;
+  flex-shrink:0;
+}
+.hdr-search-count{
+  font-size:13px;
+  font-weight:600;
+  color:var(--t2);
+  white-space:nowrap;
+  padding:0 8px;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.1px;
+  min-width:60px;
+  text-align:center;
+}
+.hdr-search-count.has-results{color:var(--t1)}
+.hdr-search-count.searching-indicator::after{
+  content:'';
+  display:inline-block;
+  width:4px;height:4px;
+  background:var(--y2);
+  border-radius:50%;
+  margin-left:4px;
+  vertical-align:middle;
+  animation:searchDot .8s ease-in-out infinite;
+}
+@keyframes searchDot{
+  0%,100%{opacity:.3;transform:scale(.8)}
+  50%{opacity:1;transform:scale(1.2)}
+}
+.hdr-search-nav-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;
+  background:transparent;
+  border:none;
+  color:var(--t2);cursor:pointer;
+  border-radius:50%;
+  transition:background .12s,color .12s,transform .12s;
+}
+.hdr-search-nav-btn:hover{background:var(--s1);color:var(--t1)}
+.hdr-search-nav-btn:active{transform:scale(.9)}
+.hdr-search-nav-btn svg{width:18px;height:18px}
+.hdr-search-nav-btn:disabled{opacity:.25;pointer-events:none}
 .hdr-search-btn-desk{display:none}
 /* ── Desktop search: transform entire header into search bar ── */
 @media(min-width:681px){
@@ -784,58 +859,17 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
     gap:8px;
     align-items:center;
   }
-  .chat-hdr.search-active .hdr-search-ico{color:var(--y2);flex-shrink:0}
+  .chat-hdr.search-active .hdr-search-ico{color:var(--y2)}
   .chat-hdr.search-active .hdr-search-input{
-    font-size:15px;
-    flex:1;
     min-width:120px;
   }
   .chat-hdr.search-active .hdr-search-close{
     width:32px;height:32px;
-    flex-shrink:0;
   }
-  /* Desktop search navigation — integrated into header */
+  /* Desktop search navigation — now a sibling of hdr-acts */
   .chat-hdr.search-active .hdr-search-nav{
     display:flex !important;
-    align-items:center;
-    gap:2px;
-    flex-shrink:0;
   }
-  .chat-hdr.search-active .hdr-search-count{
-    font-size:13px;
-    font-weight:600;
-    color:var(--t2);
-    white-space:nowrap;
-    padding:0 8px;
-    font-variant-numeric:tabular-nums;
-    letter-spacing:-.1px;
-    min-width:60px;
-    text-align:center;
-  }
-  .chat-hdr.search-active .hdr-search-count.has-results{color:var(--t1)}
-  .chat-hdr.search-active .hdr-search-count.searching-indicator::after{
-    content:'';
-    display:inline-block;
-    width:4px;height:4px;
-    background:var(--y2);
-    border-radius:50%;
-    margin-left:4px;
-    vertical-align:middle;
-    animation:searchDot .8s ease-in-out infinite;
-  }
-  .chat-hdr.search-active .hdr-search-nav-btn{
-    display:flex;align-items:center;justify-content:center;
-    width:32px;height:32px;
-    background:transparent;
-    border:none;
-    color:var(--t2);cursor:pointer;
-    border-radius:50%;
-    transition:background .12s,color .12s,transform .12s;
-  }
-  .chat-hdr.search-active .hdr-search-nav-btn:hover{background:var(--s1);color:var(--t1)}
-  .chat-hdr.search-active .hdr-search-nav-btn:active{transform:scale(.9)}
-  .chat-hdr.search-active .hdr-search-nav-btn svg{width:18px;height:18px}
-  .chat-hdr.search-active .hdr-search-nav-btn:disabled{opacity:.25;pointer-events:none}
   /* Hide bottom search nav panel on desktop when header nav is active */
   .chat-hdr.search-active ~ .search-nav-panel{
     display:none !important;
@@ -843,7 +877,7 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   .hdr-search-btn-desk{
     display:flex;
   }
-  /* Hide desktop search nav element when not searching */
+  /* Hide desktop search nav when not searching */
   .hdr-search-nav{display:none !important}
 }
 /* Hide desktop search button on mobile */
@@ -1221,13 +1255,8 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
 
-  /* ── Inline chat search input (inside center pill) ── */
+  /* ── Inline chat search input (mobile pill animation) ── */
   .hdr-chat-search{
-    display:none;
-    flex:1;
-    align-items:center;
-    gap:6px;
-    min-width:0;
     opacity:0;
     transform:scale(.92) translateX(-8px);
     transition:opacity .18s cubic-bezier(.32,.72,0,1) .06s,
@@ -1239,37 +1268,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
     opacity:1;
     transform:scale(1) translateX(0);
   }
-  .hdr-search-ico{
-    flex-shrink:0;
-    width:18px;height:18px;
-    color:var(--t3);
-    margin-left:6px;
-    transition:color .2s;
-  }
   .hdr-pill.searching .hdr-search-ico{color:var(--y2)}
-  .hdr-search-input{
-    flex:1;min-width:0;
-    background:transparent;border:none;outline:none;
-    color:var(--t1);
-    font-family:var(--font);
-    font-size:15px;font-weight:500;
-    padding:0;height:100%;
-    -webkit-user-select:text;user-select:text;
-    -webkit-touch-callout:default;
-  }
-  .hdr-search-input::placeholder{color:var(--t3);font-weight:400}
-  .hdr-search-close{
-    display:flex;align-items:center;justify-content:center;
-    width:30px;height:30px;flex-shrink:0;
-    background:rgba(var(--bg-rgb),.35);
-    border:none;
-    color:var(--t3);cursor:pointer;
-    border-radius:50%;
-    transition:background .15s,color .15s,transform .15s var(--sp);
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-  }
-  .hdr-search-close:active{background:var(--s1);color:var(--t1);transform:scale(.88)}
 
   /* ── Bottom search navigation panel (replaces input zone) ── */
   /* Telegram-style: left = "X из X(max)", right = ↑/↓ buttons */
@@ -1550,6 +1549,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 }
 .desktop-pill-hdr .hdr-call-btn,
 .desktop-pill-hdr .hdr-more-btn{display:none !important}
+.desktop-pill-hdr .hdr-search-btn-desk{display:flex !important}
 .desktop-pill-hdr .hdr-unread-badge{
   position:absolute;
   top:-2px;right:-2px;
@@ -1643,49 +1643,13 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   width:32px;height:32px;
   flex-shrink:0;
 }
-/* Desktop pill header: search navigation integrated into header row */
+/* Desktop pill header: search navigation — sibling of hdr-acts */
 .desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav{
   display:flex !important;
-  align-items:center;
-  gap:2px;
-  flex-shrink:0;
   margin-left:4px;
 }
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count{
-  font-size:13px;
-  font-weight:600;
-  color:var(--t2);
-  white-space:nowrap;
-  padding:0 8px;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:-.1px;
-  min-width:50px;
-  text-align:center;
-}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count.has-results{color:var(--t1)}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count.searching-indicator::after{
-  content:'';
-  display:inline-block;
-  width:4px;height:4px;
-  background:var(--y2);
-  border-radius:50%;
-  margin-left:4px;
-  vertical-align:middle;
-  animation:searchDot .8s ease-in-out infinite;
-}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn{
-  display:flex;align-items:center;justify-content:center;
-  width:32px;height:32px;
-  background:transparent;
-  border:none;
-  color:var(--t2);cursor:pointer;
-  border-radius:50%;
-  transition:background .12s,color .12s,transform .12s;
-}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:hover{background:var(--s1);color:var(--t1)}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:active{transform:scale(.9)}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn svg{width:18px;height:18px}
-.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:disabled{opacity:.25;pointer-events:none}
+/* Hide desktop search nav when not searching in pill mode */
+.desktop-pill-hdr .hdr-search-nav{display:none !important}
 
 /* Hide on mobile — desktop only setting */
 @container app (max-width: 680px){
