@@ -591,7 +591,8 @@ async function fetchChannelMsgs(chId, init) {
         }
       } else if (existing.body !== m.body || existing.is_edited !== m.is_edited ||
                  existing.views !== m.views || existing.comments_count !== m.comments_count ||
-                 JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions)) {
+                 JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions) ||
+                 JSON.stringify(existing.last_commenters) !== JSON.stringify(m.last_commenters)) {
         Object.assign(existing, m);
         if (m.reactions) S.chRxns[m.id] = m.reactions;
         _patchChannelMsgDom(m);
@@ -877,16 +878,60 @@ function _makeChannelMsgEl(m) {
     _renderChannelRxns(body, bub, m, rxns, isMe);
   }
 
-  // Comment button (bottom-right of bubble)
+  // Inline comment footer (inside bubble)
   if (!sending) {
-    const cmtBtn = document.createElement('button');
-    cmtBtn.className = 'ch-cmt-btn';
-    cmtBtn.title = 'Комментарии';
     const cmtCount = m.comments_count || 0;
-    cmtBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
-      (cmtCount > 0 ? '<span class="ch-cmt-count">' + cmtCount + '</span>' : '');
-    cmtBtn.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
-    bub.appendChild(cmtBtn);
+    const commenters = m.last_commenters || [];
+
+    // Divider
+    const divider = document.createElement('div');
+    divider.className = 'ch-cmt-divider';
+    bub.appendChild(divider);
+
+    // Comment bar
+    const cmtBar = document.createElement('button');
+    cmtBar.className = 'ch-cmt-bar';
+    cmtBar.dataset.msgId = m.id;
+
+    if (cmtCount > 0 && commenters.length > 0) {
+      // Stacked avatars
+      const aviWrap = document.createElement('div');
+      aviWrap.className = 'ch-cmt-avis';
+      commenters.slice(0, 3).forEach((c, i) => {
+        const avi = document.createElement('div');
+        avi.className = 'ch-cmt-avi';
+        avi.style.cssText = 'z-index:' + (3 - i);
+        const url = c.sender_avatar;
+        if (url) {
+          avi.innerHTML = '<img src="' + getMediaUrl(url) + '" alt="" loading="lazy">';
+        } else {
+          const color = _avatarColor(c.sender_name || '?');
+          avi.style.background = color;
+          avi.textContent = (c.sender_name || '?')[0].toUpperCase();
+        }
+        aviWrap.appendChild(avi);
+      });
+      cmtBar.appendChild(aviWrap);
+
+      // Text: "X комментариев"
+      const label = document.createElement('span');
+      label.className = 'ch-cmt-label';
+      label.textContent = cmtCount + ' ' + 'комментари' + _pluralRu(cmtCount);
+      cmtBar.appendChild(label);
+
+      // Unread dot (accent color) — show if message has unread comments
+      // We show the dot when there are comments (simplified; could add unread_comments tracking)
+      // For now: show dot only if current user hasn't interacted recently
+    } else {
+      // No comments yet — show placeholder
+      const label = document.createElement('span');
+      label.className = 'ch-cmt-label ch-cmt-placeholder';
+      label.textContent = 'оставить комментарий';
+      cmtBar.appendChild(label);
+    }
+
+    cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
+    bub.appendChild(cmtBar);
   }
 
   row.appendChild(bub);
@@ -1278,22 +1323,22 @@ async function _sendComment() {
     const res = await api('send_channel_comment', 'POST', payload);
     if (res.ok) {
       _loadComments(ch.channel_id, msgId);
-      // Update comments_count on the message in the DOM
-      const msgRow = document.querySelector('.mrow[data-id="' + msgId + '"]');
-      if (msgRow) {
-        const countEl = msgRow.querySelector('.ch-cmt-count');
-        const current = parseInt(countEl?.textContent || '0', 10) + 1;
-        if (countEl) countEl.textContent = current;
-        else {
-          // Add count badge to the button if it didn't exist
-          const btn = msgRow.querySelector('.ch-cmt-btn');
-          if (btn) {
-            const badge = document.createElement('span');
-            badge.className = 'ch-cmt-count';
-            badge.textContent = '1';
-            btn.appendChild(badge);
-          }
-        }
+      // Update inline comment footer on the message bubble
+      const chId = ch.channel_id;
+      const mem = (S.channelMsgs[chId] || []).find(x => x.id == msgId);
+      if (mem) {
+        mem.comments_count = (mem.comments_count || 0) + 1;
+        // Add current user as last commenter if not already there
+        if (!mem.last_commenters) mem.last_commenters = [];
+        const myIdx = mem.last_commenters.findIndex(c => c.sender_id == S.user?.id);
+        if (myIdx >= 0) mem.last_commenters.splice(myIdx, 1);
+        mem.last_commenters.unshift({
+          sender_id: S.user?.id,
+          sender_name: S.user?.nickname || S.user?.signal_id || 'Вы',
+          sender_avatar: S.user?.avatar_url || null,
+        });
+        if (mem.last_commenters.length > 3) mem.last_commenters = mem.last_commenters.slice(0, 3);
+        _patchChannelMsgDom(mem);
       }
     } else toast(res.message || 'Ошибка', 'err');
   } catch(e) { toast('Ошибка сети', 'err'); }
@@ -1307,7 +1352,16 @@ async function _deleteComment(commentId) {
     const res = await api('delete_channel_comment', 'POST', { comment_id: commentId });
     if (res.ok) {
       toast('Комментарий удалён', 'ok');
-      if (ch && msgId) _loadComments(ch.channel_id, msgId);
+      if (ch && msgId) {
+        _loadComments(ch.channel_id, msgId);
+        // Decrement comments_count and re-render footer
+        const chId = ch.channel_id;
+        const mem = (S.channelMsgs[chId] || []).find(x => x.id == msgId);
+        if (mem) {
+          mem.comments_count = Math.max(0, (mem.comments_count || 1) - 1);
+          _patchChannelMsgDom(mem);
+        }
+      }
     } else toast(res.message || 'Ошибка', 'err');
   } catch(e) { toast('Ошибка', 'err'); }
 }
@@ -1485,7 +1539,8 @@ async function _chPoll(chId) {
             }
           } else if (existing.body !== m.body || existing.is_edited !== m.is_edited ||
                      existing.views !== m.views || existing.comments_count !== m.comments_count ||
-                     JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions)) {
+                     JSON.stringify(existing.reactions) !== JSON.stringify(m.reactions) ||
+                     JSON.stringify(existing.last_commenters) !== JSON.stringify(m.last_commenters)) {
             Object.assign(existing, m);
             if (m.reactions) S.chRxns[m.id] = m.reactions;
             _patchChannelMsgDom(m);

@@ -150,6 +150,44 @@ if (!empty($messages)) {
     }
 }
 
+// ── Last commenters (for inline comment footer) ──────────────
+$commentersMap = [];
+if (!empty($messages)) {
+    try {
+        $ids = array_column($messages, 'id');
+        $ph  = implode(',', array_fill(0, count($ids), '?'));
+        // Get last 3 unique commenters per message, ordered by their latest comment
+        $stmt3 = $db->prepare(
+            "SELECT sub.message_id, sub.sender_id, u.nickname AS sender_name, u.avatar_url AS sender_avatar
+             FROM (
+                 SELECT message_id, sender_id, MAX(sent_at) AS last_at
+                 FROM channel_comments
+                 WHERE message_id IN ($ph) AND is_deleted = 0
+                 GROUP BY message_id, sender_id
+             ) sub
+             JOIN users u ON u.id = sub.sender_id
+             ORDER BY sub.message_id, sub.last_at DESC"
+        );
+        $stmt3->execute(array_values($ids));
+        foreach ($stmt3->fetchAll() as $c) {
+            $mid = (int) $c['message_id'];
+            if (!isset($commentersMap[$mid])) $commentersMap[$mid] = [];
+            if (count($commentersMap[$mid]) < 3) {
+                // Avoid duplicate sender_ids
+                if (!in_array((int) $c['sender_id'], array_column($commentersMap[$mid], 'sender_id'))) {
+                    $commentersMap[$mid][] = [
+                        'sender_id'     => (int) $c['sender_id'],
+                        'sender_name'   => $c['sender_name'] ?? '',
+                        'sender_avatar' => $c['sender_avatar'] ?? null,
+                    ];
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log('get_channel_messages commenters error (non-fatal): ' . $e->getMessage());
+    }
+}
+
 // ── last_read_id ──────────────────────────────────────────────
 $lastReadId = null;
 if ($membership) {
@@ -160,25 +198,26 @@ if ($membership) {
 }
 
 // ── Normalize ─────────────────────────────────────────────────
-$messages = array_map(function ($m) use ($reactionsMap) {
+$messages = array_map(function ($m) use ($reactionsMap, $commentersMap) {
     return [
-        'id'              => (int) $m['id'],
-        'sender_id'       => (int) $m['sender_id'],
-        'sender_name'     => $m['sender_name'] ?? '',
-        'sender_avatar'   => $m['sender_avatar'] ?? null,
-        'body'            => $m['body'],
-        'media_url'       => $m['media_url']        ?? null,
-        'media_type'      => $m['media_type']       ?? null,
-        'media_spoiler'   => (int) ($m['media_spoiler'] ?? 0),
-        'batch_id'        => $m['batch_id']         ?? null,
-        'reply_to'        => isset($m['reply_to']) ? (int) $m['reply_to'] : null,
-        'media_file_name' => $m['media_file_name']  ?? null,
-        'media_file_size' => isset($m['media_file_size']) ? (int) $m['media_file_size'] : null,
-        'sent_at'         => (int) $m['sent_at'],
-        'is_edited'       => (int) $m['is_edited'],
-        'views_count'     => (int) $m['views_count'],
-        'comments_count'  => (int) ($m['comments_count'] ?? 0),
-        'reactions'       => $reactionsMap[$m['id']] ?? [],
+        'id'               => (int) $m['id'],
+        'sender_id'        => (int) $m['sender_id'],
+        'sender_name'      => $m['sender_name'] ?? '',
+        'sender_avatar'    => $m['sender_avatar'] ?? null,
+        'body'             => $m['body'],
+        'media_url'        => $m['media_url']        ?? null,
+        'media_type'       => $m['media_type']       ?? null,
+        'media_spoiler'    => (int) ($m['media_spoiler'] ?? 0),
+        'batch_id'         => $m['batch_id']         ?? null,
+        'reply_to'         => isset($m['reply_to']) ? (int) $m['reply_to'] : null,
+        'media_file_name'  => $m['media_file_name']  ?? null,
+        'media_file_size'  => isset($m['media_file_size']) ? (int) $m['media_file_size'] : null,
+        'sent_at'          => (int) $m['sent_at'],
+        'is_edited'        => (int) $m['is_edited'],
+        'views_count'      => (int) $m['views_count'],
+        'comments_count'   => (int) ($m['comments_count'] ?? 0),
+        'last_commenters'  => $commentersMap[$m['id']] ?? [],
+        'reactions'        => $reactionsMap[$m['id']] ?? [],
     ];
 }, $messages);
 

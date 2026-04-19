@@ -3732,10 +3732,21 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .mrow.msg-err .mbody{opacity:.55}
 .mrow.msg-err .mbub{outline:1.5px solid rgba(231,76,60,.35);outline-offset:-1.5px;border-radius:inherit}
 
-/* ── Channel comment button ── */
-.ch-cmt-btn{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.35);border:none;border-radius:16px;padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:4px;color:rgba(255,255,255,.7);transition:background .15s,color .15s;z-index:2}
-.ch-cmt-btn:hover{background:rgba(0,0,0,.55);color:rgba(255,255,255,1)}
-.ch-cmt-count{font-size:11px;font-weight:700;min-width:6px;text-align:center}
+/* ── Channel inline comment footer ── */
+.ch-cmt-btn{display:none}
+.ch-cmt-count{display:none}
+.ch-cmt-divider{height:1px;background:var(--b);margin:6px 0 0;opacity:.5}
+.ch-cmt-bar{display:flex;align-items:center;gap:8px;width:100%;padding:7px 0 2px;border:none;background:none;cursor:pointer;transition:opacity .12s;text-align:left;color:var(--t2);font-family:var(--font)}
+.ch-cmt-bar:hover{opacity:.75}
+.ch-cmt-bar:active{opacity:.6}
+.ch-cmt-avis{position:relative;display:flex;flex-shrink:0}
+.ch-cmt-avi{width:22px;height:22px;border-radius:50%;overflow:hidden;position:absolute;border:2px solid var(--bg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+.ch-cmt-avi img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-cmt-avi:nth-child(1){left:0;top:0;z-index:3}
+.ch-cmt-avi:nth-child(2){left:12px;top:0;z-index:2}
+.ch-cmt-avi:nth-child(3){left:24px;top:0;z-index:1}
+.ch-cmt-label{font-size:13px;color:var(--t3);line-height:1.2;white-space:nowrap}
+.ch-cmt-placeholder{font-style:italic;color:var(--t3);opacity:.7}
 
 /* ── Channel comments panel ── */
 .ch-comments-panel{position:fixed;top:0;right:-100%;width:100%;max-width:400px;height:100vh;height:100dvh;background:var(--bg2);z-index:1000;display:flex;flex-direction:column;transition:right .28s cubic-bezier(.4,0,.2,1);box-shadow:-4px 0 24px rgba(0,0,0,.15)}
