@@ -1878,11 +1878,13 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .pin-icon-crossed::after{
   content:'';
   position:absolute;
-  width:130%;
+  width:140%;
   height:2px;
   background:currentColor;
   border-radius:1px;
-  transform:rotate(-45deg);
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
 }
 
 /* Mobile: pill-style pin bar — narrower, with margin-top for spacing from header */
