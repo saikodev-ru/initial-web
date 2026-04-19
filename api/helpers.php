@@ -39,6 +39,7 @@ security_init();
 // ── PDO-соединение (singleton) ───────────────────────────────
 function db(): PDO {
     static $pdo = null;
+    static $reconnecting = false;
     if ($pdo === null) {
         $dsn = sprintf(
             'mysql:host=%s;dbname=%s;charset=%s',
@@ -58,7 +59,15 @@ function db(): PDO {
         $pdo->query('SELECT 1');
     } catch (\Throwable) {
         $pdo = null;
-        return db();
+        if ($reconnecting) {
+            throw new \RuntimeException('Database unreachable');
+        }
+        $reconnecting = true;
+        try {
+            return db();
+        } finally {
+            $reconnecting = false;
+        }
     }
     return $pdo;
 }

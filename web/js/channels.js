@@ -887,8 +887,8 @@ function _showChannelMsgCtx(e, m) {
     if (m.body) { navigator.clipboard.writeText(m.body).then(() => toast('Скопировано', 'ok')); }
   }});
 
-  if (isAdmin && m.message_id) {
-    items.push({ label: 'Закрепить', icon: '📌', action: () => _pinChannelMsg(ch.channel_id, m.message_id) });
+  if (isAdmin && m.id && !isTemp(m.id)) {
+    items.push({ label: 'Закрепить', icon: '📌', action: () => _pinChannelMsg(ch.channel_id, m.id) });
   }
   if ((isAdmin || isMe) && !isTemp(m.id)) {
     items.push({ label: 'Редактировать', icon: '✏️', action: () => _editChannelMsg(m) });
@@ -943,7 +943,7 @@ async function sendChannelText() {
   const chId = ch.channel_id;
   const tid = 'tc' + Date.now();
   const tmpMsg = {
-    id: tid, sender_id: S.user.id, sender_name: S.user.nickname || S.user.signal_id || 'Вы',
+    id: tid, sender_id: S.user?.id, sender_name: S.user?.nickname || S.user?.signal_id || 'Вы',
     body: body, sent_at: Math.floor(Date.now() / 1000), is_admin: true, is_edited: false, views: 0,
   };
   S.channelMsgs[chId] = S.channelMsgs[chId] || [];

@@ -22,7 +22,7 @@ $stmt->execute([$chatId, $me['id'], $me['id']]);
 if (!$stmt->fetch()) json_err('forbidden', 'Нет доступа к этому чату', 403);
 
 // Search messages with LIKE (case-insensitive)
-$searchParam = '%' . $q . '%';
+$searchParam = '%' . addcslashes($q, '\\%_') . '%';
 
 // Get total count (unlimited) for accurate "X из Y" display
 $stmtCount = db()->prepare(

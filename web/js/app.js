@@ -266,7 +266,7 @@ $('btn-prev-send').onclick = async () => {
 
   // ── 2.5 Register pending tids so SSE/polling can swap instead of duplicate ──
   S._pendingTids = S._pendingTids || new Map();
-  pending.forEach(({ tid, pf }) => S._pendingTids.set(tid, '|' + pf.media_type + '|' + (pf.batch_id || '')));
+  pending.forEach(({ tid, pf, tmp }) => S._pendingTids.set(tid, '|' + (pf.type||'') + '|' + (tmp.batch_id || '')));
 
   // ── 3. Attach upload-ring overlay to each bubble ──────────────
   const abortMap = new Map();
@@ -678,7 +678,7 @@ async function sendDocumentFiles(docFiles) {
     try {
       var formData = new FormData();
       formData.append('file', file);
-      var uploadRes = await fetch('/api/upload_file', {
+      var uploadRes = await fetch(API + '/upload_file', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + S.token },
         body: formData,
@@ -722,7 +722,7 @@ async function sendDocumentFiles(docFiles) {
         await loadChats();
         var nc = S.chats.find(function(c) { return c.chat_id === sendRes.chat_id; });
         if (nc) { S.partner = nc; $$('.ci').forEach(function(e) { e.classList.remove('active'); });
-          document.querySelector('.ci[data-chat-id="' + sendRes.chat_id + '"]').classList.add('active'); }
+          document.querySelector('.ci[data-chat-id="' + sendRes.chat_id + '"]')?.classList.add('active'); }
         $('msgs').innerHTML = ''; await fetchMsgs(sendRes.chat_id, true);
       }
     } catch(e) { console.error('Document upload error:', e); if (S._pendingTids) S._pendingTids.delete(tid); removeMsgById(tid); toast('Ошибка загрузки файла', 'err'); }
@@ -1653,7 +1653,7 @@ if (_bgImgUpload && _bgImgInput) {
   _bgImgInput.onchange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { /* 5MB limit — warn user */ return; }
+    if (file.size > 5 * 1024 * 1024) { toast('Изображение слишком большое (макс. 5 МБ)', 'err'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
       // Resize to max 1920px to save localStorage space
@@ -1916,7 +1916,7 @@ function _applyAccentColorCustom(hex) {
   root.style.setProperty('--yb', `rgba(${r},${g},${b},.36)`);
   // Clear preset active
   document.querySelectorAll('.accent-swatch:not(.accent-swatch-custom)').forEach(s => s.classList.remove('active'));
-  _accentCustomSwatch.classList.add('active');
+  if (_accentCustomSwatch) _accentCustomSwatch.classList.add('active');
   if (_accentCustomSwatch) _accentCustomSwatch.style.background = hex;
   try { localStorage.setItem(ACCENT_KEY, hex); } catch {}
   try { localStorage.removeItem(ACCENT_AUTO_KEY); } catch {}
@@ -2092,12 +2092,15 @@ $('tog-notif').onclick = async () => {
         } else {
           const reason = (result && result.reason) ? result.reason : 'Ошибка регистрации push-уведомлений';
           toast(reason, 'err');
+          S.notif.enabled = false;
         }
       } else {
         toast('Push-уведомления недоступны. Установите Chrome, Edge или Firefox.', 'err');
+        S.notif.enabled = false;
       }
     } catch(e) {
       toast('Ошибка настройки уведомлений', 'err');
+      S.notif.enabled = false;
     } finally {
       _notifToggling = false;
       $('tog-notif').classList.remove('loading');
@@ -2393,7 +2396,8 @@ function _boot() {
         startPoll(); startGlobalSSE(); syncNotifUI();
         // Periodic sync of avatar data to SW (every 60s)
         if (typeof syncNotifDataToSW === 'function') {
-          setInterval(syncNotifDataToSW, 60000);
+          clearInterval(S._syncNotifInterval);
+          S._syncNotifInterval = setInterval(syncNotifDataToSW, 60000);
         }
         // PWA: request notification permissions on first launch
         if (window.matchMedia('(display-mode: standalone)').matches && S.notif.enabled === false) {
@@ -2521,7 +2525,8 @@ async function _syncMyProfile() {
 // Start syncing 10s after boot, then every 60s
 setTimeout(() => {
   _syncMyProfile();
-  setInterval(_syncMyProfile, 60_000);
+  clearInterval(S._syncProfileInterval);
+  S._syncProfileInterval = setInterval(_syncMyProfile, 60_000);
 }, 10_000);
 
 /* ══ NOTIFICATION ACTION HANDLER ════════════════════════════════════════════

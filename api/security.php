@@ -330,7 +330,7 @@ function get_real_ip(): string {
         $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
         $isTrusted = ($remoteAddr === '127.0.0.1' || $remoteAddr === '::1'
             || str_starts_with($remoteAddr, '10.')
-            || str_starts_with($remoteAddr, '172.16.')
+            || preg_match('/^172\\.(1[6-9]|2\\d|3[01])\\./', $remoteAddr)
             || str_starts_with($remoteAddr, '192.168.')
             || defined('TRUSTED_PROXY_IPS')); // можно задать в config.php
         if ($isTrusted && filter_var($first, FILTER_VALIDATE_IP)) return $first;
