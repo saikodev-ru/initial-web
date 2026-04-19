@@ -28,6 +28,11 @@ function security_init(): void {
     if ($initialized) return;
     $initialized = true;
 
+    // ── Profile page (u.php) sets its own permissive CSP — skip restrictive API CSP ──
+    // When SKIP_API_CSP is defined, we still set other security headers but omit
+    // the default-src 'none' CSP that would block inline styles on the profile page.
+    $skipCsp = defined('SKIP_API_CSP');
+
     // ── HSTS — принудительный HTTPS (1 год, includeSubDomains) ──
     header('Strict-Transport-Security: max-age=31536000; includeSubDomains', false);
 
@@ -47,7 +52,10 @@ function security_init(): void {
     header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()', false);
 
     // ── Content-Security-Policy (базовая для API) ──
-    header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", false);
+    // Skipped for profile page — u.php sets its own permissive CSP that allows inline styles
+    if (!$skipCsp) {
+        header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'", false);
+    }
 
     // ── Убираем информацию о сервере ──
     if (function_exists('header_remove')) {

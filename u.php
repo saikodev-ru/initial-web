@@ -12,6 +12,11 @@
  */
 declare(strict_types=1);
 
+// ── Tell security_init() to skip restrictive API CSP ──
+// u.php sets its own permissive CSP that allows inline styles.
+// Without this, security_init() sets default-src 'none' which blocks all CSS.
+define('SKIP_API_CSP', true);
+
 // ── Resolve username ──
 $username = '';
 
@@ -86,10 +91,13 @@ if (!empty($cleanId)) {
     }
 }
 
-// ── Override security headers for profile page ──
-// security_init() (via helpers.php) sets CSP default-src 'none' which blocks inline CSS.
-// We must override it with a permissive CSP that allows this HTML page to render properly.
-// Using header(..., true) to REPLACE the restrictive CSP set by security_init().
+// ── Set permissive CSP for profile page ──
+// security_init() is skipped (SKIP_API_CSP) because its default-src 'none' CSP
+// blocks inline styles. We set a permissive CSP here instead.
+// Using header_remove + header to ensure no duplicate/conflicting CSP headers.
+if (function_exists('header_remove')) {
+    header_remove('Content-Security-Policy');
+}
 header('Content-Security-Policy: '
     . "default-src 'self'; "
     . "script-src 'unsafe-inline'; "
@@ -104,7 +112,6 @@ header('Content-Security-Policy: '
 // Override 404 status — nginx serves u.php as ErrorDocument for /@username
 // Use both header() and http_response_code() for maximum compatibility
 // with different server configurations (Apache, nginx, etc.)
-header('HTTP/1.1 200 OK', true, 200);
 http_response_code(200);
 
 header('Content-Type: text/html; charset=utf-8');
