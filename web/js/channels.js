@@ -750,42 +750,88 @@ function _makeChannelMsgEl(m) {
   if (hasMedia) {
     if (m.media_type === 'image') {
       const mWrap = document.createElement('div');
-      mWrap.className = 'media-wrap';
-      const dims = _dimRead(m.media_url);
-      if (dims) _reserveMediaSize(mWrap, dims.w, dims.h);
-      else _applyPlaceholder(mWrap);
+      mWrap.className = 'single-media';
       const img = document.createElement('img');
-      img.className = 'msg-media';
-      img.src = m.media_url;
-      img.alt = '';
       img.loading = 'lazy';
       img.decoding = 'async';
+      const ov = document.createElement('div');
+      ov.className = 'media-overlay';
+      mWrap.appendChild(img);
+      mWrap.appendChild(ov);
+      const origUrl = m.media_url;
+      const dims = _dimRead(origUrl);
+      if (dims) _reserveMediaSize(mWrap, dims.w, dims.h);
+      else _applyPlaceholder(mWrap);
+      img.src = origUrl;
+      img.alt = '';
       img.onload = () => {
-        mWrap.classList.add('loaded');
-        if (!dims) { _dimWrite(m.media_url, img.naturalWidth, img.naturalHeight); _upgradePlaceholder(mWrap, img.naturalWidth, img.naturalHeight); }
+        if (!dims) { _dimWrite(origUrl, img.naturalWidth, img.naturalHeight); _upgradePlaceholder(mWrap, img.naturalWidth, img.naturalHeight); }
+        delete mWrap.dataset.placeholder;
       };
       img.onerror = () => { mWrap.classList.add('media-err'); };
       img.onclick = () => { if (typeof openViewer === 'function') openViewer(S.channelMsgs[ch?.channel_id] || [], m, 'channel'); };
-      mWrap.appendChild(img);
+      // Loading ring for incoming
+      if (!origUrl?.startsWith('blob:')) {
+        mWrap.classList.add('media-loading');
+        const loadOv = document.createElement('div');
+        loadOv.className = 'media-load-ov';
+        loadOv.innerHTML = '<svg viewBox="0 0 46 46"><circle class="mlr-bg" cx="23" cy="23" r="19"/><circle class="mlr-fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"/></svg>';
+        mWrap.appendChild(loadOv);
+        const onLoaded = () => {
+          mWrap.classList.remove('media-loading');
+          loadOv.classList.add('done');
+          setTimeout(() => loadOv.remove(), 300);
+        };
+        img.addEventListener('load', onLoaded, { once: true });
+        img.addEventListener('error', onLoaded, { once: true });
+        if (img.complete && img.naturalWidth) onLoaded();
+      }
       body.appendChild(mWrap);
     } else if (m.media_type === 'video') {
       const mWrap = document.createElement('div');
-      mWrap.className = 'media-wrap video-wrap';
-      const dims = _dimRead(m.media_url);
-      if (dims) _reserveMediaSize(mWrap, dims.w, dims.h);
-      else _applyPlaceholder(mWrap);
+      mWrap.className = 'vid-wrap';
       const vid = document.createElement('video');
-      vid.className = 'msg-media msg-video';
       vid.src = m.media_url;
       vid.preload = 'metadata';
+      vid.muted = true;
       vid.playsInline = true;
-      vid.onclick = () => { if (typeof openViewer === 'function') openViewer(S.channelMsgs[ch?.channel_id] || [], m, 'channel'); };
+      vid.addEventListener('loadedmetadata', () => {
+        vid.currentTime = 0.1;
+        const dur = mWrap.querySelector('.vid-duration');
+        if (dur && isFinite(vid.duration)) {
+          const s = Math.round(vid.duration);
+          dur.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        }
+      }, { once: true });
+      mWrap.addEventListener('mouseenter', () => { vid.currentTime = 0; vid.play().catch(() => {}); });
+      mWrap.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0.1; });
+      const overlay = document.createElement('div');
+      overlay.className = 'vid-overlay';
       const playBtn = document.createElement('div');
-      playBtn.className = 'video-play-btn';
-      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M8 5v14l11-7z"/></svg>';
-      playBtn.onclick = (e) => { e.stopPropagation(); vid.paused ? vid.play() : vid.pause(); playBtn.style.display = vid.paused ? '' : 'none'; };
+      playBtn.className = 'vid-play-btn';
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      const durEl = document.createElement('div');
+      durEl.className = 'vid-duration';
+      overlay.appendChild(playBtn);
       mWrap.appendChild(vid);
-      mWrap.appendChild(playBtn);
+      mWrap.appendChild(overlay);
+      mWrap.appendChild(durEl);
+      // Loading ring
+      if (!m.media_url?.startsWith('blob:')) {
+        mWrap.classList.add('media-loading');
+        const vidLoadOv = document.createElement('div');
+        vidLoadOv.className = 'media-load-ov';
+        vidLoadOv.innerHTML = '<svg viewBox="0 0 46 46"><circle class="mlr-bg" cx="23" cy="23" r="19"/><circle class="mlr-fg" cx="23" cy="23" r="19" transform="rotate(-90 23 23)"/></svg>';
+        mWrap.appendChild(vidLoadOv);
+        const onVidLoaded = () => {
+          mWrap.classList.remove('media-loading');
+          vidLoadOv.classList.add('done');
+          setTimeout(() => vidLoadOv.remove(), 300);
+        };
+        vid.addEventListener('loadeddata', onVidLoaded, { once: true });
+        vid.addEventListener('error', onVidLoaded, { once: true });
+        if (vid.readyState >= 2) onVidLoaded();
+      }
       body.appendChild(mWrap);
     } else if (m.media_type === 'voice') {
       const vWrap = document.createElement('div');

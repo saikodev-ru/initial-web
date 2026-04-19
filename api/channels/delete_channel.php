@@ -49,6 +49,9 @@ try {
     // Delete pinned message
     $db->prepare('DELETE FROM channel_pinned WHERE channel_id = ?')->execute([$channelId]);
 
+    // Delete comments (before messages, since they reference message_id)
+    $db->prepare('DELETE FROM channel_comments WHERE channel_id = ?')->execute([$channelId]);
+
     // Delete messages
     $db->prepare('DELETE FROM channel_messages WHERE channel_id = ?')->execute([$channelId]);
 

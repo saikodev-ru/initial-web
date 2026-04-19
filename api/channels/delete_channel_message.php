@@ -47,8 +47,12 @@ if (!$canDelete) {
     json_err('forbidden', 'У вас нет прав для удаления этого сообщения', 403);
 }
 
+// Soft-delete all comments for this message
+$db->prepare('UPDATE channel_comments SET is_deleted = 1 WHERE message_id = ?')
+    ->execute([$messageId]);
+
 // Soft-delete (mark as deleted)
-$db->prepare('UPDATE channel_messages SET is_deleted = 1, body = NULL, media_url = NULL WHERE id = ?')
+$db->prepare('UPDATE channel_messages SET is_deleted = 1, body = NULL, media_url = NULL, comments_count = 0 WHERE id = ?')
     ->execute([$messageId]);
 
 // Remove from pinned if it was pinned
