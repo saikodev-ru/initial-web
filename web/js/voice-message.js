@@ -1748,6 +1748,17 @@ window.VoiceMsg = (function () {
   /* ══ SEND VOICE ════════════════════════════════════════════════ */
 
   async function sendVoice(blob, duration, waveform, toSignalId, replyTo) {
+    // ── Comments panel open — send as voice comment ──
+    if (S.chCommentsMsgId && typeof _sendComment === 'function') {
+      try {
+        // Upload via generic upload endpoint
+        const uploadRes = await uploadFileXHR(blob);
+        if (!uploadRes || !uploadRes.ok) { toast('Ошибка загрузки голосового', 'err'); return; }
+        await _sendComment(uploadRes.url, 'voice');
+      } catch(e) { toast('Ошибка отправки', 'err'); }
+      return;
+    }
+
     // ── Step 1: Validate partner and prepare metadata ──
     if (!S.partner) return;
     const replyId = replyTo || S.replyTo?.id || null;

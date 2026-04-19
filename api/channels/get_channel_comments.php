@@ -37,7 +37,7 @@ if (!$membership) {
 // Fetch comments
 $stmt = $db->prepare(
     'SELECT c.id, c.sender_id, c.body, c.media_url, c.media_type, c.media_spoiler,
-            c.sent_at, c.is_edited,
+            c.sent_at, c.is_edited, c.reply_to,
             u.nickname AS sender_name, u.avatar_url AS sender_avatar
      FROM channel_comments c
      JOIN users u ON u.id = c.sender_id
@@ -63,6 +63,7 @@ $comments = array_map(function ($c) {
         'body'          => $c['body'],
         'media_url'     => $c['media_url'] ?? null,
         'media_type'    => $c['media_type'] ?? null,
+        'reply_to'      => (int) ($c['reply_to'] ?? 0),
         'media_spoiler' => (int) ($c['media_spoiler'] ?? 0),
         'sent_at'       => (int) $c['sent_at'],
         'is_edited'     => (int) $c['is_edited'],

@@ -222,6 +222,42 @@ $('prev-add-in').onchange = () => {
   $('prev-add-in').value = '';
 };
 $('btn-prev-send').onclick = async () => {
+  // ── Comments panel open — upload & send as comment ──
+  if (S.chCommentsMsgId && typeof _sendComment === 'function') {
+    const btn = $('btn-prev-send'); btn.disabled = true;
+    const caption = $('prev-caption').value.trim();
+    const spoiler = S.prevSpoiler;
+    const files = [...S.prevFiles];
+    const total = files.length;
+
+    // Close preview immediately
+    S.prevFiles = []; S.prevIdx = 0; S.prevSpoiler = false; $('prev-caption').value = '';
+    closeMod('modal-preview');
+    btn.disabled = false;
+
+    // Upload + send each file as a comment
+    await Promise.all(files.map(async (pf, i) => {
+      try {
+        const uploadRes = await uploadFileXHR(pf.file);
+        if (!uploadRes || !uploadRes.ok) { toast('Ошибка загрузки файла', 'err'); return; }
+        const isLast = i === total - 1;
+        const body = isLast && caption ? caption : '';
+        const mediaType = pf.type === 'video' ? 'video' : 'image';
+        await _sendComment(uploadRes.url, mediaType, spoiler ? 1 : undefined);
+        // For non-last files, don't send text (it'll be sent with the last file)
+        if (!isLast && body) {
+          // Send text-only comment for caption on last file only
+        }
+      } catch(e) { toast('Ошибка отправки', 'err'); }
+    }));
+
+    // Send caption as separate comment if multiple files
+    if (total > 1 && caption) {
+      await _sendComment();
+    }
+    return;
+  }
+
   if (!S.partner) return;
   const btn = $('btn-prev-send'); btn.disabled = true;
   const caption = $('prev-caption').value.trim();
@@ -653,6 +689,17 @@ function stopSSE() {
 
 /* ══ DOCUMENT FILE UPLOAD ═════════════════════════════════════ */
 async function sendDocumentFiles(docFiles) {
+  // ── Comments panel open — upload & send as comment ──
+  if (S.chCommentsMsgId && typeof _sendComment === 'function') {
+    for (var i = 0; i < docFiles.length; i++) {
+      try {
+        var uploadRes = await uploadFileXHR(docFiles[i]);
+        if (!uploadRes || !uploadRes.ok) { toast('Ошибка загрузки файла', 'err'); continue; }
+        await _sendComment(uploadRes.url, 'document');
+      } catch(e) { toast('Ошибка отправки', 'err'); }
+    }
+    return;
+  }
   if (!S.partner) { toast('Выберите чат', 'err'); return; }
   for (var i = 0; i < docFiles.length; i++) {
     var file = docFiles[i];

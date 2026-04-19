@@ -1440,28 +1440,20 @@ function _openCommentsPanel(m) {
   }
   panel.appendChild(overlay);
 
-  // Foreground content
+  // Foreground content (header + scroll only — no custom input, we reuse the main input-zone)
   const fg = document.createElement('div');
   fg.className = 'ch-comments-fg';
-
-  // Header
   fg.innerHTML = '<div class="ch-comments-hdr">' +
     '<button class="ch-comments-back" id="ch-cmt-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>' +
     '<span class="ch-comments-title">Комментарии</span>' +
     '<span class="ch-comments-count" id="ch-cmt-total"></span>' +
     '</div>' +
-    '<div class="ch-comments-scroll" id="ch-comments-scroll"></div>' +
-    '<div class="ch-comments-input">' +
-      '<div class="rbar" id="ch-cmt-rbar" style="display:none"><div class="rbar-info"><div class="rbar-who" id="ch-cmt-rbar-who"></div><div class="rbar-txt" id="ch-cmt-rbar-txt"></div></div><div class="rbar-x" id="ch-cmt-rbar-x"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div></div>' +
-      '<div contenteditable="true" class="ch-cmt-field" id="ch-cmt-field" placeholder="Написать комментарий..."></div>' +
-      '<button class="ch-cmt-send" id="ch-cmt-send"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>' +
-    '</div>';
+    '<div class="ch-comments-scroll" id="ch-comments-scroll"></div>';
 
   panel.appendChild(fg);
-  // Append to #active-chat instead of body so it fills only the chat area
+  // Append to #active-chat so it fills only the chat area
   const host = $('active-chat') || document.body;
   host.appendChild(panel);
-  requestAnimationFrame(() => panel.classList.add('on'));
 
   // Render the original post at top of scroll area
   const scrollArea = $('ch-comments-scroll');
@@ -1485,18 +1477,56 @@ function _openCommentsPanel(m) {
   }
 
   $('ch-cmt-back').onclick = () => _closeCommentsPanel();
-  $('ch-cmt-send').onclick = () => _sendComment();
-  $('ch-cmt-field').onkeydown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendComment(); }
-  };
+
+  // ── Wire main input-zone for comment mode ──
+  const inpZone = $('input-zone');
+  if (inpZone) {
+    inpZone.classList.add('cmt-mode'); // raises z-index above comments panel
+    inpZone.style.display = ''; // ensure visible
+  }
+  // Set placeholder on the main mfield
+  const mfield = $('mfield');
+  if (mfield) mfield.setAttribute('data-placeholder', 'Написать комментарий...');
+  // Override send button to route to comment
+  const sendBtn = $('btn-send');
+  if (sendBtn) {
+    S._chCmtOrigSendBtn = sendBtn.onclick;
+    sendBtn.onclick = () => { _sendComment(); };
+  }
+  // Clear any leftover text
+  if (mfield) mfield.innerHTML = '';
+  if (typeof updateSendBtn === 'function') updateSendBtn();
+
+  // Animate panel in
+  requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add('on')));
 
   _loadComments(ch.channel_id, m.id);
 }
 
 function _closeCommentsPanel() {
   S.chCommentsMsgId = null;
+  S._chCmtReplyTo = null;
   const panel = $('ch-comments-panel');
-  if (panel) panel.remove();
+  if (panel) {
+    panel.classList.remove('on');
+    panel.classList.add('closing');
+    setTimeout(() => panel.remove(), 280);
+  }
+  // Restore main input-zone to channel mode
+  const inpZone = $('input-zone');
+  if (inpZone) inpZone.classList.remove('cmt-mode');
+  const mfield = $('mfield');
+  if (mfield) mfield.setAttribute('data-placeholder', 'Сообщение');
+  const sendBtn = $('btn-send');
+  if (sendBtn && S.activeChannel) {
+    sendBtn.onclick = () => { sendChannelText(); };
+  } else if (sendBtn && S._chCmtOrigSendBtn) {
+    sendBtn.onclick = S._chCmtOrigSendBtn;
+  }
+  // Hide reply bar
+  hideRbar(true);
+  if (mfield) mfield.innerHTML = '';
+  if (typeof updateSendBtn === 'function') updateSendBtn();
 }
 
 /* ══ REPLY PANEL (fullscreen, shows replies to a message) ═════════ */
@@ -1563,19 +1593,20 @@ async function _loadComments(chId, msgId) {
   if (!scroll) return;
 
   // Keep the post element, remove only comment items and date-pills
-  scroll.querySelectorAll('.ch-comment-item, .ch-comment-skel, .ch-cmt-date-sep').forEach(e => e.remove());
+  scroll.querySelectorAll('.cmt-mrow, .ch-comment-skel, .ch-cmt-date-sep').forEach(e => e.remove());
 
-  // Skeleton loading instead of text
+  // Skeleton loading — styled like message rows
   for (let i = 0; i < 3; i++) {
     const skel = document.createElement('div');
-    skel.className = 'ch-comment-skel';
+    skel.className = 'cmt-mrow cmt-skel';
     skel.innerHTML =
-      '<div class="ch-comment-skel-avi"></div>' +
-      '<div class="ch-comment-skel-body">' +
+      '<div class="mavi"><div style="width:100%;height:100%;border-radius:50%;background:var(--s2);animation:skelPulse 1.5s ease-in-out infinite"></div></div>' +
+      '<div class="mbub"><div class="cmt-skel-body">' +
         '<div class="ch-comment-skel-line ch-comment-skel-name"></div>' +
-        '<div class="ch-comment-skel-line ch-comment-skel-text"></div>' +
-        '<div class="ch-comment-skel-line ch-comment-skel-text short"></div>' +
-      '</div>';
+        '<div class="mbody cmt-skel-mbody"><div class="ch-comment-skel-line ch-comment-skel-text"></div>' +
+        (i < 2 ? '<div class="ch-comment-skel-line ch-comment-skel-text short"></div>' : '') +
+        '</div>' +
+      '</div></div>';
     scroll.appendChild(skel);
   }
 
@@ -1585,7 +1616,7 @@ async function _loadComments(chId, msgId) {
     if (total) total.textContent = res.total ? res.total + '' : '';
 
     // Remove skeletons
-    scroll.querySelectorAll('.ch-comment-skel').forEach(e => e.remove());
+    scroll.querySelectorAll('.cmt-skel').forEach(e => e.remove());
 
     if (!res.ok || !res.comments?.length) {
       return;
@@ -1603,73 +1634,170 @@ async function _loadComments(chId, msgId) {
         lastDate = d;
       }
 
-      const el = document.createElement('div');
-      el.className = 'ch-comment-item' + (c.sender_id == S.user?.id ? ' is-me' : '');
-      el.dataset.id = c.id;
       const isMe = c.sender_id == S.user?.id;
-
-      const aviHtml_c = (() => {
-        if (c.sender_avatar) {
-          return '<img src="' + getMediaUrl(c.sender_avatar) + '" alt="" loading="lazy">';
-        }
-        const color = _avatarColor(c.sender_name || '?');
-        return '<div style="width:100%;height:100%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff">' + (c.sender_name || '?')[0].toUpperCase() + '</div>';
-      })();
-
-      el.innerHTML = '<div class="ch-comment-avi">' + aviHtml_c + '</div>' +
-        '<div class="ch-comment-body">' +
-          '<div class="ch-comment-head"><span class="ch-comment-name">' + esc(c.sender_name || 'Анон') + '</span>' +
-            '<span class="ch-comment-time">' + fmtTime(c.sent_at) + '</span>' +
-            (c.is_edited ? '<span class="med" title="ред."></span>' : '') +
-          '</div>' +
-          '<div class="ch-comment-bubble"><div class="ch-comment-text">' + fmtText(c.body || '') + '</div></div>' +
-        '</div>';
-
-      el.oncontextmenu = (e) => {
-        e.preventDefault();
-        const items = [
-          { label: 'Ответить', icon: '↩️', action: () => {
-            const rbar = $('ch-cmt-rbar');
-            if (rbar) {
-              const who = $('ch-cmt-rbar-who');
-              const txt = $('ch-cmt-rbar-txt');
-              if (who) who.textContent = c.sender_name || 'Анон';
-              if (txt) txt.textContent = (c.body || '').slice(0, 60);
-              rbar.style.display = 'flex';
-              S._chCmtReplyTo = c.id;
-              $('ch-cmt-rbar-x').onclick = () => { rbar.style.display = 'none'; S._chCmtReplyTo = null; };
-            }
-          }},
-          { label: 'Копировать', icon: '📋', action: () => {
-            if (c.body) navigator.clipboard.writeText(c.body).then(() => toast('Скопировано', 'ok'));
-          }},
-        ];
-        if (isMe) items.push({ label: 'Удалить', icon: '🗑', action: () => _deleteComment(c.id), danger: true });
-        _showCtxMenu(e, items);
-      };
-
-      scroll.appendChild(el);
+      const row = _makeCommentEl(c);
+      scroll.appendChild(row);
     });
     scroll.scrollTop = scroll.scrollHeight;
   } catch(e) {
-    scroll.querySelectorAll('.ch-comment-skel').forEach(e => e.remove());
+    scroll.querySelectorAll('.cmt-skel').forEach(e => e.remove());
   }
 }
 
-async function _sendComment() {
+/* ══ RENDER A SINGLE COMMENT AS A 1-ON-1 STYLE MESSAGE ═════════ */
+function _makeCommentEl(c) {
+  const isMe = c.sender_id == S.user?.id;
+  const row = document.createElement('div');
+  row.className = 'cmt-mrow' + (isMe ? ' me' : '');
+  row.dataset.id = c.id;
+
+  // Avatar — always visible (like grp-single)
+  const aviEl = document.createElement('div');
+  aviEl.className = 'mavi';
+  aviEl.innerHTML = aviHtml(c.sender_name || 'Анон', c.sender_avatar);
+
+  // Bubble
+  const bub = document.createElement('div');
+  bub.className = 'mbub';
+
+  // Name header (always shown — this is a group-like context)
+  const nameEl = document.createElement('div');
+  nameEl.className = 'cmt-name-hdr';
+  nameEl.innerHTML = '<span class="cmt-name">' + esc(c.sender_name || 'Анон') + '</span>' +
+    '<span class="cmt-time">' + fmtTime(c.sent_at) + '</span>' +
+    (c.is_edited ? '<span class="med" title="ред."></span>' : '');
+  bub.appendChild(nameEl);
+
+  // Message body
+  const hasMedia = !!(c.media_url && c.media_type);
+  const hasText = !!(c.body && c.body.trim()) && c.media_type !== 'voice';
+  const mediaOnly = hasMedia && !hasText && c.media_type !== 'document' && c.media_type !== 'voice';
+  const mediaCaption = hasMedia && hasText;
+
+  const body = document.createElement('div');
+  body.className = 'mbody' +
+    (mediaOnly ? ' media-only' : '') +
+    (mediaCaption ? ' has-media-caption' : '');
+
+  // Reply reference (if exists)
+  if (c.reply_to) {
+    // Store reply_to for potential future lookup
+    body.dataset.replyTo = c.reply_to;
+  }
+
+  // Media
+  if (hasMedia) {
+    if (c.media_type === 'image') {
+      const mw = document.createElement('div');
+      mw.className = 'single-media';
+      const img = document.createElement('img');
+      img.src = getMediaUrl(c.media_url);
+      img.alt = '';
+      img.loading = 'lazy';
+      mw.appendChild(img);
+      body.appendChild(mw);
+    } else if (c.media_type === 'video') {
+      const vw = document.createElement('div');
+      vw.className = 'vid-wrap';
+      vw.innerHTML = '<video src="' + getMediaUrl(c.media_url) + '" preload="metadata" playsinline></video>' +
+        '<div class="vid-overlay"></div>' +
+        '<button class="vid-play-btn"><svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M8 5v14l11-7z"/></svg></button>';
+      body.appendChild(vw);
+    } else if (c.media_type === 'voice') {
+      const dur = c.voice_duration || parseInt(c.body || '0', 10) || 0;
+      const durStr = window.VoiceMsg ? window.VoiceMsg.formatTimeSec(dur) : `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+      const audioUrl = getMediaUrl(c.media_url);
+      let wfData = [];
+      try { if (c.voice_waveform) wfData = JSON.parse(c.voice_waveform); } catch(e) {}
+      const vw = document.createElement('div');
+      vw.className = 'voice-msg';
+      vw.innerHTML =
+        '<button class="voice-play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>' +
+        '<div class="voice-waveform">' + (wfData.length ? wfData.map(v => '<div class="voice-wf-bar" style="height:' + Math.max(3, v * 28) + 'px"></div>').join('') : '') + '</div>' +
+        '<span class="voice-dur">' + durStr + '</span>' +
+        (typeof window.VoiceMsg !== 'undefined' ? '<button class="voice-speed-btn">1x</button>' : '');
+      vw.dataset.src = audioUrl;
+      vw.dataset.dur = dur;
+      body.appendChild(vw);
+    } else if (c.media_type === 'document') {
+      body.appendChild(getDocIcon(c.media_url, c.body || 'Документ'));
+    }
+    if (c.media_spoiler && (c.media_type === 'image' || c.media_type === 'video')) {
+      body.classList.add('spoiler-media');
+    }
+  }
+
+  // Text
+  if (hasText && !mediaCaption) {
+    const txt = document.createElement('div');
+    txt.className = 'mtxt';
+    txt.innerHTML = fmtText(c.body);
+    body.appendChild(txt);
+  } else if (mediaCaption) {
+    const txt = document.createElement('div');
+    txt.className = 'mtxt media-caption';
+    txt.innerHTML = fmtText(c.body);
+    body.appendChild(txt);
+  }
+
+  // Meta (time + read status) at bottom
+  if (hasText || (hasMedia && !mediaOnly)) {
+    const bottom = document.createElement('div');
+    bottom.className = 'mbottom';
+    bottom.appendChild(makeMeta(c, isMe, false));
+    body.appendChild(bottom);
+  } else if (mediaOnly) {
+    body.appendChild(makeMeta(c, isMe, false));
+  }
+
+  bub.appendChild(body);
+  row.appendChild(aviEl);
+  row.appendChild(bub);
+
+  // Context menu
+  row.oncontextmenu = (e) => {
+    e.preventDefault();
+    const items = [
+      { label: 'Ответить', icon: '↩️', action: () => {
+        // Use the main rbar for comment reply
+        const rbar = $('rbar');
+        if (rbar) {
+          const who = rbar.querySelector('.rbar-who');
+          const txt = rbar.querySelector('.rbar-txt');
+          if (who) who.textContent = c.sender_name || 'Анон';
+          if (txt) txt.textContent = (c.body || c.media_type || '').slice(0, 60);
+          showRbar();
+          S._chCmtReplyTo = c.id;
+        }
+      }},
+      { label: 'Копировать', icon: '📋', action: () => {
+        if (c.body) navigator.clipboard.writeText(c.body).then(() => toast('Скопировано', 'ok'));
+      }},
+    ];
+    if (isMe) items.push({ label: 'Удалить', icon: '🗑', action: () => _deleteComment(c.id), danger: true });
+    _showCtxMenu(e, items);
+  };
+
+  return row;
+}
+
+async function _sendComment(mediaUrl, mediaType, mediaSpoiler) {
   const ch = S.activeChannel;
   const msgId = S.chCommentsMsgId;
   if (!ch || !msgId) return;
   
-  const field = $('ch-cmt-field');
+  const field = $('mfield');
   if (!field) return;
   const body = field.innerText?.trim() || '';
-  if (!body) return;
+  if (!body && !mediaUrl) return;
   field.innerHTML = '';
+  if (typeof updateSendBtn === 'function') updateSendBtn();
   
   try {
     const payload = { channel_id: ch.channel_id, message_id: msgId, body: body };
-    if (S._chCmtReplyTo) { payload.reply_to = S._chCmtReplyTo; S._chCmtReplyTo = null; $('ch-cmt-rbar').style.display = 'none'; }
+    if (mediaUrl) { payload.media_url = mediaUrl; payload.media_type = mediaType || 'image'; }
+    if (mediaSpoiler) payload.media_spoiler = 1;
+    if (S._chCmtReplyTo) { payload.reply_to = S._chCmtReplyTo; S._chCmtReplyTo = null; hideRbar(true); }
     
     const res = await api('send_channel_comment', 'POST', payload);
     if (res.ok) {
@@ -2946,6 +3074,11 @@ async function _doChannelSearch(q) {
 /* ══ SEND OVERRIDE — route send to channel when viewing channel ════ */
 const _origSendText = typeof sendText === 'function' ? sendText : null;
 window.sendText = function() {
+  // Comments panel open — route to comment send
+  if (S.chCommentsMsgId) {
+    _sendComment();
+    return;
+  }
   if (S.activeChannel) {
     sendChannelText();
     return;
