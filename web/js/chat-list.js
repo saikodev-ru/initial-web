@@ -1772,6 +1772,8 @@ window.addEventListener('popstate',e=>{
     if (document.querySelector('.overlay.on')) return;
     // Don't close chat if profile modal was just closed (return to chat, not list)
     if (typeof _profileModalJustClosed !== 'undefined' && _profileModalJustClosed) return;
+    // Don't close chat if the current history state is still a chat (e.g., after closing profile modal)
+    if (history.state && history.state.chat && history.state.chat !== 0) return;
     // Don't close chat if search is active (search handles its own popstate)
     if (window._closeChatSearch && $('hdr-pill')?.classList.contains('searching')) return;
     goBackToList();
