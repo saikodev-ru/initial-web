@@ -1585,6 +1585,108 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .desktop-pill-hdr .hdr-av-pill{
   transition: transform .25s var(--sp), filter .2s ease;
 }
+/* ── Desktop pill header: search-active transformation ── */
+/* When search is active in desktop-pill mode, the pill stretches into a full
+   search bar that fills the header row — same visual pattern as mobile. */
+.desktop-pill-hdr .chat-hdr.search-active{
+  align-items:center;
+  padding:0;
+  margin:6px 6px 0 6px;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-back-pill,
+.desktop-pill-hdr .chat-hdr.search-active .hdr-av-pill,
+.desktop-pill-hdr .chat-hdr.search-active .hdr-acts{
+  display:none !important;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-pill{
+  display:flex !important;
+  align-items:center;
+  flex:1;
+  max-width:none;
+  height:48px;
+  padding:0 10px 0 12px;
+  gap:8px;
+  border-radius:22px;
+  background:rgba(var(--bg-rgb),.82);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 1px 3px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:max-width .25s cubic-bezier(.32,.72,0,1),
+             padding .25s cubic-bezier(.32,.72,0,1),
+             border-radius .25s cubic-bezier(.32,.72,0,1),
+             gap .22s cubic-bezier(.32,.72,0,1),
+             background .25s ease,
+             box-shadow .2s ease;
+  overflow:hidden;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-pill .hdr-clickable{
+  display:none !important;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-pill .hdr-chat-search{
+  display:flex !important;
+  opacity:1 !important;
+  transform:none !important;
+  flex:1;
+  gap:8px;
+  align-items:center;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-ico{
+  color:var(--y2);
+  flex-shrink:0;
+  margin-left:0;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-input{
+  font-size:15px;
+  flex:1;
+  min-width:80px;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-close{
+  width:32px;height:32px;
+  flex-shrink:0;
+}
+/* Desktop pill header: search navigation integrated into header row */
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav{
+  display:flex !important;
+  align-items:center;
+  gap:2px;
+  flex-shrink:0;
+  margin-left:4px;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count{
+  font-size:13px;
+  font-weight:600;
+  color:var(--t2);
+  white-space:nowrap;
+  padding:0 8px;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.1px;
+  min-width:50px;
+  text-align:center;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count.has-results{color:var(--t1)}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-count.searching-indicator::after{
+  content:'';
+  display:inline-block;
+  width:4px;height:4px;
+  background:var(--y2);
+  border-radius:50%;
+  margin-left:4px;
+  vertical-align:middle;
+  animation:searchDot .8s ease-in-out infinite;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:32px;height:32px;
+  background:transparent;
+  border:none;
+  color:var(--t2);cursor:pointer;
+  border-radius:50%;
+  transition:background .12s,color .12s,transform .12s;
+}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:hover{background:var(--s1);color:var(--t1)}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:active{transform:scale(.9)}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn svg{width:18px;height:18px}
+.desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav-btn:disabled{opacity:.25;pointer-events:none}
+
 /* Hide on mobile — desktop only setting */
 @container app (max-width: 680px){
   .row-desktop-pill-hdr{display:none !important}
