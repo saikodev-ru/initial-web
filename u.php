@@ -142,6 +142,12 @@ function esc(string $s): string {
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+<!-- CSP meta tag as fallback: if server header CSP is restrictive, this meta tag overrides it.
+     Multiple CSP policies are enforced additively (most restrictive wins), so this permissive
+     policy only helps if there is NO restrictive HTTP header CSP. The SKIP_API_CSP constant
+     prevents security_init() from setting default-src 'none', which is the primary fix. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+
 <!-- Open Graph -->
 <meta property="og:type" content="profile">
 <meta property="og:title" content="<?php echo esc($pageTitle); ?>">
