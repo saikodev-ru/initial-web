@@ -30,12 +30,6 @@ if (empty($username)) {
     }
 }
 
-// Override 404 status — we handle this route
-// Must set both header() and http_response_code() for ErrorDocument context
-header('HTTP/1.1 200 OK', true, 200);
-header('Content-Type: text/html; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-
 $username = ltrim($username, '@');
 $cleanId  = preg_replace('/[^a-z0-9_]/i', '', $username);
 
@@ -91,6 +85,30 @@ if (!empty($cleanId)) {
         // Silently fail — CSR fallback
     }
 }
+
+// ── Override security headers for profile page ──
+// security_init() (via helpers.php) sets CSP default-src 'none' which blocks inline CSS.
+// We must override it with a permissive CSP that allows this HTML page to render properly.
+// Using header(..., true) to REPLACE the restrictive CSP set by security_init().
+header('Content-Security-Policy: '
+    . "default-src 'self'; "
+    . "script-src 'unsafe-inline'; "
+    . "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+    . "font-src 'self' https://fonts.gstatic.com; "
+    . "img-src 'self' data: https:; "
+    . "connect-src 'self'; "
+    . "frame-ancestors 'none'; "
+    . "base-uri 'self'; "
+    . "form-action 'self'", true);
+
+// Override 404 status — nginx serves u.php as ErrorDocument for /@username
+// Use both header() and http_response_code() for maximum compatibility
+// with different server configurations (Apache, nginx, etc.)
+header('HTTP/1.1 200 OK', true, 200);
+http_response_code(200);
+
+header('Content-Type: text/html; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 // Build absolute avatar URL
 $fullAvatarUrl = '';
