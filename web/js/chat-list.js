@@ -143,6 +143,13 @@ function openChat(c){
   hideRbar(true);
   if (window._hidePill) window._hidePill(); // reset pill on chat switch
   if (window._closeChatSearch) window._closeChatSearch(); // close inline search
+  // Force-reset search header state (safety: ensure search-active is removed even if _closeChatSearch skipped)
+  {
+    const ch=$('chat-hdr'), pz=$('input-zone'), pl=$('hdr-pill');
+    if(ch) ch.classList.remove('search-active');
+    if(pz) pz.style.display='';
+    if(pl){pl.classList.remove('searching');pl.style.willChange='';}
+  }
   $$('.ci').forEach(e=>e.classList.remove('active'));
   document.querySelector(`.ci[data-chat-id="${c.chat_id}"]`)?.classList.add('active');
   const name=c.partner_name||'@'+c.partner_signal_id;
@@ -818,7 +825,7 @@ function openProfileModal(u, isSelf=false){
       rowBio.style.display = 'flex';
       valBio.textContent = 'Отсутствует';
       valBio.style.color = 'var(--t3)';
-      valBio.style.fontStyle = 'italic';
+      valBio.style.fontStyle = '';
     }
   }
 

@@ -2251,6 +2251,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
   font-size:24px;font-weight:700;letter-spacing:-.3px;
   color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   min-width:0;max-width:100%;
+  text-shadow:0 1px 4px rgba(0,0,0,.35),0 0 12px rgba(0,0,0,.15);
 }
 /* Verified badge — see .verified-badge global rule */
 .pm-badge{cursor:pointer;transition:transform .2s var(--sp),filter .2s var(--ease);will-change:transform,filter;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -2261,6 +2262,7 @@ body[data-theme="light"] .pm-ctrl-btn:hover{
   text-align:left;margin-bottom:0;
   font-weight:500;background:transparent;border:none;padding:0;display:block;
   position:relative;z-index:2;
+  text-shadow:0 1px 3px rgba(0,0,0,.3),0 0 8px rgba(0,0,0,.12);
 }
 .pm-status-pill.on{color:var(--green)}
 .pm-status-pill.on .pm-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:4px;vertical-align:middle;box-shadow:0 0 4px var(--green)}
