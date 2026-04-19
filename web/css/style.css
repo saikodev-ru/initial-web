@@ -1928,16 +1928,15 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   }
   .pin-bar-inner:active{filter:brightness(.95);transform:none}
   .pin-dots{
-    flex-direction:row;
+    flex-direction:column-reverse;
     gap:4px;
-    padding:0 4px 0 0;
+    padding:3px 5px 3px 6px;
   }
   .pin-dot{
     width:6px;height:6px;
   }
   .pin-dot.active{
-    height:6px;
-    width:14px;
+    height:14px;
     border-radius:3px;
     transform:none;
   }
