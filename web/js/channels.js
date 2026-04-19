@@ -1035,6 +1035,9 @@ function _makeChannelMsgEl(m) {
       const aviWrap = document.createElement('div');
       aviWrap.className = 'ch-cmt-avis';
       aviWrap.dataset.count = Math.min(commenters.length, 3);
+      // Set explicit width so absolute children don't collapse the container
+      const aviCount = Math.min(commenters.length, 3);
+      aviWrap.style.width = (aviCount * 14 + 24) + 'px';
       commenters.slice(0, 3).forEach((c, i) => {
         const avi = document.createElement('div');
         avi.className = 'ch-cmt-avi';
@@ -1057,12 +1060,12 @@ function _makeChannelMsgEl(m) {
     label.className = 'ch-cmt-label' + (cmtCount > 0 ? '' : ' ch-cmt-placeholder');
     label.textContent = cmtCount > 0 ? (cmtCount + ' ' + _pluralComment(cmtCount)) : 'оставить комментарий';
     infoWrap.appendChild(label);
-    // Right arrow in accent color
+    cmtBar.appendChild(infoWrap);
+    // Arrow pinned to the right edge of cmtBar (not inside infoWrap)
     const arrow = document.createElement('span');
     arrow.className = 'ch-cmt-arrow';
     arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
-    infoWrap.appendChild(arrow);
-    cmtBar.appendChild(infoWrap);
+    cmtBar.appendChild(arrow);
     cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
     body.appendChild(cmtBar);
   }
