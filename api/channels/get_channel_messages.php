@@ -8,6 +8,7 @@ require_once __DIR__ . '/../helpers.php';
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Только GET', 405);
 
+try {
 $me       = auth_user();
 $uid      = (int) $me['id'];
 $channelId = (int) ($_GET['channel_id'] ?? 0);
@@ -91,51 +92,61 @@ if ($isInit) {
 // ── Increment views_count for fetched messages ──────────────────
 // Use unique views: only count if this user hasn't viewed this message before
 if (!empty($messages) && $membership) {
-    $ids = array_column($messages, 'id');
-    
-    // Find which messages the user has already viewed
-    $ph = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $db->prepare("SELECT message_id FROM channel_message_views WHERE user_id = ? AND message_id IN ($ph)");
-    $stmt->execute(array_merge([$uid], $ids));
-    $viewedIds = array_column($stmt->fetchAll(), 'message_id');
-    
-    // Filter to only unviewed messages
-    $unviewedIds = array_diff($ids, $viewedIds);
-    
-    if (!empty($unviewedIds)) {
-        // Insert view records for unviewed messages
-        $insertStmt = $db->prepare('INSERT IGNORE INTO channel_message_views (user_id, message_id) VALUES (?, ?)');
-        foreach ($unviewedIds as $mid) {
-            $insertStmt->execute([$uid, $mid]);
-        }
+    try {
+        $ids = array_column($messages, 'id');
         
-        // Increment views_count only for newly viewed messages
-        $ph2 = implode(',', array_fill(0, count($unviewedIds), '?'));
-        $db->prepare("UPDATE channel_messages SET views_count = views_count + 1 WHERE id IN ($ph2)")
-            ->execute(array_values($unviewedIds));
+        // Find which messages the user has already viewed
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $db->prepare("SELECT message_id FROM channel_message_views WHERE user_id = ? AND message_id IN ($ph)");
+        $stmt->execute(array_merge([$uid], $ids));
+        $viewedIds = array_column($stmt->fetchAll(), 'message_id');
+        
+        // Filter to only unviewed messages
+        $unviewedIds = array_diff($ids, $viewedIds);
+        
+        if (!empty($unviewedIds)) {
+            // Insert view records for unviewed messages
+            $insertStmt = $db->prepare('INSERT IGNORE INTO channel_message_views (user_id, message_id) VALUES (?, ?)');
+            foreach ($unviewedIds as $mid) {
+                $insertStmt->execute([$uid, $mid]);
+            }
+            
+            // Increment views_count only for newly viewed messages
+            $ph2 = implode(',', array_fill(0, count($unviewedIds), '?'));
+            $db->prepare("UPDATE channel_messages SET views_count = views_count + 1 WHERE id IN ($ph2)")
+                ->execute(array_values($unviewedIds));
+        }
+    } catch (\Throwable $e) {
+        // channel_message_views table may not exist yet — skip views tracking
+        error_log('get_channel_messages views tracking error (non-fatal): ' . $e->getMessage());
     }
 }
 
 // ── Reactions ──────────────────────────────────────────────────
 $reactionsMap = [];
 if (!empty($messages)) {
-    $ids = array_column($messages, 'id');
-    $ph  = implode(',', array_fill(0, count($ids), '?'));
-    $stmt2 = $db->prepare(
-        "SELECT message_id, emoji, COUNT(*) AS cnt,
-                SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS by_me
-         FROM channel_reactions
-         WHERE message_id IN ($ph)
-         GROUP BY message_id, emoji
-         ORDER BY cnt DESC, emoji"
-    );
-    $stmt2->execute(array_merge([$uid], $ids));
-    foreach ($stmt2->fetchAll() as $r) {
-        $reactionsMap[$r['message_id']][] = [
-            'emoji' => $r['emoji'],
-            'count' => (int) $r['cnt'],
-            'by_me' => (bool) $r['by_me'],
-        ];
+    try {
+        $ids = array_column($messages, 'id');
+        $ph  = implode(',', array_fill(0, count($ids), '?'));
+        $stmt2 = $db->prepare(
+            "SELECT message_id, emoji, COUNT(*) AS cnt,
+                    SUM(CASE WHEN user_id = ? THEN 1 ELSE 0 END) AS by_me
+             FROM channel_reactions
+             WHERE message_id IN ($ph)
+             GROUP BY message_id, emoji
+             ORDER BY cnt DESC, emoji"
+        );
+        $stmt2->execute(array_merge([$uid], $ids));
+        foreach ($stmt2->fetchAll() as $r) {
+            $reactionsMap[$r['message_id']][] = [
+                'emoji' => $r['emoji'],
+                'count' => (int) $r['cnt'],
+                'by_me' => (bool) $r['by_me'],
+            ];
+        }
+    } catch (\Throwable $e) {
+        // channel_reactions table may not exist yet — skip reactions
+        error_log('get_channel_messages reactions error (non-fatal): ' . $e->getMessage());
     }
 }
 
@@ -174,3 +185,8 @@ json_ok([
     'messages'     => $messages,
     'last_read_id' => $lastReadId,
 ]);
+
+} catch (\Throwable $e) {
+    error_log('get_channel_messages error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    json_err('server_error', 'Ошибка загрузки сообщений: ' . $e->getMessage(), 500);
+}

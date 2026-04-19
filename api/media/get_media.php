@@ -67,7 +67,7 @@ if (!$authed) {
 //   media/audio/{userId}/{uid}.{ext}
 //   media/voice/{userId}/{uid}.{ext}        ← голосовые сообщения
 if (empty($key) || !preg_match(
-    '#^(avatars/user_.*?\.(jpg|jpeg|png|webp|gif)|music/\d+/(covers/)?[a-f0-9]{16}\.(mp3|m4a|aac|ogg|wav|flac|webm|jpg|jpeg|png|webp)|media/(images|videos|audio|voice|documents)/\d+/[a-f0-9]{16}\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm|mp3|ogg|aac|m4a|pdf|doc|docx|xls|xlsx|zip|rar|7z|txt|csv|json|html|css|xml|md|rtf))$#i',
+    '#^(avatars/(user_|channels/).*?\.(jpg|jpeg|png|webp|gif)|music/\d+/(covers/)?[a-f0-9]{16}\.(mp3|m4a|aac|ogg|wav|flac|webm|jpg|jpeg|png|webp)|media/(images|videos|audio|voice|documents)/\d+/[a-f0-9]{16}\.(jpg|jpeg|png|webp|gif|mp4|mov|avi|webm|mp3|ogg|aac|m4a|pdf|doc|docx|xls|xlsx|zip|rar|7z|txt|csv|json|html|css|xml|md|rtf))$#i',
     $key
 )) {
     http_response_code(400);
