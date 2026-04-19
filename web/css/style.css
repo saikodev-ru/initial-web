@@ -834,6 +834,9 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
 .hdr-search-btn-desk{display:none}
 /* ── Desktop search: transform entire header into search bar ── */
 @media(min-width:681px){
+  .chat-hdr{
+    transition:padding .28s cubic-bezier(.32,.72,0,1),gap .25s cubic-bezier(.32,.72,0,1);
+  }
   .chat-hdr.search-active{
     gap:8px;
     padding:8px 14px;
@@ -858,6 +861,11 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
     flex:1;
     gap:8px;
     align-items:center;
+    animation:deskSearchIn .3s cubic-bezier(.34,1.3,.64,1) forwards;
+  }
+  @keyframes deskSearchIn{
+    from{opacity:0;transform:translateX(-12px) scaleX(.95)}
+    to{opacity:1;transform:none}
   }
   .chat-hdr.search-active .hdr-search-ico{color:var(--y2)}
   .chat-hdr.search-active .hdr-search-input{
@@ -869,11 +877,14 @@ body.two-line-chat .ci-prev>span:first-child{white-space:normal;display:-webkit-
   /* Desktop search navigation — now a sibling of hdr-acts */
   .chat-hdr.search-active .hdr-search-nav{
     display:flex !important;
+    animation:deskSearchNavIn .25s cubic-bezier(.32,.72,0,1) .12s both;
+  }
+  @keyframes deskSearchNavIn{
+    from{opacity:0;transform:translateX(8px)}
+    to{opacity:1;transform:none}
   }
   /* Hide bottom search nav panel on desktop when header nav is active */
-  .chat-hdr.search-active ~ .search-nav-panel{
-    display:none !important;
-  }
+  .search-nav-panel{display:none !important}
   .hdr-search-btn-desk{
     display:flex;
   }
@@ -1628,6 +1639,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
   flex:1;
   gap:8px;
   align-items:center;
+  animation:deskSearchIn .3s cubic-bezier(.34,1.3,.64,1) forwards;
 }
 .desktop-pill-hdr .chat-hdr.search-active .hdr-search-ico{
   color:var(--y2);
@@ -1647,6 +1659,7 @@ body[data-theme="light"] .inapp-push-act-btn:hover{background:rgba(0,0,0,.08)}
 .desktop-pill-hdr .chat-hdr.search-active .hdr-search-nav{
   display:flex !important;
   margin-left:4px;
+  animation:deskSearchNavIn .25s cubic-bezier(.32,.72,0,1) .12s both;
 }
 /* Hide desktop search nav when not searching in pill mode */
 .desktop-pill-hdr .hdr-search-nav{display:none !important}
