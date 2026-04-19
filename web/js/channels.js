@@ -65,6 +65,14 @@ function _pluralRu(n) {
   if (last === 1) return '';
   return 'ов';
 }
+function _pluralComment(n) {
+  const abs = Math.abs(n) % 100;
+  const last = abs % 10;
+  if (abs > 10 && abs < 20) return 'комментариев';
+  if (last > 1 && last < 5) return 'комментария';
+  if (last === 1) return 'комментарий';
+  return 'комментариев';
+}
 function _chAvatarHtml(ch) {
   const name = ch.name || 'Канал';
   const url = ch.avatar_url;
@@ -676,9 +684,23 @@ function appendChannelMsg(chId, m) {
 function _patchChannelMsgDom(m) {
   const el = document.querySelector('.mrow[data-id="' + m.id + '"]');
   if (!el) return;
+  // Check if there were reactions before patch to animate new ones
+  const oldRxns = el.querySelectorAll('.rxn');
+  const oldEmojiSet = new Set();
+  oldRxns.forEach(c => oldEmojiSet.add(c.dataset.emoji));
+
   const newEl = _makeChannelMsgEl(m);
   newEl.style.animation = 'none';
   el.replaceWith(newEl);
+
+  // Animate newly appeared reaction chips
+  if (oldEmojiSet.size >= 0) {
+    newEl.querySelectorAll('.rxn').forEach((chip, idx) => {
+      if (!oldEmojiSet.has(chip.dataset.emoji)) {
+        chip.classList.add('rxn-enter');
+      }
+    });
+  }
 }
 
 /* ══ BUILD CHANNEL MESSAGE ELEMENT (unified with chat makeMsgEl logic) ══ */
@@ -918,7 +940,7 @@ function _makeChannelMsgEl(m) {
         // Reactions present: timestamp in .mbottom.rxns-only (same as chat)
         const rb = document.createElement('div');
         rb.className = 'mbottom rxns-only';
-        rb.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
+        rb.appendChild(_chMakeRxnRow(m.id, rxns, m));
         rb.appendChild(_chMakeMeta(m, sending, 'mtxt-meta'));
         if (mediaCaption) {
           const cap = document.createElement('div');
@@ -1017,15 +1039,28 @@ function _makeChannelMsgEl(m) {
         aviWrap.appendChild(avi);
       });
       cmtBar.appendChild(aviWrap);
+      const infoWrap = document.createElement('div');
+      infoWrap.className = 'ch-cmt-info';
       const label = document.createElement('span');
       label.className = 'ch-cmt-label';
-      label.textContent = cmtCount + ' ' + 'комментари' + _pluralRu(cmtCount);
-      cmtBar.appendChild(label);
+      label.textContent = cmtCount + ' ' + _pluralComment(cmtCount);
+      infoWrap.appendChild(label);
+      // Right arrow in accent color
+      const arrow = document.createElement('span');
+      arrow.className = 'ch-cmt-arrow';
+      arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
+      infoWrap.appendChild(arrow);
+      cmtBar.appendChild(infoWrap);
     } else {
       const label = document.createElement('span');
       label.className = 'ch-cmt-label ch-cmt-placeholder';
       label.textContent = 'оставить комментарий';
       cmtBar.appendChild(label);
+      // Right arrow for placeholder too
+      const arrow = document.createElement('span');
+      arrow.className = 'ch-cmt-arrow';
+      arrow.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>';
+      cmtBar.appendChild(arrow);
     }
     cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
     body.appendChild(cmtBar);
@@ -1038,7 +1073,7 @@ function _makeChannelMsgEl(m) {
     const rw = document.createElement('div');
     rw.className = 'rxn-wrap';
     rw.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
-    rw.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
+    rw.appendChild(_chMakeRxnRow(m.id, rxns, m));
     bub.appendChild(rw);
   }
 
@@ -1103,24 +1138,18 @@ function _chMakeMeta(m, sending = false, cls = 'mmeta') {
   return meta;
 }
 
-/* ── Channel reaction row builder (fallback if makeRxnRow not available) ── */
-function _chMakeRxnRow(msgId, rxns) {
-  if (typeof makeRxnRow === 'function') return makeRxnRow(msgId, rxns);
-  const row = document.createElement('div');
-  row.className = 'rxns';
-  row.dataset.for = msgId;
-  rxns.forEach(r => {
-    const chip = document.createElement('div');
-    chip.className = 'rxn' + (r.by_me ? ' mine' : '');
-    chip.dataset.msg = msgId;
-    chip.dataset.emoji = r.emoji;
-    const ico = document.createElement('span');
-    ico.className = 'rxn-ico emo-s';
-    ico.textContent = r.emoji;
-    chip.appendChild(ico);
-    chip.appendChild(Object.assign(document.createElement('span'), { className: 'rxn-n', textContent: r.count }));
-    chip.onclick = () => { _toggleChRxn(msgId, r.emoji, !!(r.by_me)); };
-    row.appendChild(chip);
+/* ── Channel reaction row builder — always uses channel-specific toggle ── */
+function _chMakeRxnRow(msgId, rxns, msgObj) {
+  // Build via makeRxnRow for correct DOM structure, then override onclick handlers
+  const row = typeof makeRxnRow === 'function' ? makeRxnRow(msgId, rxns) : document.createElement('div');
+  // Override every chip onclick to use channel toggle (react_channel_message API)
+  row.querySelectorAll('.rxn').forEach(chip => {
+    const emoji = chip.dataset.emoji;
+    chip.onclick = () => {
+      const fresh = S.chRxns[+msgId] || [];
+      const entry = fresh.find(x => x.emoji === emoji);
+      _toggleChRxn(msgObj || { id: +msgId }, emoji, !!(entry && entry.by_me));
+    };
   });
   return row;
 }
@@ -1139,13 +1168,26 @@ async function _toggleChRxn(m, emoji, byMe) {
     });
     if (res.ok && res.reactions) {
       S.chRxns[m.id] = res.reactions;
-      _patchChannelMsgDom(m);
+      // Animate the specific chip that changed (bump effect)
+      _animateChRxnChip(m.id, emoji);
+      // Patch the DOM after a short delay to let animation play
+      setTimeout(() => _patchChannelMsgDom(m), 200);
       // Update in memory
       const chId = ch.channel_id;
       const mem = (S.channelMsgs[chId] || []).find(x => x.id === m.id);
       if (mem) mem.reactions = res.reactions;
     }
   } catch(e) { toast('Ошибка реакции', 'err'); }
+}
+
+function _animateChRxnChip(msgId, emoji) {
+  const msgRow = document.querySelector('.mrow[data-id="' + msgId + '"]');
+  if (!msgRow) return;
+  const chip = msgRow.querySelector('.rxn[data-emoji="' + CSS.escape(emoji) + '"]');
+  if (!chip) return;
+  chip.classList.remove('rxn-bump');
+  void chip.offsetWidth; // reflow
+  chip.classList.add('rxn-bump');
 }
 
 function _showChRxnPicker(e, m) {
