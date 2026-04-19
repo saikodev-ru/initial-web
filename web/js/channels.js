@@ -117,6 +117,7 @@ async function loadChannels() {
   S.channels = (res.channels || []).map(ch => ({
     ...ch,
     member_count: ch.member_count || ch.members_count || 0,
+    is_member: true, // All channels from get_channels are user's channels
   }));
   // Populate muted state
   S.channelMuted = {};
@@ -2258,49 +2259,60 @@ function openChannelProfile(ch) {
     const existingJoinBtn = $('pm-btn-join');
     if (existingJoinBtn) existingJoinBtn.remove();
 
-    const joinBtn = document.createElement('button');
-    joinBtn.id = 'pm-btn-join';
-    joinBtn.className = 'pm-action-btn' + (ch.is_member ? ' muted' : '');
-    
-    let joinIconSvg, joinLabel;
-    if (ch.is_member) {
-      // Already a member — show "Выйти" with exit icon
-      joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
-      joinLabel = 'выйти';
-    } else if (ch.type !== 'private') {
-      joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>';
-      joinLabel = 'вступить';
+    // Owner cannot leave — hide button entirely for owners
+    const isOwner = _chIsOwner(ch);
+    if (isOwner) {
+      // Don't show join/leave button for channel owner
     } else {
-      joinBtn.style.display = 'none';
-    }
+      const joinBtn = document.createElement('button');
+      joinBtn.id = 'pm-btn-join';
+      joinBtn.className = 'pm-action-btn' + (ch.is_member ? ' muted' : '');
+      
+      let joinIconSvg, joinLabel;
+      if (ch.is_member) {
+        // Already a member — show "Выйти" with exit icon
+        joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+        joinLabel = 'выйти';
+      } else if (ch.type !== 'private') {
+        joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>';
+        joinLabel = 'вступить';
+      } else {
+        joinBtn.style.display = 'none';
+      }
 
-    if (joinBtn.style.display !== 'none') {
-      joinBtn.innerHTML = '<div class="pm-act-circle"><div class="pm-act-ic">' + joinIconSvg + '</div></div><span class="pm-act-lbl">' + joinLabel + '</span>';
-      joinBtn.onclick = async () => {
-        if (ch.is_member) {
-          if (!confirm('Покинуть канал?')) return;
-          await _leaveChannel(ch.channel_id);
-        } else {
-          joinBtn.disabled = true;
-          const origLabel = joinBtn.querySelector('.pm-act-lbl');
-          if (origLabel) origLabel.textContent = '...';
-          const res = await api('join_channel', 'POST', { channel_id: ch.channel_id });
-          joinBtn.disabled = false;
-          if (res.ok) {
-            toast('Вы подписались!', 'ok');
-            await loadChannels();
-            try {
-              const info = await api('get_channel_info?channel_id=' + ch.channel_id);
-              if (info.ok) {
-                const updatedCh = { ...ch, ...info, channel_id: ch.channel_id };
-                S.activeChannel = updatedCh;
-                openChannelProfile(updatedCh);
-              }
-            } catch(e) {}
-          } else toast(res.message || 'Ошибка', 'err');
-        }
-      };
-      actsRow.insertBefore(joinBtn, actsRow.firstChild);
+      if (joinBtn.style.display !== 'none') {
+        joinBtn.innerHTML = '<div class="pm-act-circle"><div class="pm-act-ic">' + joinIconSvg + '</div></div><span class="pm-act-lbl">' + joinLabel + '</span>';
+        joinBtn.onclick = async () => {
+          if (ch.is_member) {
+            // _leaveChannel already has its own confirm — don't double confirm
+            await _leaveChannel(ch.channel_id);
+            // After leaving, close profile and channel if active
+            if (S.activeChannel && S.activeChannel.channel_id === ch.channel_id) {
+              closeChannel();
+            }
+            closeMod('modal-partner');
+          } else {
+            joinBtn.disabled = true;
+            const origLabel = joinBtn.querySelector('.pm-act-lbl');
+            if (origLabel) origLabel.textContent = '...';
+            const res = await api('join_channel', 'POST', { channel_id: ch.channel_id });
+            joinBtn.disabled = false;
+            if (res.ok) {
+              toast('Вы подписались!', 'ok');
+              await loadChannels();
+              try {
+                const info = await api('get_channel_info?channel_id=' + ch.channel_id);
+                if (info.ok) {
+                  const updatedCh = { ...ch, ...info, channel_id: ch.channel_id };
+                  S.activeChannel = updatedCh;
+                  openChannelProfile(updatedCh);
+                }
+              } catch(e) {}
+            } else toast(res.message || 'Ошибка', 'err');
+          }
+        };
+        actsRow.insertBefore(joinBtn, actsRow.firstChild);
+      }
     }
   }
 
