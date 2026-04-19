@@ -681,7 +681,7 @@ function _patchChannelMsgDom(m) {
   el.replaceWith(newEl);
 }
 
-/* ══ BUILD CHANNEL MESSAGE ELEMENT ════════════════════════════ */
+/* ══ BUILD CHANNEL MESSAGE ELEMENT (unified with chat makeMsgEl logic) ══ */
 function _makeChannelMsgEl(m) {
   const ch = S.activeChannel;
   const isMe = m.sender_id == S.user?.id;
@@ -698,19 +698,24 @@ function _makeChannelMsgEl(m) {
   cb.className = 'msg-checkbox';
   row.appendChild(cb);
 
-  // Channel messages always show channel name, not sender nickname
+  // Channel messages always show channel name
   const senderName = ch?.name || 'Канал';
-  const showSender = true; // Always show channel name in channel messages
 
   const bub = document.createElement('div');
   bub.className = 'mbub';
 
   const hasMedia = !!(m.media_url && m.media_type);
   const hasText = !!(m.body && m.body.trim()) && m.media_type !== 'voice';
-  const mediaOnly = hasMedia && !hasText;
+  const mediaOnly = hasMedia && !hasText && m.media_type !== 'document' && m.media_type !== 'voice';
+  const mediaCaption = hasMedia && hasText;
+
+  // Reactions — use shared sortRxns if available
+  const _rxns = S.chRxns[m.id] || m.reactions || [];
+  const rxns = typeof sortRxns === 'function' ? sortRxns(_rxns) : [..._rxns].sort((a, b) => b.count - a.count);
+  const hasRxns = rxns.length > 0;
 
   const body = document.createElement('div');
-  body.className = 'mbody' + (mediaOnly ? ' media-only' : '') + (sending ? ' sending' : '') + (m.is_edited ? ' is-edited' : '');
+  body.className = 'mbody' + (mediaOnly ? ' media-only' : '') + (mediaCaption ? ' has-media-caption' : '') + (sending ? ' sending' : '') + (m.is_edited ? ' is-edited' : '');
 
   // Forward label
   if (m.forwarded_from) {
@@ -721,21 +726,22 @@ function _makeChannelMsgEl(m) {
     body.appendChild(fwd);
   }
 
-  // Sender name (shown above bubble for admin posts)
-  if (showSender && !m.forwarded_from) {
+  // Sender name
+  if (!m.forwarded_from) {
     const nameDiv = document.createElement('div');
     nameDiv.className = 'ch-sender-name';
     nameDiv.textContent = senderName;
-    nameDiv.style.cssText = 'font-weight:600;font-size:13px;color:var(--accent);margin-bottom:2px;cursor:pointer';
     body.appendChild(nameDiv);
   }
 
-  // Reply
+  // Reply reference (same logic as chat)
   if (m.reply_to) {
     const _chId = S.activeChannel?.channel_id;
     const orig = (S.channelMsgs[_chId] || []).find(x => x.id == m.reply_to);
     let rText = 'Сообщение';
-    if (orig) rText = hideSpoilerText(orig.body) || 'Медиа';
+    if (orig) {
+      rText = hideSpoilerText(orig.body) || (orig.media_type === 'video' ? '🎥 Видео' : orig.media_type === 'image' ? '🖼 Фото' : 'Медиа') || 'Сообщение';
+    }
     const rName = orig ? (orig.nickname || orig.sender_name || 'Автор') : '—';
     const rDiv = document.createElement('div');
     rDiv.className = 'rply';
@@ -747,11 +753,11 @@ function _makeChannelMsgEl(m) {
     body.appendChild(rDiv);
   }
 
-  // Media
+  // ── Media (same structure as chat makeMsgEl) ──
   if (hasMedia) {
     if (m.media_type === 'image') {
       const mWrap = document.createElement('div');
-      mWrap.className = 'single-media';
+      mWrap.className = 'single-media' + (m.media_spoiler ? ' media-spoiler' : '');
       const img = document.createElement('img');
       img.loading = 'lazy';
       img.decoding = 'async';
@@ -760,18 +766,24 @@ function _makeChannelMsgEl(m) {
       mWrap.appendChild(img);
       mWrap.appendChild(ov);
       const origUrl = m.media_url;
-      const dims = _dimRead(origUrl);
-      if (dims) _reserveMediaSize(mWrap, dims.w, dims.h);
-      else _applyPlaceholder(mWrap);
+      if (m.media_width && m.media_height) {
+        _reserveMediaSize(mWrap, m.media_width, m.media_height);
+      } else {
+        const cached = _dimRead(origUrl);
+        if (cached && cached.w && cached.h) {
+          _reserveMediaSize(mWrap, cached.w, cached.h);
+        } else {
+          _applyPlaceholder(mWrap);
+        }
+      }
       img.src = origUrl;
       img.alt = '';
       img.onload = () => {
-        if (!dims) { _dimWrite(origUrl, img.naturalWidth, img.naturalHeight); _upgradePlaceholder(mWrap, img.naturalWidth, img.naturalHeight); }
+        if (!m.media_width) { _dimWrite(origUrl, img.naturalWidth, img.naturalHeight); _upgradePlaceholder(mWrap, img.naturalWidth, img.naturalHeight); }
         delete mWrap.dataset.placeholder;
       };
       img.onerror = () => { mWrap.classList.add('media-err'); };
-      img.onclick = () => { if (typeof openViewer === 'function') openViewer(S.channelMsgs[ch?.channel_id] || [], m, 'channel'); };
-      // Loading ring for incoming
+      if (!sending) img.onclick = () => { if (typeof openViewer === 'function') openViewer(S.channelMsgs[ch?.channel_id] || [], m, 'channel'); };
       if (!origUrl?.startsWith('blob:')) {
         mWrap.classList.add('media-loading');
         const loadOv = document.createElement('div');
@@ -804,7 +816,7 @@ function _makeChannelMsgEl(m) {
           dur.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
         }
       }, { once: true });
-      mWrap.addEventListener('mouseenter', () => { vid.currentTime = 0; vid.play().catch(() => {}); });
+      mWrap.addEventListener('mouseenter', () => { if (!sending) { vid.currentTime = 0; vid.play().catch(() => {}); } });
       mWrap.addEventListener('mouseleave', () => { vid.pause(); vid.currentTime = 0.1; });
       const overlay = document.createElement('div');
       overlay.className = 'vid-overlay';
@@ -817,7 +829,6 @@ function _makeChannelMsgEl(m) {
       mWrap.appendChild(vid);
       mWrap.appendChild(overlay);
       mWrap.appendChild(durEl);
-      // Loading ring
       if (!m.media_url?.startsWith('blob:')) {
         mWrap.classList.add('media-loading');
         const vidLoadOv = document.createElement('div');
@@ -844,118 +855,164 @@ function _makeChannelMsgEl(m) {
         '<span class="voice-dur">' + durStr + '</span>';
       body.appendChild(vWrap);
     } else if (m.media_type === 'document') {
-      const dWrap = document.createElement('div');
-      dWrap.className = 'doc-msg';
-      const fileName = m.file_name || 'Файл';
-      const fileSize = m.file_size ? fmtBytes(m.file_size) : '';
-      dWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>' +
-        '<div class="doc-info"><div class="doc-name">' + esc(fileName) + '</div><div class="doc-size">' + fileSize + '</div></div>';
-      dWrap.onclick = () => { const a = document.createElement('a'); a.href = m.media_url; a.download = fileName; a.click(); };
-      body.appendChild(dWrap);
+      // Same doc-card style as chat
+      const fileName = m.media_file_name || m.file_name || 'Файл';
+      const fileSize = m.media_file_size ? fmtFileSize(m.media_file_size) : (m.file_size ? fmtBytes(m.file_size) : '');
+      const docUrl = m.media_url;
+      const ext = (fileName.split('.').pop() || '').toLowerCase().slice(0, 4);
+      const card = document.createElement('a');
+      card.className = 'doc-card';
+      card.href = docUrl;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      card.download = fileName;
+      const icoWrap = document.createElement('div');
+      icoWrap.className = 'doc-card-icon doc-card-icon-' + ext;
+      icoWrap.innerHTML = typeof getDocIcon === 'function' ? (getDocIcon(ext) || '') : '';
+      const info = document.createElement('div');
+      info.className = 'doc-card-info';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'doc-card-name';
+      nameEl.textContent = fileName;
+      nameEl.title = fileName;
+      const sizeEl = document.createElement('div');
+      sizeEl.className = 'doc-card-size';
+      sizeEl.textContent = fileSize;
+      info.appendChild(nameEl);
+      info.appendChild(sizeEl);
+      card.appendChild(icoWrap);
+      card.appendChild(info);
+      body.appendChild(card);
     }
   }
 
-  // Text
+  // ── Text (same logic as chat: emoji-only detection, media caption, phantom spacer) ──
   if (hasText) {
-    const txt = document.createElement('div');
-    txt.className = 'mtxt';
-    txt.innerHTML = fmtText(m.body);
-    txt.style.cssText = '';
-    body.appendChild(txt);
-    walkTextNodes(txt);
+    const _stripped = (m.body || '').replace(typeof mkEMORE === 'function' ? mkEMORE() : /(?:)/, '').replace(/[\s\u200B\uFEFF]/g, '');
+    const _isEmoOnly = !hasMedia && _stripped.length === 0 && typeof countEmoji === 'function';
+    const t = document.createElement('div');
+    t.className = 'mtxt';
+
+    if (_isEmoOnly) {
+      const _cnt = countEmoji(m.body || '');
+      body.classList.add('emo-only', 'emo-c' + Math.min(_cnt, 6));
+      t.textContent = m.body || '';
+      walkTextNodes(t);
+      const bottom = document.createElement('div');
+      bottom.className = 'mbottom';
+      bottom.appendChild(_chMakeMeta(m, sending));
+      if (mediaCaption) {
+        const cap = document.createElement('div');
+        cap.className = 'mcap';
+        cap.appendChild(t);
+        cap.appendChild(bottom);
+        body.appendChild(cap);
+      } else {
+        body.appendChild(t);
+        body.appendChild(bottom);
+      }
+    } else {
+      t.innerHTML = fmtText(m.body);
+      walkTextNodes(t);
+      if (hasRxns) {
+        // Reactions present: timestamp in .mbottom.rxns-only (same as chat)
+        const rb = document.createElement('div');
+        rb.className = 'mbottom rxns-only';
+        rb.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
+        rb.appendChild(_chMakeMeta(m, sending, 'mtxt-meta'));
+        if (mediaCaption) {
+          const cap = document.createElement('div');
+          cap.className = 'mcap';
+          cap.appendChild(t);
+          cap.appendChild(rb);
+          body.appendChild(cap);
+        } else {
+          body.appendChild(t);
+          body.appendChild(rb);
+        }
+      } else {
+        // Phantom spacer approach (same as chat)
+        const sp = document.createElement('span');
+        sp.className = 'mtxt-spacer';
+        t.appendChild(sp);
+        t.appendChild(_chMakeMeta(m, sending, 'mtxt-meta'));
+        if (mediaCaption) {
+          const cap = document.createElement('div');
+          cap.className = 'mcap';
+          cap.appendChild(t);
+          body.appendChild(cap);
+        } else {
+          body.appendChild(t);
+        }
+      }
+    }
   }
 
-  // Bottom: timestamp, views, edited
-  const bottom = document.createElement('div');
-  bottom.className = 'mbottom';
-
-  if (m.is_edited) {
-    const ed = document.createElement('span');
-    ed.className = 'med';
-    ed.title = 'ред.';
-    bottom.appendChild(ed);
+  // Link preview (same as chat)
+  if (hasText && !sending && !isTemp(m.id) && typeof attachLinkPreview === 'function') {
+    attachLinkPreview(body, m.body);
   }
 
-  const ts = document.createElement('span');
-  ts.className = 'mtime';
-  ts.textContent = fmtTime(m.sent_at);
-  bottom.appendChild(ts);
-
-  // Views count (channel-specific)
-  const viewCount = m.views ?? m.views_count ?? 0;
-  if (viewCount > 0) {
-    const views = document.createElement('span');
-    views.className = 'ch-views';
-    views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(viewCount);
-    bottom.appendChild(views);
+  // Meta for media-only / no-text messages
+  if (!hasText && m.media_type !== 'voice') {
+    if (mediaOnly) {
+      body.appendChild(_chMakeMeta(m, sending));
+    } else if (!mediaCaption) {
+      const bottom = document.createElement('div');
+      bottom.className = 'mbottom';
+      bottom.appendChild(_chMakeMeta(m, sending));
+      body.appendChild(bottom);
+    }
   }
 
-  // Reply count badge
-  const replyCount = m.replies_count || 0;
-  if (replyCount > 0) {
-    const replyBadge = document.createElement('span');
-    replyBadge.className = 'ch-reply-count';
-    replyBadge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> ' + replyCount;
-    replyBadge.style.cssText = 'cursor:pointer';
-    replyBadge.onclick = (e) => {
-      e.stopPropagation();
-      _openReplyPanel(m);
-    };
-    bottom.appendChild(replyBadge);
-  }
-
-  // Send indicator for admin messages only
-  if (isMe && isAdmin && !sending) {
-    const tick = document.createElement('span');
-    tick.className = 'tick';
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 18 11');
-    svg.setAttribute('width', '18');
-    svg.setAttribute('height', '11');
-    svg.setAttribute('fill', 'none');
-    const p2 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p2.setAttribute('d', 'M5 5.5l3 3L14 1');
-    p2.setAttribute('stroke', 'currentColor');
-    p2.setAttribute('stroke-width', '1.75');
-    p2.setAttribute('stroke-linecap', 'round');
-    p2.setAttribute('stroke-linejoin', 'round');
-    svg.appendChild(p2);
-    tick.appendChild(svg);
-    bottom.appendChild(tick);
-  }
-
-  if (sending) {
-    const sp = document.createElement('div');
-    sp.className = 'send-spinner';
-    bottom.appendChild(sp);
-  }
-
-  body.appendChild(bottom);
   bub.appendChild(body);
 
-  // Reactions
-  const rxns = S.chRxns[m.id] || m.reactions || [];
-  if (rxns.length && !sending) {
-    _renderChannelRxns(body, bub, m, rxns, isMe);
+  // Reactions for media-only messages (on .mbub, same as chat)
+  if (mediaOnly && hasRxns && !sending) {
+    const rw = document.createElement('div');
+    rw.className = 'rxn-wrap';
+    rw.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
+    rw.appendChild(typeof makeRxnRow === 'function' ? makeRxnRow(m.id, rxns) : _chMakeRxnRow(m.id, rxns));
+    bub.appendChild(rw);
+  }
+
+  // ── Channel-specific extras on bottom ──
+  // Views, reply count — appended as a separate .mbottom after body (only for non-text or when not using inline meta)
+  if (hasText && !mediaOnly) {
+    // For text messages, meta is inline (phantom spacer or rxns-only) — views/replies go in a separate row
+    const viewCount = m.views ?? m.views_count ?? 0;
+    const replyCount = m.replies_count || 0;
+    if (viewCount > 0 || replyCount > 0) {
+      const extra = document.createElement('div');
+      extra.className = 'mbottom ch-msg-extra';
+      if (viewCount > 0) {
+        const views = document.createElement('span');
+        views.className = 'ch-views';
+        views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(viewCount);
+        extra.appendChild(views);
+      }
+      if (replyCount > 0) {
+        const rb = document.createElement('span');
+        rb.className = 'ch-reply-count';
+        rb.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> ' + replyCount;
+        rb.onclick = (e) => { e.stopPropagation(); _openReplyPanel(m); };
+        extra.appendChild(rb);
+      }
+      bub.appendChild(extra);
+    }
   }
 
   // Inline comment footer (inside bubble)
   if (!sending) {
     const cmtCount = m.comments_count || 0;
     const commenters = m.last_commenters || [];
-
-    // Divider
     const divider = document.createElement('div');
     divider.className = 'ch-cmt-divider';
     bub.appendChild(divider);
-
-    // Comment bar
     const cmtBar = document.createElement('button');
     cmtBar.className = 'ch-cmt-bar';
     cmtBar.dataset.msgId = m.id;
-
     if (cmtCount > 0 && commenters.length > 0) {
-      // Stacked avatars
       const aviWrap = document.createElement('div');
       aviWrap.className = 'ch-cmt-avis';
       commenters.slice(0, 3).forEach((c, i) => {
@@ -973,24 +1030,16 @@ function _makeChannelMsgEl(m) {
         aviWrap.appendChild(avi);
       });
       cmtBar.appendChild(aviWrap);
-
-      // Text: "X комментариев"
       const label = document.createElement('span');
       label.className = 'ch-cmt-label';
       label.textContent = cmtCount + ' ' + 'комментари' + _pluralRu(cmtCount);
       cmtBar.appendChild(label);
-
-      // Unread dot (accent color) — show if message has unread comments
-      // We show the dot when there are comments (simplified; could add unread_comments tracking)
-      // For now: show dot only if current user hasn't interacted recently
     } else {
-      // No comments yet — show placeholder
       const label = document.createElement('span');
       label.className = 'ch-cmt-label ch-cmt-placeholder';
       label.textContent = 'оставить комментарий';
       cmtBar.appendChild(label);
     }
-
     cmtBar.onclick = (e) => { e.stopPropagation(); _openCommentsPanel(m); };
     bub.appendChild(cmtBar);
   }
@@ -1020,25 +1069,62 @@ function _makeChannelMsgEl(m) {
   return row;
 }
 
-function _renderChannelRxns(body, bub, m, rxns, isMe) {
-  const sorted = [...rxns].sort((a, b) => b.count - a.count);
-  const wrap = document.createElement('div');
-  wrap.className = 'rxn-wrap';
-  wrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;width:100%';
+/* ── Channel meta builder (mirrors chat makeMeta, with channel extras) ── */
+function _chMakeMeta(m, sending = false, cls = 'mmeta') {
+  const meta = document.createElement('div');
+  meta.className = cls;
+  if (m.is_edited) {
+    const ed = document.createElement('span');
+    ed.className = 'med';
+    const ns = 'http://www.w3.org/2000/svg';
+    const sv = document.createElementNS(ns, 'svg');
+    sv.setAttribute('viewBox', '0 0 16 16');
+    sv.setAttribute('width', '12');
+    sv.setAttribute('height', '12');
+    sv.setAttribute('fill', 'none');
+    const p = document.createElementNS(ns, 'path');
+    p.setAttribute('d', 'M11.5 2.5a1.5 1.5 0 0 1 2.12 2.12l-8 8a2 2 0 0 1-.76.46l-2.5.83.83-2.5a2 2 0 0 1 .46-.76l7.85-7.85z');
+    p.setAttribute('stroke', 'currentColor');
+    p.setAttribute('stroke-width', '1.5');
+    p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round');
+    sv.appendChild(p);
+    ed.appendChild(sv);
+    meta.appendChild(ed);
+  }
+  if (sending) {
+    const sp = document.createElement('div');
+    sp.className = 'send-spinner';
+    meta.appendChild(sp);
+  } else {
+    const ts = document.createElement('span');
+    ts.className = 'mtime';
+    ts.textContent = fmtTime(m.sent_at);
+    meta.appendChild(ts);
+  }
+  return meta;
+}
+
+/* ── Channel reaction row builder (fallback if makeRxnRow not available) ── */
+function _chMakeRxnRow(msgId, rxns) {
+  if (typeof makeRxnRow === 'function') return makeRxnRow(msgId, rxns);
   const row = document.createElement('div');
   row.className = 'rxns';
-  row.dataset.for = m.id;
-  
-  sorted.forEach(r => {
-    const chip = document.createElement('span');
+  row.dataset.for = msgId;
+  rxns.forEach(r => {
+    const chip = document.createElement('div');
     chip.className = 'rxn' + (r.by_me ? ' mine' : '');
+    chip.dataset.msg = msgId;
     chip.dataset.emoji = r.emoji;
-    chip.innerHTML = '<span class="rxn-e">' + r.emoji + '</span><span class="rxn-n">' + r.count + '</span>';
-    chip.onclick = (e) => { e.stopPropagation(); _toggleChRxn(m, r.emoji, r.by_me); };
+    const ico = document.createElement('span');
+    ico.className = 'rxn-ico emo-s';
+    ico.textContent = r.emoji;
+    chip.appendChild(ico);
+    chip.appendChild(Object.assign(document.createElement('span'), { className: 'rxn-n', textContent: r.count }));
+    chip.onclick = () => { _toggleChRxn(msgId, r.emoji, !!(r.by_me)); };
     row.appendChild(chip);
   });
-  wrap.appendChild(row);
-  bub.appendChild(wrap);
+  return row;
 }
 
 async function _toggleChRxn(m, emoji, byMe) {
