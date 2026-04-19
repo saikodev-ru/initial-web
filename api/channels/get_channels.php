@@ -8,6 +8,7 @@ require_once __DIR__ . '/../helpers.php';
 set_cors_headers();
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') json_err('method_not_allowed', 'Только GET', 405);
 
+try {
 $me = auth_user();
 
 $uid = (int) $me['id'];
@@ -54,7 +55,7 @@ $stmt = $db->prepare(
 $stmt->execute([$uid]);
 $rows = $stmt->fetchAll();
 
-$channels = array_map(function ($c) {
+$channels = array_map(function ($c) use ($db) {
     $last = null;
     if ($c['last_msg_id'] !== null) {
         $last = [
@@ -90,7 +91,7 @@ $channels = array_map(function ($c) {
         'member_role'        => $c['member_role'],
         'my_role'            => $c['member_role'],
         'owner_id'           => (int) $c['owner_id'],
-        'members_count'      => (int) $c['members_count'],
+        'members_count'      => (int) $c['member_count'],
         'who_can_post'       => $c['who_can_post'] ?? 'admins',
         'slow_mode_seconds'  => (int) ($c['slow_mode_seconds'] ?? 0),
         'muted'              => !empty($c['is_muted']),
@@ -101,3 +102,8 @@ $channels = array_map(function ($c) {
 }, $rows);
 
 json_ok(['channels' => $channels]);
+
+} catch (\Throwable $e) {
+    error_log('get_channels error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    json_err('server_error', 'Ошибка загрузки каналов: ' . $e->getMessage(), 500);
+}
