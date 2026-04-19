@@ -51,6 +51,7 @@ if ($isInit) {
         'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
                 m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
                 m.sent_at, m.is_edited, m.views_count, m.comments_count,
+                (SELECT COUNT(*) FROM channel_messages cm2 WHERE cm2.reply_to = m.id AND cm2.is_deleted = 0) AS replies_count,
                 u.nickname AS sender_name, u.avatar_url AS sender_avatar
          FROM channel_messages m
          JOIN users u ON u.id = m.sender_id
@@ -65,6 +66,7 @@ if ($isInit) {
         'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
                 m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
                 m.sent_at, m.is_edited, m.views_count, m.comments_count,
+                (SELECT COUNT(*) FROM channel_messages cm2 WHERE cm2.reply_to = m.id AND cm2.is_deleted = 0) AS replies_count,
                 u.nickname AS sender_name, u.avatar_url AS sender_avatar
          FROM channel_messages m
          JOIN users u ON u.id = m.sender_id
@@ -79,6 +81,7 @@ if ($isInit) {
         'SELECT m.id, m.sender_id, m.body, m.media_url, m.media_type, m.media_spoiler,
                 m.batch_id, m.reply_to, m.media_file_name, m.media_file_size,
                 m.sent_at, m.is_edited, m.views_count, m.comments_count,
+                (SELECT COUNT(*) FROM channel_messages cm2 WHERE cm2.reply_to = m.id AND cm2.is_deleted = 0) AS replies_count,
                 u.nickname AS sender_name, u.avatar_url AS sender_avatar
          FROM channel_messages m
          JOIN users u ON u.id = m.sender_id
@@ -216,6 +219,7 @@ $messages = array_map(function ($m) use ($reactionsMap, $commentersMap) {
         'is_edited'        => (int) $m['is_edited'],
         'views_count'      => (int) $m['views_count'],
         'comments_count'   => (int) ($m['comments_count'] ?? 0),
+        'replies_count'   => (int) ($m['replies_count'] ?? 0),
         'last_commenters'  => $commentersMap[$m['id']] ?? [],
         'reactions'        => $reactionsMap[$m['id']] ?? [],
     ];

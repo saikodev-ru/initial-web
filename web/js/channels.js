@@ -732,7 +732,8 @@ function _makeChannelMsgEl(m) {
 
   // Reply
   if (m.reply_to) {
-    const orig = (S.channelMsgs[ch?.channel_id] || S.msgs[S.chatId] || []).find(x => x.id == m.reply_to);
+    const _chId = S.activeChannel?.channel_id;
+    const orig = (S.channelMsgs[_chId] || []).find(x => x.id == m.reply_to);
     let rText = 'Сообщение';
     if (orig) rText = hideSpoilerText(orig.body) || 'Медиа';
     const rName = orig ? (orig.nickname || orig.sender_name || 'Автор') : '—';
@@ -887,6 +888,20 @@ function _makeChannelMsgEl(m) {
     views.className = 'ch-views';
     views.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> ' + _fmtViews(viewCount);
     bottom.appendChild(views);
+  }
+
+  // Reply count badge
+  const replyCount = m.replies_count || 0;
+  if (replyCount > 0) {
+    const replyBadge = document.createElement('span');
+    replyBadge.className = 'ch-reply-count';
+    replyBadge.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 0 1 8 8v2M3 10l6 6m-6-6l6-6"/></svg> ' + replyCount;
+    replyBadge.style.cssText = 'cursor:pointer';
+    replyBadge.onclick = (e) => {
+      e.stopPropagation();
+      _openReplyPanel(m);
+    };
+    bottom.appendChild(replyBadge);
   }
 
   // Send indicator for admin messages only
@@ -1247,38 +1262,60 @@ function _openCommentsPanel(m) {
   const ch = S.activeChannel;
   if (!ch) return;
   _closeCommentsPanel();
-  
   S.chCommentsMsgId = m.id;
-  
+
   const panel = document.createElement('div');
   panel.className = 'ch-comments-panel';
   panel.id = 'ch-comments-panel';
-  
-  panel.innerHTML = '<div class="ch-comments-hdr">' +
+
+  // Blurred background layer (including custom background)
+  const overlay = document.createElement('div');
+  overlay.className = 'ch-comments-overlay';
+  const bgUrl = S.chatBg || S.userBgUrl || '';
+  if (bgUrl) {
+    overlay.innerHTML = '<div class="blur-bg-img" style="background-image:url(' + esc(bgUrl) + ')"></div><div class="blur-bg-ov"></div>';
+  }
+  panel.appendChild(overlay);
+
+  // Foreground content
+  const fg = document.createElement('div');
+  fg.className = 'ch-comments-fg';
+
+  // Header
+  fg.innerHTML = '<div class="ch-comments-hdr">' +
     '<button class="ch-comments-back" id="ch-cmt-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>' +
     '<span class="ch-comments-title">Комментарии</span>' +
     '<span class="ch-comments-count" id="ch-cmt-total"></span>' +
     '</div>' +
-    '<div class="ch-comments-list" id="ch-comments-list"></div>' +
+    '<div class="ch-comments-scroll" id="ch-comments-scroll"></div>' +
     '<div class="ch-comments-input">' +
       '<div class="rbar" id="ch-cmt-rbar" style="display:none"><div class="rbar-info"><div class="rbar-who" id="ch-cmt-rbar-who"></div><div class="rbar-txt" id="ch-cmt-rbar-txt"></div></div><div class="rbar-x" id="ch-cmt-rbar-x"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></div></div>' +
       '<div contenteditable="true" class="ch-cmt-field" id="ch-cmt-field" placeholder="Написать комментарий..."></div>' +
       '<button class="ch-cmt-send" id="ch-cmt-send"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>' +
     '</div>';
-  
+
+  panel.appendChild(fg);
   document.body.appendChild(panel);
   requestAnimationFrame(() => panel.classList.add('on'));
-  
-  // Close button
+
+  // Render the original post at top of scroll area
+  const scrollArea = $('ch-comments-scroll');
+  if (scrollArea) {
+    const postEl = _makeChannelMsgEl(m);
+    postEl.style.pointerEvents = 'none';
+    postEl.querySelector('.ch-fwd-btn')?.remove();
+    const postWrap = document.createElement('div');
+    postWrap.className = 'ch-comments-post';
+    postWrap.appendChild(postEl);
+    scrollArea.appendChild(postWrap);
+  }
+
   $('ch-cmt-back').onclick = () => _closeCommentsPanel();
-  
-  // Send comment
   $('ch-cmt-send').onclick = () => _sendComment();
   $('ch-cmt-field').onkeydown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _sendComment(); }
   };
-  
-  // Load comments
+
   _loadComments(ch.channel_id, m.id);
 }
 
@@ -1288,38 +1325,112 @@ function _closeCommentsPanel() {
   if (panel) panel.remove();
 }
 
+/* ══ REPLY PANEL (fullscreen, shows replies to a message) ═════════ */
+function _openReplyPanel(m) {
+  const ch = S.activeChannel;
+  if (!ch) return;
+  const _chId = ch.channel_id;
+  const replies = (S.channelMsgs[_chId] || []).filter(x => x.reply_to == m.id);
+  if (!replies.length) { toast('Нет ответов', 'info'); return; }
+
+  // Reuse comments panel structure for replies
+  _closeCommentsPanel();
+  S.chCommentsMsgId = m.id;
+
+  const panel = document.createElement('div');
+  panel.className = 'ch-comments-panel';
+  panel.id = 'ch-comments-panel';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'ch-comments-overlay';
+  const bgUrl = S.chatBg || S.userBgUrl || '';
+  if (bgUrl) {
+    overlay.innerHTML = '<div class="blur-bg-img" style="background-image:url(' + esc(bgUrl) + ')"></div><div class="blur-bg-ov"></div>';
+  }
+  panel.appendChild(overlay);
+
+  const fg = document.createElement('div');
+  fg.className = 'ch-comments-fg';
+  fg.innerHTML = '<div class="ch-comments-hdr">' +
+    '<button class="ch-comments-back" id="ch-cmt-back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>' +
+    '<span class="ch-comments-title">Ответы</span>' +
+    '<span class="ch-comments-count" id="ch-cmt-total">' + replies.length + '</span>' +
+    '</div>' +
+    '<div class="ch-comments-scroll" id="ch-comments-scroll"></div>';
+
+  panel.appendChild(fg);
+  document.body.appendChild(panel);
+  requestAnimationFrame(() => panel.classList.add('on'));
+
+  const scrollArea = $('ch-comments-scroll');
+  if (scrollArea) {
+    // Show original post
+    const postEl = _makeChannelMsgEl(m);
+    postEl.style.pointerEvents = 'none';
+    postEl.querySelector('.ch-fwd-btn')?.remove();
+    const postWrap = document.createElement('div');
+    postWrap.className = 'ch-comments-post';
+    postWrap.appendChild(postEl);
+    scrollArea.appendChild(postWrap);
+
+    // Show replies as chat-style messages
+    replies.forEach(r => {
+      const replyEl = _makeChannelMsgEl(r);
+      replyEl.querySelector('.ch-fwd-btn')?.remove();
+      scrollArea.appendChild(replyEl);
+    });
+  }
+
+  $('ch-cmt-back').onclick = () => _closeCommentsPanel();
+}
+
 async function _loadComments(chId, msgId) {
-  const list = $('ch-comments-list');
-  if (!list) return;
-  list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Загрузка...</div>';
-  
+  const scroll = $('ch-comments-scroll');
+  if (!scroll) return;
+
+  // Keep the post element, remove only comment items
+  scroll.querySelectorAll('.ch-comment-item').forEach(e => e.remove());
+  const loadingEl = document.createElement('div');
+  loadingEl.style.cssText = 'text-align:center;padding:30px;color:var(--t3)';
+  loadingEl.textContent = 'Загрузка...';
+  scroll.appendChild(loadingEl);
+
   try {
     const res = await api('get_channel_comments?channel_id=' + chId + '&message_id=' + msgId + '&limit=100');
     const total = $('ch-cmt-total');
     if (total) total.textContent = res.total ? res.total + '' : '';
-    
+
+    // Remove loading
+    loadingEl.remove();
+
     if (!res.ok || !res.comments?.length) {
-      list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Пока нет комментариев</div>';
+      // Keep "no comments" text minimal or hide if there's a post
       return;
     }
-    
-    list.innerHTML = '';
+
     res.comments.forEach(c => {
       const el = document.createElement('div');
-      el.className = 'ch-comment-item';
+      el.className = 'ch-comment-item' + (c.sender_id == S.user?.id ? ' is-me' : '');
       el.dataset.id = c.id;
       const isMe = c.sender_id == S.user?.id;
-      
-      el.innerHTML = '<div class="ch-comment-avi">' + aviHtml(c.sender_name || '?', c.sender_avatar) + '</div>' +
+
+      const aviHtml_c = (() => {
+        if (c.sender_avatar) {
+          return '<img src="' + getMediaUrl(c.sender_avatar) + '" alt="" loading="lazy">';
+        }
+        const color = _avatarColor(c.sender_name || '?');
+        return '<div style="width:100%;height:100%;background:' + color + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff">' + (c.sender_name || '?')[0].toUpperCase() + '</div>';
+      })();
+
+      el.innerHTML = '<div class="ch-comment-avi">' + aviHtml_c + '</div>' +
         '<div class="ch-comment-body">' +
           '<div class="ch-comment-head"><span class="ch-comment-name">' + esc(c.sender_name || 'Анон') + '</span>' +
             '<span class="ch-comment-time">' + fmtTime(c.sent_at) + '</span>' +
             (c.is_edited ? '<span class="med" title="ред."></span>' : '') +
           '</div>' +
-          '<div class="ch-comment-text">' + fmtText(c.body || '') + '</div>' +
+          '<div class="ch-comment-bubble"><div class="ch-comment-text">' + fmtText(c.body || '') + '</div></div>' +
         '</div>';
-      
-      // Reply to comment
+
       el.oncontextmenu = (e) => {
         e.preventDefault();
         const items = [
@@ -1342,12 +1453,12 @@ async function _loadComments(chId, msgId) {
         if (isMe) items.push({ label: 'Удалить', icon: '🗑', action: () => _deleteComment(c.id), danger: true });
         _showCtxMenu(e, items);
       };
-      
-      list.appendChild(el);
+
+      scroll.appendChild(el);
     });
-    list.scrollTop = list.scrollHeight;
+    scroll.scrollTop = scroll.scrollHeight;
   } catch(e) {
-    list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--t3)">Ошибка загрузки</div>';
+    loadingEl.remove();
   }
 }
 
@@ -1980,9 +2091,13 @@ function openChannelProfile(ch) {
 
   if (actsRow) actsRow.style.display = 'flex';
 
-  // Message button → open chat (already open, just close profile)
+  // Message button → "посты" (close profile, stay on channel)
   if (btnMsg) {
     btnMsg.style.display = 'flex';
+    const msgLbl = btnMsg.querySelector('.pm-act-lbl');
+    if (msgLbl) msgLbl.textContent = 'посты';
+    const msgIc = btnMsg.querySelector('.pm-act-ic');
+    if (msgIc) msgIc.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>';
     btnMsg.onclick = () => { closeMod('modal-partner'); };
   }
 
@@ -2012,40 +2127,54 @@ function openChannelProfile(ch) {
     };
   }
 
-  // ── Join / Leave dynamic button ──
-  const actsRow2 = $('pm-actions-row');
-  if (actsRow2) {
-    // Remove any existing join/leave button
+  // ── Join / Leave dynamic button (pm-actions style, first in row) ──
+  if (actsRow) {
     const existingJoinBtn = $('pm-btn-join');
     if (existingJoinBtn) existingJoinBtn.remove();
+
+    const joinBtn = document.createElement('button');
+    joinBtn.id = 'pm-btn-join';
+    joinBtn.className = 'pm-action-btn' + (ch.is_member ? ' muted' : '');
     
-    if (!ch.is_member && ch.type !== 'private') {
-      // Show "Join" button for non-members of public channels
-      const joinBtn = document.createElement('button');
-      joinBtn.id = 'pm-btn-join';
-      joinBtn.className = 'btn pm-act-btn';
-      joinBtn.style.cssText = 'display:flex;flex:1;justify-content:center;align-items:center;gap:6px;padding:10px;border-radius:14px;font-size:14px;font-weight:600';
-      joinBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg> Вступить';
+    let joinIconSvg, joinLabel;
+    if (ch.is_member) {
+      // Already a member — show "Выйти" with exit icon
+      joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+      joinLabel = 'выйти';
+    } else if (ch.type !== 'private') {
+      joinIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>';
+      joinLabel = 'вступить';
+    } else {
+      joinBtn.style.display = 'none';
+    }
+
+    if (joinBtn.style.display !== 'none') {
+      joinBtn.innerHTML = '<div class="pm-act-circle"><div class="pm-act-ic">' + joinIconSvg + '</div></div><span class="pm-act-lbl">' + joinLabel + '</span>';
       joinBtn.onclick = async () => {
-        joinBtn.disabled = true;
-        joinBtn.textContent = 'Вступление...';
-        const res = await api('join_channel', 'POST', { channel_id: ch.channel_id });
-        joinBtn.disabled = false;
-        if (res.ok) {
-          toast('Вы подписались!', 'ok');
-          await loadChannels();
-          // Re-fetch channel info to update profile
-          try {
-            const info = await api('get_channel_info?channel_id=' + ch.channel_id);
-            if (info.ok) {
-              const updatedCh = { ...ch, ...info, channel_id: ch.channel_id };
-              S.activeChannel = updatedCh;
-              openChannelProfile(updatedCh);
-            }
-          } catch(e) {}
-        } else toast(res.message || 'Ошибка', 'err');
+        if (ch.is_member) {
+          if (!confirm('Покинуть канал?')) return;
+          await _leaveChannel(ch.channel_id);
+        } else {
+          joinBtn.disabled = true;
+          const origLabel = joinBtn.querySelector('.pm-act-lbl');
+          if (origLabel) origLabel.textContent = '...';
+          const res = await api('join_channel', 'POST', { channel_id: ch.channel_id });
+          joinBtn.disabled = false;
+          if (res.ok) {
+            toast('Вы подписались!', 'ok');
+            await loadChannels();
+            try {
+              const info = await api('get_channel_info?channel_id=' + ch.channel_id);
+              if (info.ok) {
+                const updatedCh = { ...ch, ...info, channel_id: ch.channel_id };
+                S.activeChannel = updatedCh;
+                openChannelProfile(updatedCh);
+              }
+            } catch(e) {}
+          } else toast(res.message || 'Ошибка', 'err');
+        }
       };
-      actsRow2.appendChild(joinBtn);
+      actsRow.insertBefore(joinBtn, actsRow.firstChild);
     }
   }
 
@@ -2068,9 +2197,9 @@ function openChannelProfile(ch) {
         btnReport.onclick = () => { closeMod('modal-partner'); showChannelSettings(ch); };
       }
     } else {
-      if (blockLbl) blockLbl.textContent = 'Покинуть канал';
+      if (blockLbl) blockLbl.textContent = 'Пожаловаться';
       if (btnBlock) {
-        btnBlock.onclick = () => { closeMod('modal-partner'); _leaveChannel(ch.channel_id); };
+        btnBlock.onclick = () => { closeMod('modal-partner'); toast('Жалоба отправлена', 'ok'); };
       }
       if (reportLbl) reportLbl.textContent = 'Настройки канала';
       if (btnReport) {
