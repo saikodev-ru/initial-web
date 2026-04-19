@@ -7974,10 +7974,82 @@ input[name="ch-type"]:checked+.ch-type-opt{
   .ch-msg .mbub{max-width:min(400px,92%)}
 }
 
-/* ── 10. Channel create panel — profile-panel style ──────── */
-#modal-ch-create .pm-name-row input::placeholder{
-  color:var(--t3);font-weight:400;
+/* ── 10. Channel create panel — clean centered layout ──────── */
+/* Header area: centered avatar + title */
+#modal-ch-create .ch-create-head{
+  display:flex;flex-direction:column;align-items:center;
+  padding:40px 24px 24px;gap:12px;
 }
+/* Round avatar — 80px circle with channel icon */
+#modal-ch-create .ch-create-avi{
+  width:80px;height:80px;border-radius:50%;
+  background:var(--t3);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;
+  transition:transform .15s var(--sp),box-shadow .2s;
+  box-shadow:0 2px 12px rgba(0,0,0,.15);
+}
+#modal-ch-create .ch-create-avi:hover{
+  transform:scale(1.05);
+  box-shadow:0 4px 20px rgba(0,0,0,.25);
+}
+#modal-ch-create .ch-create-avi:active{
+  transform:scale(.96);
+}
+/* Edit pencil badge */
+#modal-ch-create .ch-create-avi-edit{
+  position:absolute;bottom:0;right:0;
+  width:26px;height:26px;border-radius:50%;
+  background:var(--y);color:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  border:2.5px solid var(--bg);
+  box-shadow:0 2px 6px rgba(0,0,0,.25);
+  transition:transform .15s var(--sp);
+}
+#modal-ch-create .ch-create-avi:hover .ch-create-avi-edit{
+  transform:scale(1.1);
+}
+/* Panel title */
+#modal-ch-create .ch-create-title{
+  font-size:20px;font-weight:700;color:var(--t1);
+  letter-spacing:-.2px;
+}
+#modal-ch-create .ch-create-subtitle{
+  font-size:13px;color:var(--t3);font-weight:400;
+  margin-top:-4px;
+}
+/* Body: form fields */
+#modal-ch-create .ch-create-body{
+  padding:4px 16px 32px;display:flex;flex-direction:column;gap:2px;
+}
+/* Submit button wrap */
+#modal-ch-create .ch-create-submit-wrap{
+  padding:20px 0 8px;
+}
+/* Radio dot — channel type toggle */
+.ch-radio-dot{
+  width:20px;height:20px;border-radius:50%;
+  border:2px solid var(--b);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  transition:border-color .2s;
+}
+.ch-radio-dot div{
+  width:10px;height:10px;border-radius:50%;
+  background:transparent;
+  transition:background .2s;
+}
+.ch-radio-dot.on{
+  border-color:var(--y);
+}
+.ch-radio-dot.on div{
+  background:var(--y);
+}
+/* Type row styling */
+.ch-create-type-row .tg-row-body{
+  cursor:pointer;
+}
+/* Input placeholder */
 #modal-ch-create .tg-row textarea::placeholder,
 #modal-ch-create .tg-row input::placeholder{
   color:var(--t3);
@@ -7986,8 +8058,24 @@ input[name="ch-type"]:checked+.ch-type-opt{
 #modal-ch-create .tg-row input:focus{
   outline:none;
 }
-.ch-create-type-row .tg-row-body{
-  cursor:pointer;
+/* Light theme overrides for create panel */
+body[data-theme="light"] #modal-ch-create .ch-create-avi{
+  background:var(--t3);color:#fff;
+  border:3px solid var(--b);
+  box-shadow:0 2px 12px rgba(0,0,0,.06);
+}
+body[data-theme="light"] #modal-ch-create .ch-create-avi-edit{
+  border-color:#fff;
+  box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+body[data-theme="light"] .ch-radio-dot{
+  border-color:#ccc;
+}
+body[data-theme="light"] .ch-radio-dot.on{
+  border-color:var(--y);
+}
+body[data-theme="light"] .ch-radio-dot.on div{
+  background:var(--y);
 }
 /* ── Mobile: channel create panel full-width ── */
 @media(max-width:480px){

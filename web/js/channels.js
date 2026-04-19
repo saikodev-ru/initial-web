@@ -134,7 +134,8 @@ function _makeChannelItem(ch) {
 
   const name = ch.name || 'Канал';
   const desc = ch.description ? (ch.description.length > 50 ? ch.description.slice(0, 50) + '…' : ch.description) : '';
-  const lastMsg = ch.last_message ? (ch.last_message.length > 60 ? ch.last_message.slice(0, 60) + '…' : ch.last_message) : '';
+  const lastMsgBody = (ch.last_message && ch.last_message.body) ? ch.last_message.body : '';
+  const lastMsg = lastMsgBody.length > 60 ? lastMsgBody.slice(0, 60) + '…' : lastMsgBody;
   const time = ch.last_message_time ? fmtChatTime(ch.last_message_time) : '';
   const unread = ch.unread_count || 0;
   const isPrivate = ch.type === 'private';
@@ -1092,7 +1093,7 @@ function stopChannelSSE() {
   if (S.channelSSE) { S.channelSSE.abort(); S.channelSSE = null; }
 }
 
-/* ══ CREATE CHANNEL MODAL — Profile panel style ══════════════════ */
+/* ══ CREATE CHANNEL MODAL — Clean centered layout ══════════════════ */
 function showCreateChannelModal() {
   let overlay = $('modal-ch-create');
   if (overlay) overlay.remove();
@@ -1107,41 +1108,34 @@ function showCreateChannelModal() {
     </button>
 
     <div class="pm-scroll">
-      <div class="pm-hero">
-        <div class="pm-hero-bg" id="ch-create-hero-bg">
-          <div class="blur-bg-img" style="background:linear-gradient(135deg, hsl(250,50%,45%), hsl(280,50%,35%))"></div>
-          <div class="blur-bg-ov"></div>
-        </div>
-        <div class="pm-avi-wrap">
-          <label for="ch-create-avatar-input" class="pm-hero-avi" id="ch-create-av" style="cursor:pointer" title="Загрузить аватар">
-            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:hsl(250,50%,45%);color:#fff;border-radius:inherit">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48"><path d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5v-13A2.5 2.5 0 0 1 4.5 3zm0 2a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5h-15zM9 15.5l6-4.5-6-4.5v9z"/></svg>
-            </div>
-            <div style="position:absolute;bottom:2px;right:2px;width:28px;height:28px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-            </div>
-          </label>
-        </div>
+      <div class="ch-create-head">
+        <label for="ch-create-avatar-input" class="ch-create-avi" id="ch-create-av" title="Загрузить аватарку">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="36" height="36"><path d="M4.5 3h15A2.5 2.5 0 0 1 22 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 2 18.5v-13A2.5 2.5 0 0 1 4.5 3zm0 2a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5h-15zM9 15.5l6-4.5-6-4.5v9z"/></svg>
+          <div class="ch-create-avi-edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </div>
+        </label>
         <input type="file" id="ch-create-avatar-input" accept="image/*" style="display:none">
-        <div class="pm-hero-overlay" style="margin-top:-60px">
-          <div class="pm-hero-info">
-            <div class="pm-name-row" style="width:100%;justify-content:center">
-              <input type="text" id="ch-create-name" placeholder="Название канала" maxlength="100" style="
-                background:transparent;border:none;outline:none;text-align:left;
-                font-size:20px;font-weight:700;color:var(--t1);width:100%;
-                font-family:var(--font);padding:4px 0;
-                border-bottom:2px solid transparent;
-                transition:border-color .2s;
-              " onfocus="this.style.borderBottomColor='var(--y)'" onblur="this.style.borderBottomColor='transparent'">
+        <div class="ch-create-title">Создать канал</div>
+        <div class="ch-create-subtitle">Выберите аватарку и введите данные</div>
+      </div>
+
+      <div class="ch-create-body">
+        <div class="tg-section">
+          <div class="tg-row" style="align-items:flex-start;cursor:text">
+            <div class="tg-row-ic" style="color:var(--y);background:transparent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
-            <div class="pm-status-pill" style="cursor:default">
-              <span id="ch-create-subtitle" style="font-size:13px;color:var(--t3)">Новый канал</span>
+            <div class="tg-row-body" style="padding:6px 0">
+              <input type="text" id="ch-create-name" placeholder="Название канала" maxlength="100" style="
+                width:100%;border:none;outline:none;background:transparent;color:var(--t1);
+                font-family:var(--font);font-size:15px;font-weight:500;padding:0;
+              ">
+              <span class="tg-row-sub">Обязательное поле</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <div class="pm-body-zone" style="padding-top:8px">
         <div class="tg-section">
           <div class="tg-row" style="align-items:flex-start;cursor:text">
             <div class="tg-row-ic" style="color:var(--y);background:transparent">
@@ -1158,32 +1152,32 @@ function showCreateChannelModal() {
           </div>
         </div>
 
-        <div class="tg-section" style="margin-top:4px">
+        <div class="tg-section" id="ch-create-username-section">
           <div class="tg-row" style="cursor:text">
             <div class="tg-row-ic" style="color:var(--y);background:transparent">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             </div>
             <div class="tg-row-body">
               <input type="text" id="ch-create-username" placeholder="username" maxlength="32" style="
                 width:100%;border:none;outline:none;background:transparent;color:var(--t1);
                 font-family:var(--font);font-size:15px;padding:0;
               ">
-              <span class="tg-row-sub">Публичный @username</span>
+              <span class="tg-row-sub">Публичная ссылка t.me/<wbr>username</span>
             </div>
             <span style="color:var(--t3);font-size:15px;margin-right:4px">@</span>
           </div>
         </div>
 
-        <div class="tg-section" style="margin-top:4px">
+        <div class="tg-section">
           <div class="tg-row ch-create-type-row" id="ch-create-type-public" style="cursor:pointer" onclick="chCreateSetType('public')">
             <div class="tg-row-ic" style="background:transparent">
               <span style="font-size:22px">🌐</span>
             </div>
             <div class="tg-row-body">
-              <span class="tg-row-lbl">Публичный</span>
-              <span class="tg-row-sub">Виден всем, можно найти по @username</span>
+              <span class="tg-row-lbl">Публичный канал</span>
+              <span class="tg-row-sub">Виден всем, можно найти по ссылке</span>
             </div>
-            <div class="ch-radio-dot on" id="ch-dot-public" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--y);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:var(--y)"></div></div>
+            <div class="ch-radio-dot on" id="ch-dot-public"><div></div></div>
           </div>
           <div class="tg-row-sep"></div>
           <div class="tg-row ch-create-type-row" id="ch-create-type-private" style="cursor:pointer" onclick="chCreateSetType('private')">
@@ -1191,14 +1185,14 @@ function showCreateChannelModal() {
               <span style="font-size:22px">🔒</span>
             </div>
             <div class="tg-row-body">
-              <span class="tg-row-lbl">Приватный</span>
+              <span class="tg-row-lbl">Приватный канал</span>
               <span class="tg-row-sub">Доступ только по ссылке-приглашению</span>
             </div>
-            <div class="ch-radio-dot" id="ch-dot-private" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--b);display:flex;align-items:center;justify-content:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:transparent"></div></div>
+            <div class="ch-radio-dot" id="ch-dot-private"><div></div></div>
           </div>
         </div>
 
-        <div style="padding:20px 0">
+        <div class="ch-create-submit-wrap">
           <button class="btn" id="btn-ch-create-submit" style="width:100%;padding:13px;border-radius:14px;font-size:15px;font-weight:600">Создать канал</button>
         </div>
       </div>
@@ -1212,19 +1206,15 @@ function showCreateChannelModal() {
   window.chCreateSetType = function(type) {
     const pubDot = $('ch-dot-public');
     const prvDot = $('ch-dot-private');
-    const usernameRow = $('ch-create-username')?.closest('.tg-row');
+    const usernameSection = $('ch-create-username-section');
     if (type === 'public') {
-      pubDot.style.borderColor = 'var(--y)';
-      pubDot.querySelector('div').style.background = 'var(--y)';
-      prvDot.style.borderColor = 'var(--b)';
-      prvDot.querySelector('div').style.background = 'transparent';
-      if (usernameRow) usernameRow.style.display = '';
+      pubDot.classList.add('on');
+      prvDot.classList.remove('on');
+      if (usernameSection) usernameSection.style.display = '';
     } else {
-      prvDot.style.borderColor = 'var(--y)';
-      prvDot.querySelector('div').style.background = 'var(--y)';
-      pubDot.style.borderColor = 'var(--b)';
-      pubDot.querySelector('div').style.background = 'transparent';
-      if (usernameRow) usernameRow.style.display = 'none';
+      prvDot.classList.add('on');
+      pubDot.classList.remove('on');
+      if (usernameSection) usernameSection.style.display = 'none';
     }
     window._chCreateType = type;
   };
@@ -1243,7 +1233,7 @@ function showCreateChannelModal() {
       reader.onload = (e) => {
         if (avLabel) {
           avLabel.innerHTML = '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">' +
-            '<div style="position:absolute;bottom:2px;right:2px;width:28px;height:28px;border-radius:50%;background:var(--y);display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.3)"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></div>';
+            '<div class="ch-create-avi-edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></div>';
         }
       };
       reader.readAsDataURL(file);

@@ -15,6 +15,7 @@ require_rate_limit('link_preview', 20, 60);
  */
 function _ssrf_safe_fetch(string $url, string $pinnedIp, int $timeout = 6, int $maxBytes = 65536): string|false {
     $host = parse_url($url, PHP_URL_HOST);
+    $port = (int) (parse_url($url, PHP_URL_PORT) ?: (parse_url($url, PHP_URL_SCHEME) === 'https' ? 443 : 80));
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL            => $url,
@@ -23,17 +24,23 @@ function _ssrf_safe_fetch(string $url, string $pinnedIp, int $timeout = 6, int $
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 3,
         CURLOPT_CONNECTTIMEOUT => $timeout,
-        CURLOPT_RESOLVE        => ["{$host}:443:{$pinnedIp}", "{$host}:80:{$pinnedIp}"],
+        CURLOPT_RESOLVE        => ["{$host}:{$port}:{$pinnedIp}"],
         CURLOPT_USERAGENT      => 'InitialBot/1.0 (+https://initial.su)',
         CURLOPT_HTTPHEADER     => ['Accept: text/html,application/xhtml+xml'],
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_RANGE          => "0-{$maxBytes}",
+        // NOTE: CURLOPT_RANGE removed — some CDNs return 416 for Range requests,
+        // causing false failures. We truncate after download instead.
     ]);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    return ($httpCode >= 200 && $httpCode < 300) ? $result : false;
+    if ($httpCode < 200 || $httpCode >= 300) return false;
+    // Truncate to maxBytes (avoid processing huge pages)
+    if (is_string($result) && strlen($result) > $maxBytes) {
+        $result = substr($result, 0, $maxBytes);
+    }
+    return $result;
 }
 
 // Auth not required for public link previews, but rate-limit by IP
@@ -226,17 +233,27 @@ function extractMeta(string $html): array {
         if (isset($data[$prop]) && empty($data[$prop])) $data[$prop] = html_entity_decode($m2[1][$i], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
-    // Twitter card fallback
+    // Twitter card fallback (both attribute orders)
     if (empty($data['title'])) {
         preg_match('/<meta[^>]+name=["\']twitter:title["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i', $html, $m3);
+        if (empty($m3[1])) {
+            // Reversed: content before name
+            preg_match('/<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']twitter:title["\'][^>]*>/i', $html, $m3);
+        }
         if (!empty($m3[1])) $data['title'] = html_entity_decode($m3[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
     if (empty($data['description'])) {
         preg_match('/<meta[^>]+name=["\']twitter:description["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i', $html, $m4);
+        if (empty($m4[1])) {
+            preg_match('/<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']twitter:description["\'][^>]*>/i', $html, $m4);
+        }
         if (!empty($m4[1])) $data['description'] = html_entity_decode($m4[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
     if (empty($data['image'])) {
         preg_match('/<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i', $html, $m5);
+        if (empty($m5[1])) {
+            preg_match('/<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']twitter:image["\'][^>]*>/i', $html, $m5);
+        }
         if (!empty($m5[1])) $data['image'] = html_entity_decode($m5[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
@@ -245,9 +262,12 @@ function extractMeta(string $html): array {
         preg_match('/<title[^>]*>([^<]{1,200})<\/title>/is', $html, $mt);
         if (!empty($mt[1])) $data['title'] = html_entity_decode(trim($mt[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
-    // meta description fallback
+    // meta description fallback (both attribute orders)
     if (empty($data['description'])) {
         preg_match('/<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']*)["\'][^>]*>/i', $html, $md);
+        if (empty($md[1])) {
+            preg_match('/<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']description["\'][^>]*>/i', $html, $md);
+        }
         if (!empty($md[1])) $data['description'] = html_entity_decode($md[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
