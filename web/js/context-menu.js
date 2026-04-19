@@ -30,11 +30,13 @@ function showCtx(e, m) {
   $('ctx-copy').style.display = m.body ? 'flex' : 'none';
   $('ctx-pin').style.display = 'flex';
 
-  // Update pin label
+  // Update pin label + icon
   const pinLabel = $('ctx-pin-label');
+  const pinIcon = $('ctx-pin')?.querySelector('.pin-icon-tilted, .pin-icon-crossed');
   if(pinLabel) {
     const isPinned = S.pinnedMsgs && S.pinnedMsgs.some(p => p.message_id == m.id);
     pinLabel.textContent = isPinned ? 'Открепить' : 'Закрепить';
+    if(pinIcon) pinIcon.className = isPinned ? 'pin-icon-crossed' : 'pin-icon-tilted';
   }
   
   const bar = $('ctx-rxn-bar');
@@ -327,7 +329,9 @@ function showChatCtx(e, c) {
   const delBtn = $('chat-ctx-del');
   if(delBtn) delBtn.style.display = (c.is_protected || c.is_saved_msgs) ? 'none' : '';
   const lbl = $('chat-ctx-pin-label');
+  const chatPinIcon = $('chat-ctx-pin')?.querySelector('.pin-icon-tilted, .pin-icon-crossed');
   if(lbl) lbl.textContent = c.is_pinned ? 'Открепить' : 'Закрепить';
+  if(chatPinIcon) chatPinIcon.className = c.is_pinned ? 'pin-icon-crossed' : 'pin-icon-tilted';
   const profBtn = $('chat-ctx-profile');
   if (profBtn) profBtn.style.display = (c.is_saved_msgs || c.is_protected) ? 'none' : '';
   // Mute user button: show for regular chats (not saved msgs / system / protected)
