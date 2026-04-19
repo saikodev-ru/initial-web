@@ -131,6 +131,38 @@ if (!empty($avatarUrl)) {
 function esc(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
+
+/**
+ * Format bio: convert URLs and @mentions to clickable links.
+ * Must be called AFTER esc() to prevent XSS.
+ */
+function formatBio(string $bio): string {
+    // First escape HTML
+    $s = esc($bio);
+    // Convert URLs first — use placeholder to avoid @mention conflicts
+    $s = preg_replace_callback(
+        '~(https?://[a-zA-Z0-9._/~%&?=#\-+]+)~',
+        function($m) {
+            return "\x01URL\x02" . $m[1] . "\x03URL\x03";
+        },
+        $s
+    );
+    // Convert @mentions to profile links (won't match inside URL placeholders)
+    $s = preg_replace(
+        '/@([a-zA-Z0-9_]{3,32})(?![^<]*>)/',
+        '<a class="u-mention" href="/u/$1">@$1</a>',
+        $s
+    );
+    // Replace URL placeholders with actual links
+    $s = preg_replace_callback(
+        '/\x01URL\x02([^\x03]+)\x03URL\x03/',
+        function($m) {
+            return '<a href="' . $m[1] . '" target="_blank" rel="noopener noreferrer">' . $m[1] . '</a>';
+        },
+        $s
+    );
+    return $s;
+}
 ?><!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -192,23 +224,27 @@ body{
   -webkit-font-smoothing:antialiased;
   display:flex;flex-direction:column;
   align-items:center;justify-content:flex-start;
-  padding:32px 20px 40px;
+  padding:24px 20px 40px;
 }
 
-/* ══ Card — matches auth-screen ══ */
+/* ══ Card — vertical rounded rectangle ══ */
 .u-card{
   position:relative;z-index:1;
   width:380px;max-width:calc(100vw - 40px);
   animation:cardIn .4s var(--ease) both;
-  padding:0 2px;
   display:flex;flex-direction:column;align-items:center;
+  background:var(--bg2);
+  border-radius:24px;
+  padding:32px 28px 28px;
+  border:1px solid var(--s2);
+  box-shadow:0 8px 40px rgba(0,0,0,.35);
 }
 @keyframes cardIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
 
-/* ══ Logo — matches auth-logo ══ */
+/* ══ Logo — sits above the card ══ */
 .u-logo{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  margin-bottom:28px;
+  margin-bottom:24px;
 }
 .u-logo-name{font-size:52px;font-weight:900;letter-spacing:-2px;color:var(--t1)}
 
@@ -256,12 +292,29 @@ body{
   color:var(--y2);margin-bottom:8px;
 }
 
-/* Bio — matches auth-sub style */
+/* Bio — formatted with links */
 .u-bio{
-  font-size:15px;line-height:1.5;
+  font-size:15px;line-height:1.55;
   color:var(--t2);text-align:center;
   max-width:320px;word-break:break-word;
   white-space:pre-wrap;margin-bottom:8px;
+}
+.u-bio a{
+  color:var(--y2);text-decoration:none;
+  font-weight:600;
+  border-bottom:1px solid rgba(139,92,246,.3);
+  transition:color .15s,border-color .15s;
+}
+.u-bio a:hover{
+  color:var(--y);border-bottom-color:var(--y);
+}
+.u-bio a.u-mention{
+  border-bottom:none;
+  color:var(--y);
+  cursor:pointer;
+}
+.u-bio a.u-mention:hover{
+  text-decoration:underline;
 }
 
 /* Status */
@@ -313,23 +366,31 @@ body{
 .u-footer a{color:var(--t2);text-decoration:none;font-weight:600}
 .u-footer a:hover{color:var(--t1)}
 
-/* ══ Not found ══ */
+/* ══ Not found — also in a rounded card ══ */
 .u-notfound{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-height:100vh;min-height:100dvh;
   width:380px;max-width:calc(100vw - 40px);
   text-align:center;
   animation:cardIn .4s var(--ease) both;
+  background:var(--bg2);
+  border-radius:24px;
+  padding:32px 28px 28px;
+  border:1px solid var(--s2);
+  box-shadow:0 8px 40px rgba(0,0,0,.35);
 }
 .u-notfound-title{font-size:28px;font-weight:700;letter-spacing:-.4px;color:var(--t1);margin-bottom:12px}
 .u-notfound-desc{font-size:15px;color:var(--t2);line-height:1.5;margin-bottom:28px}
 
-/* ══ Loading skeleton ══ */
+/* ══ Loading skeleton — in a rounded card ══ */
 .u-loading{
   display:flex;flex-direction:column;align-items:center;
-  min-height:100vh;min-height:100dvh;
-  padding:60px 24px;
+  padding:40px 24px;
   animation:cardIn .4s var(--ease) both;
+  width:380px;max-width:calc(100vw - 40px);
+  background:var(--bg2);
+  border-radius:24px;
+  border:1px solid var(--s2);
+  box-shadow:0 8px 40px rgba(0,0,0,.35);
 }
 .u-skel-circle{
   width:100px;height:100px;border-radius:50%;
@@ -349,11 +410,11 @@ body{
 
 <?php if ($userFound): ?>
 <!-- SSR: User found -->
-<div class="u-card">
-  <div class="u-logo">
-    <div class="u-logo-name">Initial.</div>
-  </div>
+<div class="u-logo">
+  <div class="u-logo-name">Initial.</div>
+</div>
 
+<div class="u-card">
   <div class="u-profile">
     <div class="u-avatar">
       <?php if (!empty($avatarUrl)): ?>
@@ -373,7 +434,7 @@ body{
     <div class="u-sid">@<?php echo esc($signalId); ?></div>
 
     <?php if (!empty($bio)): ?>
-    <div class="u-bio"><?php echo esc($bio); ?></div>
+    <div class="u-bio"><?php echo formatBio($bio); ?></div>
     <?php endif; ?>
 
     <div class="u-status">Initial Messenger</div>
@@ -397,8 +458,10 @@ body{
 
 <?php elseif (empty($cleanId)): ?>
 <!-- No username -->
+<div class="u-logo">
+  <div class="u-logo-name">Initial.</div>
+</div>
 <div class="u-notfound">
-  <div class="u-logo-name" style="margin-bottom:20px">Initial.</div>
   <div class="u-notfound-title">Добро пожаловать</div>
   <div class="u-notfound-desc">Безопасный мессенджер нового поколения</div>
   <a class="u-btn u-btn-primary" href="/web/">Открыть Web</a>
@@ -406,10 +469,15 @@ body{
 
 <?php else: ?>
 <!-- Username not found — try CSR fallback -->
-<div class="u-loading" id="u-loading">
-  <div class="u-skel-circle"></div>
-  <div class="u-skel-line w60" style="height:20px"></div>
-  <div class="u-skel-line w40" style="height:14px"></div>
+<div id="u-loading-wrap">
+  <div class="u-logo">
+    <div class="u-logo-name">Initial.</div>
+  </div>
+  <div class="u-loading">
+    <div class="u-skel-circle"></div>
+    <div class="u-skel-line w60" style="height:20px"></div>
+    <div class="u-skel-line w40" style="height:14px"></div>
+  </div>
 </div>
 <div id="u-content" style="display:none"></div>
 <?php endif; ?>
@@ -456,7 +524,7 @@ body{
   }
 
   function renderProfile(user) {
-    var loading = document.getElementById('u-loading');
+    var loading = document.getElementById('u-loading-wrap');
     var content = document.getElementById('u-content');
     if (loading) loading.style.display = 'none';
     if (!content) return;
@@ -470,11 +538,11 @@ body{
       ? '<svg class="u-verified" viewBox="0 0 22 22"><path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="currentColor"/></svg>'
       : '';
 
-    var bioHtml = user.bio ? '<div class="u-bio">' + esc(user.bio) + '</div>' : '';
+    var bioHtml = user.bio ? '<div class="u-bio">' + formatBio(user.bio) + '</div>' : '';
 
     content.innerHTML =
+      '<div class="u-logo"><div class="u-logo-name">Initial.</div></div>' +
       '<div class="u-card">' +
-        '<div class="u-logo"><div class="u-logo-name">Initial.</div></div>' +
         '<div class="u-profile">' +
           '<div class="u-avatar">' + avatarHtml + '</div>' +
           '<div class="u-name-row">' +
@@ -503,14 +571,14 @@ body{
   }
 
   function showNotFound() {
-    var loading = document.getElementById('u-loading');
+    var loading = document.getElementById('u-loading-wrap');
     var content = document.getElementById('u-content');
     if (loading) loading.style.display = 'none';
     if (!content) return;
     content.style.display = 'block';
     content.innerHTML =
+      '<div class="u-logo"><div class="u-logo-name">Initial.</div></div>' +
       '<div class="u-notfound">' +
-        '<div class="u-logo-name" style="margin-bottom:20px">Initial.</div>' +
         '<div class="u-notfound-title">Пользователь не найден</div>' +
         '<div class="u-notfound-desc">Аккаунт @' + esc(signalId) + ' не найден или не существует</div>' +
         '<a class="u-btn u-btn-primary" href="/web/">Открыть Initial</a>' +
@@ -521,6 +589,25 @@ body{
     var d = document.createElement('div');
     d.textContent = s || '';
     return d.innerHTML;
+  }
+
+  /**
+   * Format bio: convert URLs and @mentions to clickable links.
+   * Applied after esc() for safety.
+   */
+  function formatBio(text) {
+    var s = esc(text);
+    // Convert URLs to clickable links first (before @mentions to avoid conflicts)
+    s = s.replace(/(https?:\/\/[a-zA-Z0-9._\/~%&?=#\-+]+)/g, function(url) {
+      return '\x01URL\x02' + url + '\x03URL\x03';
+    });
+    // Convert @mentions to profile links
+    s = s.replace(/@([a-zA-Z0-9_]{3,32})/g, '<a class="u-mention" href="/u/$1">@$1</a>');
+    // Now replace URL placeholders with actual links
+    s = s.replace(/\x01URL\x02([^\x03]+)\x03URL\x03/g, function(m, url) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+    });
+    return s;
   }
 })();
 </script>
