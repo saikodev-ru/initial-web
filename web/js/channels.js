@@ -978,21 +978,50 @@ async function sendChannelText() {
       }
       // Remove sending state from temp bubble
       const tmpEl = document.querySelector('.mrow[data-id="' + (res.message_id || tid) + '"]');
-      if (tmpEl) tmpEl.classList.remove('sending');
+      if (tmpEl) {
+        tmpEl.classList.remove('sending');
+        const mbody = tmpEl.querySelector('.mbody');
+        if (mbody) mbody.classList.remove('sending');
+        const sp = tmpEl.querySelector('.send-spinner');
+        if (sp) sp.remove();
+      }
       cacheWriteChannel(chId, S.channelMsgs[chId]);
     } else {
-      // Show specific API error message for debugging
       const errMsg = res.message || res.error || 'Ошибка отправки';
       toast(errMsg, 'err');
       console.warn('[channel] send error:', res);
       const el = document.querySelector('.mrow[data-id="' + tid + '"]');
-      if (el) { el.classList.add('msg-err'); }
+      if (el) {
+        el.classList.remove('sending');
+        el.classList.add('msg-err');
+        const mbody = el.querySelector('.mbody');
+        if (mbody) mbody.classList.remove('sending');
+        const sp = el.querySelector('.send-spinner');
+        if (sp) {
+          sp.classList.remove('send-spinner');
+          sp.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--err,#e74c3c)" stroke-width="2.5" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+          sp.style.animation = 'none';
+          sp.style.opacity = '.6';
+        }
+      }
     }
   } catch(e) {
     toast('Ошибка сети', 'err');
     console.warn('[channel] send network error:', e);
     const el = document.querySelector('.mrow[data-id="' + tid + '"]');
-    if (el) el.classList.add('msg-err');
+    if (el) {
+      el.classList.remove('sending');
+      el.classList.add('msg-err');
+      const mbody = el.querySelector('.mbody');
+      if (mbody) mbody.classList.remove('sending');
+      const sp = el.querySelector('.send-spinner');
+      if (sp) {
+        sp.classList.remove('send-spinner');
+        sp.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--err,#e74c3c)" stroke-width="2.5" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>';
+        sp.style.animation = 'none';
+        sp.style.opacity = '.6';
+      }
+    }
   }
 }
 

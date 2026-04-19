@@ -3728,6 +3728,9 @@ body[data-theme="light"] .mrow:not(.me).msg-flash .mbody::after {
 .mbody.media-only .send-spinner{border-color:rgba(255,255,255,.3);border-top-color:rgba(255,255,255,.9)}
 /* ── Media-only sending: keep opacity 1, we use our own overlay ── */
 .mbody.media-only.sending{opacity:1!important}
+/* ── Failed message state ── */
+.mrow.msg-err .mbody{opacity:.55}
+.mrow.msg-err .mbub{outline:1.5px solid rgba(231,76,60,.35);outline-offset:-1.5px;border-radius:inherit}
 /* ── Upload ring overlay (Telegram-style) ── */
 .media-upload-ov{
   position:absolute;inset:0;
