@@ -133,34 +133,99 @@ function esc(string $s): string {
 }
 
 /**
- * Format bio: convert URLs and @mentions to clickable links.
- * Must be called AFTER esc() to prevent XSS.
+ * Safe preg_replace — returns $subject unchanged if PCRE returns null (PHP 8 safety).
  */
-function formatBio(string $bio): string {
-    // First escape HTML
-    $s = esc($bio);
-    // Convert URLs first — use placeholder to avoid @mention conflicts
-    $s = preg_replace_callback(
-        '~(https?://[a-zA-Z0-9._/~%&?=#\-+]+)~',
-        function($m) {
-            return "\x01URL\x02" . $m[1] . "\x03URL\x03";
+function safePreReplace(string $pattern, string $replacement, string $subject, int $limit = -1): string {
+    $r = preg_replace($pattern, $replacement, $subject, $limit);
+    return $r === null ? $subject : $r;
+}
+
+/**
+ * Safe preg_replace_callback — returns $subject unchanged if PCRE returns null.
+ */
+function safePreReplaceCb(string $pattern, callable $callback, string $subject): string {
+    $r = preg_replace_callback($pattern, $callback, $subject);
+    return $r === null ? $subject : $r;
+}
+
+/**
+ * Format bio: full markdown + URLs + @mentions → HTML.
+ * Mirrors the JS fmtText() from web/js/utils.js.
+ * Supports: **bold**, *italic*, __underline__, ~~strikethrough~~, ||spoiler||, `code`, URLs, @mentions
+ *
+ * Pipeline:
+ *  1. Extract URLs & @mentions BEFORE escaping (preserve original chars)
+ *  2. HTML-escape remaining text
+ *  3. Apply markdown formatting (markers survive esc since they aren't HTML-special)
+ *  4. Restore extracted URLs/mentions
+ */
+function formatBio(?string $bio): string {
+    if ($bio === null || $bio === '') return '';
+
+    $cb = []; // callback buffer for extracted elements
+
+    // 1) Extract URLs BEFORE html-escaping (preserve original URL chars)
+    $s = safePreReplaceCb(
+        '~(https?://[^\s<>"\'\x00-\x1F\x7F]+)~u',
+        function ($m) use (&$cb) {
+            $url = $m[1];
+            $cb[] = '<a href="' . esc($url) . '" target="_blank" rel="noopener noreferrer">' . esc($url) . '</a>';
+            return "\x00" . (count($cb) - 1) . "\x00";
+        },
+        $bio
+    );
+
+    // 2) Extract @mentions BEFORE html-escaping
+    $s = safePreReplaceCb(
+        '~(?<![a-zA-Z0-9_@])@([a-zA-Z0-9_]{2,32})(?![a-zA-Z0-9_])~',
+        function ($m) use (&$cb) {
+            $name = $m[1];
+            $cb[] = '<a class="u-mention" href="/u/' . esc($name) . '">@' . esc($name) . '</a>';
+            return "\x00" . (count($cb) - 1) . "\x00";
         },
         $s
     );
-    // Convert @mentions to profile links (won't match inside URL placeholders)
-    $s = preg_replace(
-        '/@([a-zA-Z0-9_]{3,32})(?![^<]*>)/',
-        '<a class="u-mention" href="/u/$1">@$1</a>',
-        $s
-    );
-    // Replace URL placeholders with actual links
-    $s = preg_replace_callback(
-        '/\x01URL\x02([^\x03]+)\x03URL\x03/',
-        function($m) {
-            return '<a href="' . $m[1] . '" target="_blank" rel="noopener noreferrer">' . $m[1] . '</a>';
+
+    // 3) Escape remaining text for XSS safety
+    $s = esc($s);
+
+    // 4) Apply markdown formatting (markers survive esc since they aren't HTML-special)
+    // Inline code: `text`
+    $s = safePreReplaceCb(
+        '/`([^`\n]+)`/u',
+        function ($m) use (&$cb) {
+            $cb[] = '<code>' . $m[1] . '</code>';
+            return "\x00" . (count($cb) - 1) . "\x00";
         },
         $s
     );
+    // Bold: **text**
+    $s = safePreReplace('/\*\*(.+?)\*\*/us', '<strong>$1</strong>', $s);
+    // Italic: *text* (single *, not inside **)
+    $s = safePreReplace('/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/us', '<em>$1</em>', $s);
+    // Strikethrough: ~~text~~
+    $s = safePreReplace('/~~(.+?)~~/us', '<del>$1</del>', $s);
+    // Underline: __text__
+    $s = safePreReplace('/__(.+?)__/us', '<u>$1</u>', $s);
+    // Spoiler: ||text||
+    $s = safePreReplaceCb(
+        '/\|\|(.+?)\|\|/us',
+        function ($m) use (&$cb) {
+            $cb[] = '<span class="spoiler">' . $m[1] . '</span>';
+            return "\x00" . (count($cb) - 1) . "\x00";
+        },
+        $s
+    );
+
+    // 5) Restore all placeholders
+    $s = safePreReplaceCb(
+        '/\x00(\d+)\x00/',
+        function ($m) use (&$cb) {
+            return $cb[(int)$m[1]] ?? $m[0];
+        },
+        $s
+    );
+
     return $s;
 }
 ?><!DOCTYPE html>
@@ -315,6 +380,26 @@ body{
 }
 .u-bio a.u-mention:hover{
   text-decoration:underline;
+}
+/* Bio markdown formatting */
+.u-bio strong{color:var(--t1);font-weight:700}
+.u-bio em{font-style:italic;color:var(--t1)}
+.u-bio u{text-decoration:underline;text-underline-offset:2px}
+.u-bio del{text-decoration:line-through;opacity:.7}
+.u-bio code{
+  font-family:'SF Mono',Menlo,Consolas,monospace;
+  font-size:13px;background:var(--s1);
+  padding:1px 5px;border-radius:4px;
+}
+.u-bio .spoiler{
+  background:rgba(139,92,246,.18);
+  color:transparent;border-radius:4px;
+  cursor:pointer;transition:all .2s ease;
+  padding:0 2px;
+}
+.u-bio .spoiler.revealed{
+  background:rgba(139,92,246,.08);
+  color:var(--t2);
 }
 
 /* Status */
@@ -592,21 +677,33 @@ body{
   }
 
   /**
-   * Format bio: convert URLs and @mentions to clickable links.
-   * Applied after esc() for safety.
+   * Format bio: full markdown + URLs + @mentions → HTML.
+   * Mirrors PHP formatBio() and JS fmtText() from utils.js.
    */
   function formatBio(text) {
-    var s = esc(text);
-    // Convert URLs to clickable links first (before @mentions to avoid conflicts)
-    s = s.replace(/(https?:\/\/[a-zA-Z0-9._\/~%&?=#\-+]+)/g, function(url) {
-      return '\x01URL\x02' + url + '\x03URL\x03';
+    if (!text) return '';
+    var cb = [];
+    // 1) Extract URLs BEFORE escaping
+    var s = text.replace(/(https?:\/\/[^\s<>"'\x00-\x1F\x7F]+)/g, function(url) {
+      cb.push('<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + '</a>');
+      return '\x00' + (cb.length - 1) + '\x00';
     });
-    // Convert @mentions to profile links
-    s = s.replace(/@([a-zA-Z0-9_]{3,32})/g, '<a class="u-mention" href="/u/$1">@$1</a>');
-    // Now replace URL placeholders with actual links
-    s = s.replace(/\x01URL\x02([^\x03]+)\x03URL\x03/g, function(m, url) {
-      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + url + '</a>';
+    // 2) Extract @mentions BEFORE escaping
+    s = s.replace(/(?<![a-zA-Z0-9_@])@([a-zA-Z0-9_]{2,32})(?![a-zA-Z0-9_])/g, function(_, name) {
+      cb.push('<a class="u-mention" href="/u/' + esc(name) + '">@' + esc(name) + '</a>');
+      return '\x00' + (cb.length - 1) + '\x00';
     });
+    // 3) Escape remaining text
+    s = esc(s);
+    // 4) Markdown formatting
+    s = s.replace(/`([^`\n]+)`/g, function(_, c) { cb.push('<code>' + c + '</code>'); return '\x00' + (cb.length - 1) + '\x00'; });
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+    s = s.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    s = s.replace(/__(.+?)__/g, '<u>$1</u>');
+    s = s.replace(/\|\|(.+?)\|\|/g, function(_, c) { cb.push('<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">' + c + '</span>'); return '\x00' + (cb.length - 1) + '\x00'; });
+    // 5) Restore placeholders
+    s = s.replace(/\x00(\d+)\x00/g, function(_, i) { return cb[+i]; });
     return s;
   }
 })();
